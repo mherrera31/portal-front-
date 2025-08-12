@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Buscador y Calculadora de Compras</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <style>
+      :root {
+        --bg: #ffffff;
+        --fg: #1c1c1e;
+        --border: #d1d1d6;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        padding: 2rem 1rem;
+        margin: 0;
+      }
+      .card {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 2rem;
+        width: 100%;
+        max-width: 720px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+      }
+      input,
+      button {
+        width: 100%;
+        font-size: 1rem;
+        padding: 0.85rem 1rem;
+        border-radius: 0.75rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border);
+      }
+      button {
+        background-color: #000;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      button:hover {
+        background-color: #222;
+      }
+      #resultado,
+      #calculadora,
+      #resultadoCalc {
+        display: none;
+      }
+      img {
+        max-width: 240px;
+        border-radius: 1rem;
+        margin-bottom: 1rem;
+      }
+      .producto h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      .producto span {
+        display: inline-block;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: black;
+        margin-top: 0.25rem;
+      }
+      .option-block {
+        border: 1px solid #ececec;
+        border-radius: 0.5rem;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        background: #fbfbfb;
+      }
+      .option-header {
+        font-weight: 700;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.95rem;
+      }
+      .field {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .field:last-child {
+        border-bottom: none;
+      }
+      .subtle {
+        font-size: 0.85rem;
+        color: #777;
+      }
+      .spinner {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        border: 3px solid #ccc;
+        border-top-color: #000;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+
+    <style media="print">
+      body {
+        padding: 1rem;
+        margin: 0;
+        zoom: 80%;
+      }
+      .card {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+      img {
+        max-width: 150px;
+      }
+      .producto h3,
+      .producto span {
+        font-size: 1rem;
+      }
+      .field-block,
+      .option-block {
+        page-break-inside: avoid;
+      }
+      .field-block strong {
+        font-size: 0.9rem;
+      }
+      @page {
+        size: A4;
+        margin: 1.5cm;
+      }
+      .logo-print-only {
+        display: none;
+      }
+      @media print {
+        .logo-print-only {
+          display: block;
+          position: fixed;
+          top: 1rem;
+          right: 1rem;
+          width: 200px;
+          height: 90px;
+          z-index: 9999;
+        }
+        .logo-print-only img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo-visible" style="text-align: center; margin-bottom: 1rem">
+        <img
+          src="https://i.postimg.cc/G35hZmXg/Captura-de-pantalla-2025-08-06-a-la-s-3-36-08-p-m.png"
+          alt="Logo Panamá Shipping"
+          style="width: 200px; height: auto"
+        />
+      </div>
+
+      <div
+        id="resultado-producto"
+        style="text-align: center; margin-bottom: 1rem"
+      >
+        <img id="imagen-producto" style="display: none" />
+        <h3 id="titulo-producto" style="display: none"></h3>
+        <span id="precio-producto" style="display: none"></span>
+      </div>
+
+      <div id="buscador">
+        <h2>Buscar Producto</h2>
+        <input
+          id="linkBuscar"
+          placeholder="🔗 Pega el link del producto"
+          type="text"
+        />
+        <button id="btnBuscar" onclick="buscarProducto()">Buscar</button>
+        <button onclick="mostrarCalculadoraDirecto()">Saltar</button>
+        <div id="resultado"></div>
+      </div>
+
+      <div id="calculadora">
+        <hr />
+        <h2>Calculadora de Compras</h2>
+        <label>Link del producto</label>
+        <input id="link" placeholder="https://..." type="url" />
+        <label>Costo del producto ($)</label>
+        <input
+          id="costo"
+          min="0"
+          placeholder="Precio de Pagina"
+          step="0.01"
+          type="number"
+        />
+        <label>Abono ($) (opcional)</label>
+        <input
+          id="abono"
+          min="0"
+          placeholder="Abono"
+          step="0.01"
+          type="number"
+        />
+        <label>Peso aproximado (libras)</label>
+        <input
+          id="peso"
+          min="0"
+          placeholder="Peso Aprox. (libras)"
+          step="0.01"
+          type="number"
+        />
+        <button onclick="calcular()">Calcular</button>
+
+        <div id="resultadoCalc" style="margin-top: 1.5rem"></div>
+
+        <div id="accionesCalc" style="display: none">
+          <button onclick="limpiarTodo()">Limpiar</button>
+          <button id="btnImprimir" onclick="imprimirCotizacion()">
+            Imprimir
+          </button>
+        </div>
+      </div>
+
+      <div
+        style="
+          margin-top: 2rem;
+          background: #f9f9f9;
+          border: 1px solid #e0e0e0;
+          padding: 1rem 1.25rem;
+          border-radius: 1rem;
+          font-size: 0.9rem;
+          color: #333;
+        "
+      >
+        <strong style="display: block; margin-bottom: 0.5rem"
+          >IMPORTANTE</strong
+        >
+        EL PESO DEL PRODUCTO Y EL SALDO SE CANCELAN AL MOMENTO DE RETIRAR.
+        ABONOS MENORES A EL 80% DEL VALOR DEL PRODUCTO TIENEN UN COSTO DE
+        FINANCIAMIENTO DEL SALDO PENDIENTE.
+      </div>
+    </div>
+
+    <script>
+      const apiKey = "fcee4890ff2a9fd58e410400103b094d";
+
+      async function buscarProducto() {
+        const boton = document.getElementById("btnBuscar");
+        const link = document.getElementById("linkBuscar").value.trim();
+        const resultado = document.getElementById("resultado");
+        resultado.innerHTML = "";
+
+        boton.disabled = true;
+        boton.textContent = "Buscando...";
+
+        if (!link.includes("amazon.")) {
+          resultado.innerHTML =
+            "<p>⚠️ No se encontró el precio. Puede ingresarlo manualmente.</p>";
+          mostrarCalculadora(link);
+          boton.disabled = false;
+          boton.textContent = "Buscar";
+          return;
+        }
+
+        document.getElementById("titulo-producto").style.display = "none";
+        document.getElementById("precio-producto").style.display = "none";
+        document.getElementById("imagen-producto").style.display = "none";
+
+        setTimeout(() => {
+          resultado.innerHTML = `<p><span class="spinner"></span>Buscando producto en Amazon...</p>`;
+        }, 100);
+
+        const scrapeUrl = `https://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(
+          link
+        )}`;
+
+        try {
+          const res = await fetch(scrapeUrl);
+          const html = await res.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+
+          const titulo =
+            doc.querySelector("#productTitle")?.textContent?.trim() ||
+            "Sin título";
+          const precioRaw =
+            doc.querySelector("#priceblock_ourprice")?.textContent ||
+            doc.querySelector("#priceblock_dealprice")?.textContent ||
+            doc.querySelector(".a-price .a-offscreen")?.textContent ||
+            null;
+          const precio = precioRaw
+            ? parseFloat(precioRaw.replace(/[^0-9.]/g, ""))
+            : null;
+          const img =
+            doc.querySelector("#landingImage")?.src ||
+            doc.querySelector("#imgTagWrapperId img")?.src ||
+            null;
+
+          if (precio) {
+            if (img) {
+              const imagen = document.getElementById("imagen-producto");
+              imagen.src = img;
+              imagen.style.display = "block";
+            }
+            const tituloEl = document.getElementById("titulo-producto");
+            tituloEl.textContent = titulo;
+            tituloEl.style.display = "block";
+            const precioEl = document.getElementById("precio-producto");
+            precioEl.textContent = `$${precio.toFixed(2)}`;
+            precioEl.style.display = "inline-block";
+            document.getElementById("costo").value = precio.toFixed(2);
+            resultado.innerHTML = `
+            <div class="producto">
+              ${img ? `<img src="${img}" alt="Imagen del producto">` : ""}
+              <h3>${titulo}</h3>
+              <span>$${precio.toFixed(2)}</span>
+            </div>
+          `;
+            mostrarCalculadora(link, precio);
+          } else {
+            resultado.innerHTML = `<p>⚠️ No se encontró el precio. Puede ingresarlo manualmente.</p>`;
+            mostrarCalculadora(link);
+          }
+        } catch (error) {
+          resultado.innerHTML = `<p>❌ Error al buscar el producto.</p>`;
+          console.error(error);
+          mostrarCalculadora(link);
+        }
+
+        boton.disabled = false;
+        boton.textContent = "Buscar";
+      }
+
+      function mostrarCalculadora(link = "", precio = null) {
+        document.getElementById("calculadora").style.display = "block";
+        document.getElementById("link").value = link;
+        if (precio) document.getElementById("costo").value = precio.toFixed(2);
+      }
+
+      function calcular() {
+        const costo = parseFloat(document.getElementById("costo").value);
+        const abono =
+          parseFloat(document.getElementById("abono").value) || null; // se mantiene comportamiento original
+        const peso = parseFloat(document.getElementById("peso").value) || 0;
+
+        const contenedor = document.getElementById("resultadoCalc");
+        contenedor.style.display = "block";
+        contenedor.innerHTML = "";
+
+        const pesoLb = Math.ceil(peso);
+        const costoPeso = pesoLb * 2.95;
+
+        const comision = costo < 20 ? 5 : costo * 0.2;
+        const tarifa = 2.75;
+        const totalBase = costo + comision + tarifa;
+        const porc80 = costo * 0.8;
+
+        // ✅ Corregido: el saldo mostrado incluye el 30% cuando aplica
+        function calcularSaldo(abonoVal) {
+          if (abonoVal >= totalBase) {
+            return { totalFinal: abonoVal, abono: abonoVal, saldo: 0 };
+          }
+          const saldoBase = totalBase - abonoVal;
+          const saldoConFin = abonoVal > porc80 ? saldoBase : saldoBase * 1.3;
+          const totalFinal = abonoVal + saldoConFin;
+          return { totalFinal, abono: abonoVal, saldo: saldoConFin };
+        }
+
+        if (!abono) {
+          const opciones = [
+            { label: "Opción 1", pct: 1.0 },
+            { label: "Opción 2", pct: 0.6 },
+            { label: "Opción 3", pct: 0.25 },
+          ];
+          opciones.forEach((op) => {
+            const abonoVal = costo * op.pct;
+            const datos = calcularSaldo(abonoVal);
+            contenedor.innerHTML += `
+            <div class="option-block">
+              <div class="option-header">
+                <div>${op.label}</div>
+                <div class="subtle">${Math.round(op.pct * 100)}% del costo</div>
+              </div>
+              <div class="field"><div>Total de la compra:</div><div class="value">$${datos.totalFinal.toFixed(
+                2
+              )}</div></div>
+              <div class="field"><div>Abono:</div><div class="value">$${datos.abono.toFixed(
+                2
+              )}</div></div>
+              <div class="field"><div>Saldo a cancelar:</div><div class="value">$${datos.saldo.toFixed(
+                2
+              )}</div></div>
+            </div>
+          `;
+          });
+        } else {
+          const datos = calcularSaldo(abono);
+          contenedor.innerHTML += `
+          <div class="option-block">
+            <div class="option-header">
+              <div>Cotización personalizada</div>
+              <div class="subtle">Abono ingresado</div>
+            </div>
+            <div class="field"><div>Total de la compra:</div><div class="value">$${datos.totalFinal.toFixed(
+              2
+            )}</div></div>
+            <div class="field"><div>Abono:</div><div class="value">$${datos.abono.toFixed(
+              2
+            )}</div></div>
+            <div class="field"><div>Saldo a cancelar:</div><div class="value">$${datos.saldo.toFixed(
+              2
+            )}</div></div>
+          </div>
+        `;
+        }
+
+        if (peso > 0) {
+          contenedor.innerHTML += `
+          <div class="option-block">
+            <div class="option-header"><div>Peso estimado</div></div>
+            <div class="field"><div>Peso:</div><div class="value">${pesoLb} lb</div></div>
+            <div class="field"><div>Costo estimado del peso:</div><div class="value">$${costoPeso.toFixed(
+              2
+            )}</div></div>
+          </div>
+        `;
+        }
+
+        document.getElementById("accionesCalc").style.display = "block";
+      }
+
+      function limpiarTodo() {
+        document.getElementById("linkBuscar").value = "";
+        document.getElementById("link").value = "";
+        document.getElementById("costo").value = "";
+        document.getElementById("abono").value = "";
+        document.getElementById("peso").value = "";
+
+        document.getElementById("resultado").innerHTML = "";
+        document.getElementById("resultadoCalc").innerHTML = "";
+        document.getElementById("calculadora").style.display = "none";
+
+        const img = document.getElementById("imagen-producto");
+        const titulo = document.getElementById("titulo-producto");
+        const precio = document.getElementById("precio-producto");
+
+        img.src = "";
+        img.style.display = "none";
+        titulo.textContent = "";
+        titulo.style.display = "none";
+        precio.textContent = "";
+        precio.style.display = "none";
+
+        const boton = document.getElementById("btnBuscar");
+        boton.disabled = false;
+        boton.textContent = "Buscar";
+
+        document.getElementById("linkBuscar").focus();
+        document.getElementById("accionesCalc").style.display = "none";
+        document.getElementById("btnImprimir").style.display = "inline-block";
+      }
+
+      function mostrarCalculadoraDirecto() {
+        document.getElementById("resultado").innerHTML = "";
+        document.getElementById("imagen-producto").style.display = "none";
+        document.getElementById("titulo-producto").style.display = "none";
+        document.getElementById("precio-producto").style.display = "none";
+
+        document.getElementById("linkBuscar").value = "";
+        document.getElementById("link").value = "";
+        document.getElementById("costo").value = "";
+        document.getElementById("abono").value = "";
+        document.getElementById("peso").value = "";
+        document.getElementById("resultadoCalc").innerHTML = "";
+        document.getElementById("btnImprimir").style.display = "none";
+
+        document.getElementById("calculadora").style.display = "block";
+      }
+
+      document
+        .getElementById("linkBuscar")
+        .addEventListener("keydown", function (e) {
+          if (e.key === "Enter") buscarProducto();
+        });
+
+      function imprimirCotizacion() {
+        const link = document.getElementById("link").value;
+        const costo = document.getElementById("costo").value;
+        const abono = document.getElementById("abono").value;
+        const peso = document.getElementById("peso").value;
+
+        const imagen = document.getElementById("imagen-producto").outerHTML;
+        const titulo = document.getElementById("titulo-producto").textContent;
+        const precio = document.getElementById("precio-producto").textContent;
+        const resultadoCalc =
+          document.getElementById("resultadoCalc").innerHTML;
+        const notaLegal = document.querySelector(
+          "div[style*='margin-top: 2rem']"
+        ).outerHTML;
+
+        const ventana = window.open("", "", "height=800,width=600");
+        ventana.document.write(
+          "<html><head><title>Imprimir Cotización</title>"
+        );
+        ventana.document.write("<style>");
+        ventana.document.write(`
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 2rem; }
+        img { max-width: 200px; border-radius: 1rem; margin-bottom: 1rem; }
+        .producto { text-align: center; margin-bottom: 1rem; }
+        .producto h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .producto span { font-size: 1.25rem; font-weight: 600; color: black; margin-top: 0.25rem; display: inline-block; }
+        .field-block { margin-bottom: 1rem; }
+        .field-block strong { display: block; margin-bottom: 0.25rem; }
+        .option-block { border: 1px solid #ececec; border-radius: 0.5rem; padding: 10px 12px; margin-bottom: 12px; background: #fbfbfb; }
+        .option-header { font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; font-size: 0.95rem; }
+        .field { display: flex; justify-content: space-between; padding: 6px 0; font-size: 1rem; border-bottom: 1px solid #f0f0f0; }
+        .field:last-child { border-bottom: none; }
+        .subtle { font-size: 0.85rem; color: #777; }
+        @media print {
+          html, body { zoom: 80%; margin: 0; padding: 0; }
+          .producto img { max-width: 140px; }
+          .option-block, .field-block { page-break-inside: avoid; }
+          @page { size: A4; margin: 1cm; }
+        }
+      `);
+        ventana.document.write("</style></head><body>");
+
+        ventana.document.write(`
+        <div style="position: fixed; top: 1rem; right: 1rem; width: 200px; height: 90px; z-index: 9999;">
+          <img src="https://i.postimg.cc/G35hZmXg/Captura-de-pantalla-2025-08-06-a-la-s-3-36-08-p-m.png" style="width: 100%; height: 100%; object-fit: contain;" />
+        </div>
+      `);
+
+        ventana.document.write(`
+        <div class="producto">
+          ${imagen}
+          <h3>${titulo}</h3>
+          <span>${precio}</span>
+        </div>
+
+        <div class="field-block">
+          <strong>Link del producto:</strong>
+          <div>${link}</div>
+        </div>
+        <div class="field-block">
+          <strong>Costo del producto:</strong>
+          <div>$${costo}</div>
+        </div>
+        <div class="field-block">
+          <strong>Abono:</strong>
+          <div>$${abono || "—"}</div>
+        </div>
+        <div class="field-block">
+          <strong>Peso aproximado:</strong>
+          <div>${peso ? peso + " lb" : "—"}</div>
+        </div>
+
+        ${resultadoCalc}
+        ${notaLegal}
+      `);
+
+        ventana.document.write("</body></html>");
+        ventana.document.close();
+        ventana.focus();
+        ventana.print();
+        ventana.close();
+      }
+
+      document.getElementById("linkBuscar").focus();
+    </script>
+  </body>
+</html>
