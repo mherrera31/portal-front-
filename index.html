@@ -92,7 +92,7 @@
   <div class="bg" aria-hidden="true"></div>
 
   <header>
-    <a class="brand" href="/" aria-label="PSC Cargas — Inicio">
+    <a class="brand" href="/">
       <img class="logo" src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="PSC Cargas" width="70" height="70" decoding="async" loading="eager">
       <h1>PSC Cargas</h1>
     </a>
@@ -105,7 +105,7 @@
     </section>
 
     <section class="grid" aria-label="Lista de aplicaciones">
-      <a class="card" href="/adminpsc/" aria-label="Abrir Admin-PSC">
+      <a class="card" href="/adminpsc/" aria-labelledby="card-adminpsc-title" aria-describedby="card-adminpsc-desc">
         <div class="top">
           <div class="icon" aria-hidden="true">
             <!-- Icono paquete -->
@@ -115,13 +115,13 @@
               <path d="M12 12v10"/>
             </svg>
           </div>
-          <h3>Admin-PSC</h3>
+          <h3 id="card-adminpsc-title">Admin-PSC</h3>
         </div>
-        <p>Panel de administración y gestión de paquetes.</p>
+        <p id="card-adminpsc-desc">Panel de administración y gestión de paquetes.</p>
         <span class="cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg></span>
       </a>
 
-      <a class="card" href="/cotizacion/" aria-label="Abrir Cotización Formal">
+      <a class="card" href="/cotizacion/" aria-labelledby="card-cotizacion-title" aria-describedby="card-cotizacion-desc">
         <div class="top">
           <div class="icon" aria-hidden="true">
             <!-- Icono facturación/cotización (recibo) -->
@@ -132,13 +132,13 @@
               <path d="M10.5 16h3"/>
             </svg>
           </div>
-          <h3>Cotización Formal</h3>
+          <h3 id="card-cotizacion-title">Cotización Formal</h3>
         </div>
-        <p>Generación de cotizaciones oficiales.</p>
+        <p id="card-cotizacion-desc">Generación de cotizaciones oficiales.</p>
         <span class="cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg></span>
       </a>
 
-      <a class="card" href="/search/" aria-label="Abrir PSC Search">
+      <a class="card" href="/search/" aria-labelledby="card-search-title" aria-describedby="card-search-desc">
         <div class="top">
           <div class="icon" aria-hidden="true">
             <!-- Icono lupa (search) -->
@@ -147,11 +147,27 @@
               <path d="M21 21l-4.35-4.35"/>
             </svg>
           </div>
-          <h3>PSC Search</h3>
+          <h3 id="card-search-title">PSC Search</h3>
         </div>
-        <p>Buscar en Centro Dist. PSC.</p>
+        <p id="card-search-desc">Buscar en Centro Dist. PSC.</p>
         <span class="cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg></span>
       </a>
+
+      <a class="card" href="/compras/" aria-labelledby="card-compras-title" aria-describedby="card-compras-desc">
+        <div class="top">
+          <div class="icon" aria-hidden="true">
+            <!-- Icono compras (bolsa) -->
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 7h12v13H6z"/>
+              <path d="M9 7a3 3 0 0 1 6 0"/>
+            </svg>
+          </div>
+          <h3 id="card-compras-title">Compras</h3>
+        </div>
+        <p id="card-compras-desc">Accede a herramientas de compras.</p>
+        <span class="cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg></span>
+      </a>
+
     </section>
   </main>
 
