@@ -27,6 +27,12 @@
     .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 
+    /* Botón volver */
+    .toolbar{display:flex;align-items:center;padding:12px 18px 0}
+    .back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff;color:var(--ink);font-weight:700}
+    .back svg{width:16px;height:16px}
+    .back:active{transform:translateY(1px)}
+
     /* Header: SIEMPRE grid; sin absolute para evitar solapes en iOS */
     .head{
       display:grid;
@@ -113,6 +119,12 @@
 <body>
   <div class="wrap">
     <div class="card">
+      <div class="toolbar">
+        <a class="back" href="/" aria-label="Volver al inicio">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="#1c1c1e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Volver</span>
+        </a>
+      </div>
       <!-- Header -->
       <div class="head">
         <div class="searchBox">
@@ -301,3 +313,4 @@
   </script>
 </body>
 </html>
+
