@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PSC – Historial de Seguimiento</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --card:#fbfbfd;
+      --ink:#1c1c1e;
+      --muted:#6e6e73;
+      --line:#e7e7ed;
+      --accent:#0a84ff;
+      --warn:#ffd60a;
+      --orange:#ff9500;
+      --blue:#007aff;
+      --ok:#34c759;
+      --err:#ff3b30;
+      --shadow:0 1px 2px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.04);
+      --radius:16px;
+      --chip:#f5f5f7;
+      --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%;padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)}
+    .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+
+    /* Header: SIEMPRE grid; sin absolute para evitar solapes en iOS */
+    .head{
+      display:grid;
+      grid-template-columns:minmax(360px,1fr) 260px;
+      gap:16px;
+      align-items:start;
+      padding:18px;
+      border-bottom:1px solid var(--line);
+    }
+    @media (max-width:900px){
+      .head{grid-template-columns:1fr}
+      .qsum{text-align:left}
+    }
+
+    .searchBox{position:relative;max-width:660px}
+    .searchBox label{display:block;font-size:18px;color:var(--ink);font-weight:800;margin-bottom:10px}
+    .inputRow{position:relative}
+    .searchBox input{
+      width:100%;
+      appearance:none;-webkit-appearance:none;
+      border:1px solid var(--line);
+      background:#fff;color:var(--ink);
+      border-radius:14px;
+      padding:12px 152px 12px 14px;
+      outline:none;
+      transition:border .2s ease, box-shadow .2s ease;
+      font-size:16px; height:50px;
+    }
+    .searchBox input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(10,132,255,.12)}
+    .inputRow button{
+      position:absolute;top:50%;right:10px;transform:translateY(-50%);
+      height:44px;padding:0 18px;border:none;border-radius:999px;
+      background:#111;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)
+    }
+    .help{font-size:12px;color:var(--muted);margin-top:6px}
+
+    /* Resumen (columna derecha) */
+    .qsum{display:grid;grid-template-columns:1fr;gap:6px;align-content:start;text-align:right}
+    .qrow{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:14px}
+    .qrow span{color:var(--muted);min-width:90px}
+    .qrow b{font-weight:700}
+
+    /* Estado */
+    .state{display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px dashed var(--line)}
+    .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--line)}
+    .dot.ok{background:var(--ok);border-color:var(--ok)}
+    .dot.err{background:var(--err);border-color:var(--err)}
+    .dot.warn{background:var(--accent);border-color:var(--accent)}
+    .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--ink);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Grid */
+    .grid{display:grid;grid-template-columns:1fr;gap:18px;padding:18px}
+
+    /* Panel */
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 14px 16px}
+    .panel .titleRow{display:flex;justify-content:space-between;align-items:center;margin:4px 6px 12px}
+    .panel .titleRow h3{margin:0;font-size:16px}
+    .pill{background:var(--chip);border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px;color:#000}
+
+    /* Timeline */
+    .timeline{position:relative;padding-left:22px}
+    .timeline::before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#e9e9ee,#dcdcde)}
+    .event{position:relative;margin:0 0 14px 0;padding:12px 12px 12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 0 0 rgba(0,0,0,0);transition:box-shadow .2s ease, background .2s ease}
+    .event:hover{background:#fafafa;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+    .event::before{content:"";position:absolute;left:-6px;top:18px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--line)}
+    .event .desc{font-weight:700;margin-bottom:6px}
+    .event .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px;flex-wrap:wrap}
+    .icon{display:inline-flex;width:18px;height:18px;border-radius:6px;align-items:center;justify-content:center;border:1px solid var(--line);background:#fff}
+    .src-pn .icon{border-color:rgba(255,149,0,.35);background:rgba(255,149,0,.10)}
+    .src-fz .icon{border-color:rgba(255,214,10,.45);background:rgba(255,214,10,.16)}
+    .src-psc .icon{border-color:rgba(10,132,255,.35);background:rgba(10,132,255,.12)}
+    .src-pn{border-left:3px solid var(--orange)}
+    .src-fz{border-left:3px solid var(--warn)}
+    .src-psc{border-left:3px solid var(--blue)}
+    .event.src-pn::before{background:var(--orange);border-color:var(--orange)}
+    .event.src-fz::before{background:var(--warn);border-color:var(--warn)}
+    .event.src-psc::before{background:var(--blue);border-color:var(--blue)}
+
+    .more{display:flex;justify-content:center;margin-top:8px}
+    .more button{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-weight:600;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <!-- Header -->
+      <div class="head">
+        <div class="searchBox">
+          <label>Ingrese Tracking</label>
+          <div class="inputRow">
+            <input id="trk" type="text" placeholder="Ej. 1Z48537W0441418748" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" />
+            <button id="go">BUSCAR</button>
+          </div>
+          <div class="help">Seguimiento de en vivo de tus paquetes.</div>
+        </div>
+        <div class="qsum">
+          <div class="qrow"><span>Tracking:</span><b id="qsTracking">—</b></div>
+          <div class="qrow"><span>Status:</span><b id="qsStatus">—</b></div>
+          <div class="qrow"><span>Courier:</span><b id="qsCourier">—</b></div>
+          <div class="qrow"><span>Peso:</span><b id="qsPeso">—</b></div>
+        </div>
+      </div>
+
+      <div class="state">
+        <div id="stateDot" class="dot"></div>
+        <div id="stateSpin" class="spin" style="display:none"></div>
+        <div id="stateMsg">Listo.</div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <div class="titleRow">
+            <h3>Historial de seguimiento</h3>
+            <span class="pill">Eventos: <b id="evCount">0</b></span>
+          </div>
+          <div class="timeline" id="events"></div>
+          <div class="more"><button id="toggleMore" style="display:none">Mostrar más</button></div>
+        </div>
+      </div>
+
+      <div class="footer" style="text-align:center;color:var(--muted);font-size:12px;margin:18px 0">PSC - Panama Shipping Co.</div>
+    </div>
+  </div>
+
+  <script>
+    const ENDPOINT = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/track";
+    const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
+    const SAVED_ENDPOINT = (()=>{ try{ return localStorage.getItem('psc:url') || '' }catch{ return '' } })();
+    const SAVED_TOKEN   = (()=>{ try{ return localStorage.getItem('psc:anon') || '' }catch{ return '' } })();
+
+    const $ = (s)=>document.querySelector(s);
+    const trk = $('#trk');
+    const go = $('#go');
+    const dot = $('#stateDot');
+    const spin = $('#stateSpin');
+    const msg = $('#stateMsg');
+    const eventsEl = $('#events');
+    const evCountEl = $('#evCount');
+    const qsTracking = $('#qsTracking');
+    const qsStatus = $('#qsStatus');
+    const qsCourier = $('#qsCourier');
+    const qsPeso = $('#qsPeso');
+    const toggleMoreBtn = $('#toggleMore');
+
+    try{ const last = localStorage.getItem('psc_last_tracking'); if(last) trk.value = last; }catch{}
+
+    function setState(kind, text, loading=false){
+      dot.className = 'dot ' + (kind||'');
+      msg.textContent = text || '';
+      spin.style.display = loading ? 'inline-block' : 'none';
+      try{ go.disabled = !!loading; }catch{}
+    }
+    function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso); return new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(d); }
+    function esc(s){ return String(s??'').replace(/[<>&]/g, m=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[m])) }
+
+    function iconSVG(kind){
+      if(kind==='pn') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="#a64f00"/><path d="M3 7v10l9 4 9-4V7" stroke="#a64f00"/></svg>';
+      if(kind==='fz') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 10h18v8H3z" stroke="#7a5c00"/><path d="M7 10V6h10v4" stroke="#7a5c00"/></svg>';
+      return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 16h11v-6H3v6z" stroke="#0752a0"/><path d="M14 14h4l3 3v-7h-7v4z" stroke="#0752a0"/><circle cx="7" cy="19" r="2" stroke="#0752a0"/><circle cx="18" cy="19" r="2" stroke="#0752a0"/></svg>';
+    }
+
+    function eventSource(ev, resp){
+      try{
+        if((ev.location||'').toUpperCase()==='DB') return 'psc';
+        const fz = resp.sources && resp.sources.fuzion && Array.isArray(resp.sources.fuzion.events) ? resp.sources.fuzion.events : [];
+        const matchFz = fz.some((e)=> e.time_iso===ev.time_iso && e.description===ev.description && (e.location||'')===(ev.location||''));
+        return matchFz ? 'fz' : 'pn';
+      }catch{ return 'pn' }
+    }
+
+    function transformDesc(src, ev, resp){
+      let d = String(ev.description||'');
+      if(src==='fz'){
+        const low = d.toLowerCase().trim();
+        if(low==='miami') d='Doral - Miami';
+        if(low==='panama' || low==='panamá') d='Aduanas - Panama City';
+      }
+      if(src==='psc'){
+        const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
+        const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
+        d = 'Centro de Dist. PSC - Peso(Aprox.)' + (lbs?` ${lbs} lbs`:'');
+      }
+      return d;
+    }
+
+    function computeOrderedList(r){
+      const all = Array.isArray(r.events) ? r.events : [];
+      const groups = { psc: [], fz: [], pn: [] };
+      for(const ev of all){
+        const s = eventSource(ev, r);
+        if(s==='psc') groups.psc.push(ev); else if(s==='fz') groups.fz.push(ev); else groups.pn.push(ev);
+      }
+      groups.pn.sort((a,b)=> String(b.time_iso||'').localeCompare(String(a.time_iso||'')));
+      return [...groups.psc, ...groups.fz, ...groups.pn];
+    }
+
+    function renderTopSummary(r){
+      qsTracking.textContent = r.tracking || '—';
+      const list = computeOrderedList(r);
+      const chosen = list[0];
+      if(chosen){
+        const src = eventSource(chosen, r);
+        let label='';
+        if(src==='psc') label='Centro de Dist. PSC';
+        else if(src==='fz'){
+          const td = transformDesc(src, chosen, r);
+          label = /Aduanas - Panama City/i.test(td) ? 'Aduanas' : td;
+        } else {
+          const d = String(chosen.description||'');
+          label = /delivered/i.test(d) ? 'Delivered' : 'In transit';
+        }
+        qsStatus.textContent = label || '—';
+      } else { qsStatus.textContent = '—'; }
+      qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
+      qsPeso.textContent = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
+    }
+
+    function renderTimeline(r){
+      eventsEl.innerHTML='';
+      const list = computeOrderedList(r);
+      evCountEl.textContent = list.length || 0;
+      if(!list.length){ const empty=document.createElement('div'); empty.style.color='var(--muted)'; empty.textContent='Sin eventos.'; eventsEl.appendChild(empty); return; }
+      const MAX=5;
+      list.forEach((ev,idx)=>{
+        const src = eventSource(ev,r);
+        const item=document.createElement('div');
+        item.className=`event src-${src}` + (idx>=MAX?' hiddenEvt':'');
+        const desc=transformDesc(src,ev,r);
+        const loc=(ev.location||'—');
+        const when=fmtDate(ev.time_iso);
+        item.innerHTML=`<div class="desc">${esc(desc)}</div><div class="meta"><span class="icon">${iconSVG(src==='pn'?'pn':src==='fz'?'fz':'psc')}</span><span>${esc(loc)}</span><span>•</span><span>${when}</span></div>`;
+        if(idx>=MAX) item.style.display='none';
+        eventsEl.appendChild(item);
+      });
+      const hidden=eventsEl.querySelectorAll('.hiddenEvt');
+      toggleMoreBtn.style.display = hidden.length ? 'inline-block' : 'none';
+      toggleMoreBtn.textContent = 'Mostrar más';
+    }
+
+    async function doSearch(){
+      try{ localStorage.setItem('psc_last_tracking', trk.value.trim()); }catch{}
+      const code = trk.value.trim();
+      if(!code){ setState('err','Ingresa un tracking.'); return; }
+      const endpoint=(SAVED_ENDPOINT||ENDPOINT).trim();
+      const token=(SAVED_TOKEN||ANON_KEY).trim();
+      if(!endpoint || !token){ setState('err','Falta ENDPOINT o ANON. (psc:url / psc:anon)'); return; }
+      setState('warn','Buscando…',true);
+      try{
+        const res = await fetch(endpoint,{
+          method:'POST', mode:'cors', cache:'no-store',
+          headers:{ 'Content-Type':'application/json', 'Accept':'application/json', Authorization:`Bearer ${token}`, apikey: token },
+          body: JSON.stringify({ tracking: code })
+        });
+        if(!res.ok){ setState('err',`Error HTTP ${res.status}`); return; }
+        const data = await res.json();
+        setState('ok','Listo.');
+        renderTopSummary(data);
+        renderTimeline(data);
+      }catch(e){ console.error(e); setState('err','Fallo de red o CORS.'); }
+    }
+
+    go.addEventListener('click', doSearch);
+    trk.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+    toggleMoreBtn.addEventListener('click', ()=>{
+      const hidden = eventsEl.querySelectorAll('.hiddenEvt');
+      const expanding = hidden.length && hidden[0].style.display==='none';
+      hidden.forEach(el=> el.style.display = expanding ? 'block' : 'none');
+      toggleMoreBtn.textContent = expanding ? 'Mostrar menos' : 'Mostrar más';
+    });
+  </script>
+</body>
+</html>
