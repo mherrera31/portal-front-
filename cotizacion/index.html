@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Generador de Cotización</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 20px;
+      }
+      h2 {
+        margin-top: 2rem;
+      }
+      .container {
+        max-width: 960px;
+        margin: auto;
+        background: #fff;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      input,
+      select {
+        font-size: 14px;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 0.75rem 1.5rem;
+        margin: 1rem 0.5rem 1rem 0;
+        border: none;
+        background: #000;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid #ddd;
+      }
+      th,
+      td {
+        padding: 8px;
+        text-align: left;
+      }
+      .preview {
+        margin-top: 3rem;
+      }
+      .print-btn {
+        background: #007bff;
+      }
+      .reset-btn {
+        background: #6b7280;
+      }
+      .product-group {
+        display: grid;
+        grid-template-columns: 2.2fr 1fr 1fr 1fr 1.6fr auto; /* +col para eliminar */
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      .product-group input,
+      .product-group select {
+        margin: 0;
+        height: 38px;
+      }
+      .logo-top {
+        text-align: right;
+      }
+      .logo-top img {
+        max-height: 80px;
+      }
+      .inline-fields {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .inline-fields > div {
+        flex: 1;
+        min-width: 150px;
+      }
+      /* Campos compactos para la fila de envío */
+      .inline-fields .compact {
+        flex: 0 0 180px;
+      }
+      .inline-fields .compact input {
+        width: 100%;
+      }
+      .inline-fields .flex-1 {
+        flex: 1 1 160px;
+      }
+      .del-btn {
+        height: 38px;
+        min-width: 38px;
+        line-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background: #fff;
+        color: #b91c1c;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .del-btn:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+      }
+    </style>
+
+    <!-- Impresión: SOLO vista previa + logo arriba derecha (tamaño controlado) -->
+    <style>
+      /* En pantalla ocultamos el logo extra (solo se usa al imprimir) */
+      .print-logo {
+        display: none;
+      }
+
+      /* Imprimir: solo #vistaPrevia, sin página en blanco, con logo real */
+      @media print {
+        @page {
+          size: A4;
+          margin: 12mm;
+        }
+        body {
+          background: #fff !important;
+        }
+
+        /* Oculta todo lo que no es la vista previa para evitar página en blanco */
+        .container > *:not(#vistaPrevia) {
+          display: none !important;
+        }
+
+        #vistaPrevia {
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          background: #fff !important;
+          color: #000 !important;
+          box-shadow: none !important;
+          page-break-before: auto !important;
+          break-before: auto !important;
+        }
+
+        /* Logo real en la impresión (no pseudo-elementos) */
+        .print-logo {
+          display: block !important;
+          float: right;
+          height: 70px; /* ajustable */
+          margin: 0 0 8mm 8mm;
+        }
+
+        table {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo-top">
+        <img
+          src="https://i.postimg.cc/jdswccMB/Captura-de-pantalla-2025-08-08-a-la-s-5-04-44-p-m.png"
+          alt="Logo"
+        />
+      </div>
+
+      <h1>Generador de Cotización</h1>
+
+      <label>Cliente:</label>
+      <input type="text" id="cliente" placeholder="Nombre del cliente" />
+
+      <label>R.U.C. (Cliente) - opcional:</label>
+      <input type="text" id="rucCliente" placeholder="R.U.C. del cliente" />
+
+      <label>Correo del cliente - opcional:</label>
+      <input type="email" id="correoCliente" placeholder="Correo electrónico" />
+
+      <label>Teléfono del cliente - opcional:</label>
+      <input type="tel" id="telefonoCliente" placeholder="Número de teléfono" />
+
+      <label>Fecha de cotización:</label>
+      <input type="date" id="fecha" readonly />
+
+      <label>Válida hasta:</label>
+      <input type="date" id="validez" readonly />
+
+      <h2>Productos</h2>
+      <datalist id="paginasConocidas">
+        <option value="www.cruiserheads.com"></option>
+        <option value="www.amazon.com"></option>
+        <option value="www.ebay.com"></option>
+        <option value="www.aliexpress.com"></option>
+        <option value="www.temu.com"></option>
+        <option value="www.shein.com"></option>
+        <option value="www.rockauto.com"></option>
+      </datalist>
+
+      <div id="productos"></div>
+      <button
+        id="btnAgregar"
+        type="button"
+        onclick="if(window.agregarProducto){window.agregarProducto();}"
+      >
+        Agregar producto
+      </button>
+
+      <h2>Envío</h2>
+      <div class="inline-fields">
+        <div class="compact">
+          <label for="precioLibra">Precio por libra ($):</label>
+          <input
+            type="number"
+            id="precioLibra"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="0.00"
+            title="Usa punto (.) para decimales"
+            oninput="generarCotizacion()"
+            onchange="generarCotizacion()"
+          />
+        </div>
+        <div class="flex-1">
+          <label for="rucEmpresa">R.U.C. (Empresa):</label>
+          <input
+            type="text"
+            id="rucEmpresa"
+            placeholder="R.U.C. de la empresa"
+            oninput="generarCotizacion()"
+            onchange="generarCotizacion()"
+          />
+        </div>
+        <div class="flex-1">
+          <label for="metodoPago">Método de pago (extra):</label>
+          <input
+            type="text"
+            id="metodoPago"
+            placeholder="Ej. ACH, Yappy, Tarjeta"
+            oninput="generarCotizacion()"
+            onchange="generarCotizacion()"
+          />
+        </div>
+      </div>
+
+      <div id="vistaPrevia" class="preview"></div>
+
+      <button class="print-btn" onclick="window.print()">Imprimir</button>
+      <button class="reset-btn" onclick="limpiarTodo()">Limpiar</button>
+    </div>
+
+    <script>
+      // ====== Estado ======
+      let contador = 0; // índice incremental para ids
+
+      // ====== Util ======
+      const $ = (id) => document.getElementById(id);
+      const sanitize = (s) =>
+        (s || "").replace(
+          /[&<>\"]/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m])
+        );
+      const todayISO = () => new Date().toISOString().split("T")[0];
+      const plusDaysISO = (d) => {
+        const x = new Date();
+        x.setDate(x.getDate() + d);
+        return x.toISOString().split("T")[0];
+      };
+
+      // Fuerza el uso de punto (.) como separador decimal; convierte comas a puntos al tipear
+      function enforceDotDecimal(el) {
+        if (!el) return;
+        el.addEventListener("input", () => {
+          if (typeof el.value === "string" && el.value.includes(",")) {
+            el.value = el.value.replace(/,/g, ".");
+          }
+        });
+      }
+
+      // Lectura robusta desde <input type=\"number\"> (usa valueAsNumber y normaliza comas)
+      function getNumFromInput(id) {
+        const el = $(id);
+        if (!el) return 0;
+        const raw = String(el.value ?? "")
+          .trim()
+          .replace(/,/g, ".");
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      // ====== API pública (aseguramos global para on* handlers) ======
+      function agregarProducto() {
+        const contenedor = $("productos");
+        const grupo = document.createElement("div");
+        grupo.className = "product-group";
+        grupo.innerHTML = `
+          <input type="text" placeholder="Producto / Servicio" id="producto${contador}">
+          <input type="number" placeholder="Cantidad" id="cantidad${contador}" inputmode="decimal" title="Usa punto (.) para decimales">
+          <input type="number" placeholder="Precio Unitario" id="precio${contador}" step="0.01" inputmode="decimal" title="Usa punto (.) para decimales">
+          <input type="number" placeholder="Peso (lbs)" id="peso${contador}" step="0.01" inputmode="decimal" title="Usa punto (.) para decimales">
+          <input list="paginasConocidas" id="paginaInput${contador}" placeholder="Página" oninput="actualizarPagina(${contador})">
+          <input type="hidden" id="paginaFinal${contador}">
+          <button type="button" class="del-btn" aria-label="Eliminar producto" title="Eliminar" onclick="eliminarProducto(${contador})">−</button>
+        `;
+        contenedor.appendChild(grupo);
+        // Normaliza decimales a punto en los nuevos inputs
+        (function () {
+          const c = document.getElementById(`cantidad${contador}`);
+          const p = document.getElementById(`precio${contador}`);
+          const w = document.getElementById(`peso${contador}`);
+          [c, p, w].forEach((el) => enforceDotDecimal(el));
+        })();
+        // Recalcular al escribir (auto)
+        grupo
+          .querySelectorAll("input")
+          .forEach((inp) => inp.addEventListener("input", generarCotizacion));
+        contador++;
+      }
+      function eliminarProducto(index) {
+        const prodInput = $("producto" + index);
+        const group = prodInput ? prodInput.parentElement : null;
+        if (group && group.parentNode) group.parentNode.removeChild(group);
+        generarCotizacion(); // recalcula y limpia vista previa
+      }
+      function actualizarPagina(index) {
+        const fin = $("paginaFinal" + index);
+        const src = $("paginaInput" + index);
+        if (fin && src) fin.value = (src.value || "").trim();
+        generarCotizacion();
+      }
+      function generarCotizacion() {
+        let html = "";
+        // Logo SOLO para impresión (oculto en pantalla)
+        html +=
+          '<img class="print-logo" src="https://i.postimg.cc/jdswccMB/Captura-de-pantalla-2025-08-08-a-la-s-5-04-44-p-m.png" alt="PSC" \/>';
+        const cliente = $("cliente").value || "";
+        const rucCliente = $("rucCliente").value.trim() || "";
+        const correoCliente = $("correoCliente").value.trim() || "";
+        const telefonoCliente = $("telefonoCliente").value.trim() || "";
+        const fecha = $("fecha").value || todayISO();
+        const validez = $("validez").value || plusDaysISO(15);
+        const rucEmpresa = $("rucEmpresa").value.trim() || "";
+        const metodoPago = $("metodoPago")
+          ? $("metodoPago").value.trim() || ""
+          : "";
+
+        html += `<h2>💼 COTIZACIÓN</h2>
+        <p><strong>Fecha:</strong> ${fecha}</p>
+        <p><strong>Cliente:</strong> ${cliente}</p>`;
+        if (rucCliente)
+          html += `<p><strong>R.U.C. Cliente:</strong> ${rucCliente}</p>`;
+        if (correoCliente)
+          html += `<p><strong>Correo:</strong> ${correoCliente}</p>`;
+        if (telefonoCliente)
+          html += `<p><strong>Teléfono:</strong> ${telefonoCliente}</p>`;
+        html += `<p><strong>Válida hasta:</strong> ${validez}</p>`;
+
+        html += `<h2>📦 PRODUCTOS Y SERVICIOS</h2>
+        <table><tr><th>Producto / Servicio</th><th>Cantidad</th><th>Precio Unitario</th><th>Peso (lbs)</th><th>Total</th></tr>`;
+
+        let subtotal = 0;
+        let totalPeso = 0;
+        const paginasSet = new Set();
+        for (let i = 0; i < contador; i++) {
+          const prodEl = $("producto" + i);
+          if (!prodEl) continue; // saltar filas eliminadas
+          const cantEl = $("cantidad" + i);
+          const precEl = $("precio" + i);
+          const pesoEl = $("peso" + i);
+          const pagEl = $("paginaFinal" + i);
+          const prod = prodEl.value || "";
+          const cant = parseFloat((cantEl && cantEl.value) || 0) || 0;
+          const prec = parseFloat((precEl && precEl.value) || 0) || 0;
+          const peso = parseFloat((pesoEl && pesoEl.value) || 0) || 0;
+          const pagina = ((pagEl && pagEl.value) || "").trim();
+          const total = cant * prec;
+          subtotal += total;
+          totalPeso += peso;
+          if (pagina) paginasSet.add(pagina);
+          html += `<tr><td>${prod}</td><td>${cant}</td><td>$${prec.toFixed(
+            2
+          )}</td><td>${peso}</td><td>$${total.toFixed(2)}</td></tr>`;
+        }
+        html += `</table>`;
+
+        const servicioCompra = subtotal * 0.15;
+        const manejo = (subtotal + servicioCompra) * 0.05;
+        const precioLibra = getNumFromInput("precioLibra");
+        const envio = precioLibra * totalPeso;
+        const totalCotizado = subtotal + servicioCompra + manejo + envio;
+
+        html += `
+        <h2>🚚 ENVÍO</h2>
+        <p><strong>Precio por libra:</strong> $${precioLibra.toFixed(2)}</p>
+        <p><strong>Peso total:</strong> ${totalPeso} lbs</p>
+        <p><strong>Total envío:</strong> $${envio.toFixed(2)}</p>
+
+        <h2>💰 RESUMEN FINAL</h2>
+        <p><strong>Subtotal productos:</strong> $${subtotal.toFixed(2)}</p>
+        <p><strong>Servicio de compra:</strong> $${servicioCompra.toFixed(
+          2
+        )}</p>
+        <p><strong>Handling Fee:</strong> $${manejo.toFixed(2)}</p>
+        <p><strong>Envío:</strong> $${envio.toFixed(2)}</p>
+        <p><strong><u>TOTAL COTIZADO:</u></strong> <strong>$${totalCotizado.toFixed(
+          2
+        )}</strong></p>
+
+        <h2>📝 CONDICIONES DE COMPRA</h2>
+        <ul>`;
+        if (paginasSet.size) {
+          html +=
+            `<li>La compra se realiza a través de las siguientes páginas: ` +
+            Array.from(paginasSet)
+              .map((f) => `<a href="https://${f}" target="_blank">${f}</a>`)
+              .join(", ") +
+            `</li>`;
+        }
+        html += `
+          <li>Todos los productos cotizados son aportados por el cliente y son de su elección. PSC no es el vendedor ni el dueño del producto; los precios pueden estar sujetos a cambios o agotarse.</li>
+          <li>PSC es una empresa transportista que ofrece un servicio de compra, el cual es una transacción de pago por un producto en nombre del cliente.</li>
+          <li>PSC se encarga del manejo y seguimiento de esta compra en nombre del cliente, pero hace constar que su servicio principal y responsabilidad inician una vez el producto sea entregado en bodega y se encuentre en tránsito a Panamá y luego a sus sucursales.</li>
+          <li>Tiempo estimado de entrega: 7–10 días hábiles después de realizar el pago para mercancías en Estados Unidos. De 15–30 días para paquetes de China u otros países. Es importante saber que esto contempla un flujo normal; por razones externas fuera de la responsabilidad de PSC, como demoras del proveedor, del transportista, aduanas, días feriados en el país de origen y otros procesos previos a la recepción en bodega, este tiempo aproximado puede verse afectado.</li>
+        </ul>
+
+        <h2>💳 FORMAS DE PAGO</h2>
+        <ul>
+          <li>Efectivo</li><li>Tarjeta de crédito o débito</li><li>Yappy</li><li>Transferencia bancaria</li>
+          ${metodoPago ? `<li>${sanitize(metodoPago)}</li>` : ""}
+        </ul>
+
+        <h2>📇 DATOS DE LA EMPRESA</h2>
+        <p><strong>Nombre comercial:</strong> Panama Shipping Co.</p>
+        <p><strong>Página web:</strong> <a href="https://www.soypsc.com" target="_blank">www.soypsc.com</a></p>
+        <p><strong>Instagram:</strong> @soypsc</p>
+        <p><strong>WhatsApp:</strong> +507 6790-6781</p>`;
+        if (rucEmpresa) html += `<p><strong>R.U.C.:</strong> ${rucEmpresa}</p>`;
+
+        $("vistaPrevia").innerHTML = html;
+      }
+      function limpiarTodo() {
+        // Campos del cliente y envío
+        [
+          "cliente",
+          "rucCliente",
+          "correoCliente",
+          "telefonoCliente",
+          "rucEmpresa",
+          "precioLibra",
+          "metodoPago",
+        ].forEach((id) => ($(id).value = ""));
+        const now = new Date();
+        $("fecha").valueAsDate = now;
+        const v = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        v.setDate(v.getDate() + 15);
+        $("validez").valueAsDate = v;
+        enforceDotDecimal($("precioLibra"));
+        // Productos
+        $("productos").innerHTML = "";
+        contador = 0;
+        // Vista previa
+        $("vistaPrevia").innerHTML = "";
+      }
+
+      // Exportamos explícitamente al global para que on* lo encuentre
+      window.agregarProducto = agregarProducto;
+      window.eliminarProducto = eliminarProducto;
+      window.actualizarPagina = actualizarPagina;
+      window.generarCotizacion = generarCotizacion;
+      window.limpiarTodo = limpiarTodo;
+
+      // ====== Boot: set fechas por defecto y wiring de auto-recalc ======
+      window.addEventListener("load", () => {
+        // Bind alternativo por JS para entornos donde falla onClick inline
+        const btn = $("btnAgregar");
+        if (btn) btn.addEventListener("click", agregarProducto);
+        const now = new Date();
+        $("fecha").valueAsDate = now;
+        const v = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        v.setDate(v.getDate() + 15);
+        $("validez").valueAsDate = v;
+        // Auto-recalc en campos generales y refuerzo
+        [
+          "cliente",
+          "rucCliente",
+          "correoCliente",
+          "telefonoCliente",
+          "rucEmpresa",
+          "precioLibra",
+          "metodoPago",
+        ].forEach((id) => {
+          const el = $(id);
+          if (!el) return;
+          el.addEventListener("input", generarCotizacion);
+          el.addEventListener("change", generarCotizacion);
+          if (id === "precioLibra") {
+            el.addEventListener("keyup", generarCotizacion);
+            enforceDotDecimal(el);
+          }
+        });
+        // Recalcular cuando cambie manualmente fecha/validez (si se habilitan)
+        ["fecha", "validez"].forEach((id) =>
+          $(id).addEventListener("change", generarCotizacion)
+        );
+        // Auto-recalc por delegación en productos (por si se agregan dinámicamente)
+        $("productos").addEventListener("input", (e) => {
+          if (e.target.matches("input")) generarCotizacion();
+        });
+        // Fallback global: cualquier input en la página recalcula
+        document.addEventListener(
+          "input",
+          (e) => {
+            if (
+              ["precioLibra", "rucEmpresa", "metodoPago"].includes(e.target.id)
+            )
+              generarCotizacion();
+          },
+          true
+        );
+        generarCotizacion();
+        generarCotizacion();
+      });
+
+      // ====== TESTS (manuales; no alterar flujo de usuario) ======
+      function runTests() {
+        try {
+          // 1) agregar/eliminar actualiza vista previa
+          const before = contador;
+          agregarProducto();
+          const idx = contador - 1;
+          $("producto" + idx).value = "TEST-PROD";
+          $("cantidad" + idx).value = "2";
+          $("precio" + idx).value = "5";
+          generarCotizacion();
+          const vp1 = $("vistaPrevia").innerHTML;
+          console.assert(
+            vp1.includes("TEST-PROD"),
+            "Debe incluir producto agregado"
+          );
+          eliminarProducto(idx);
+          const vp2 = $("vistaPrevia").innerHTML;
+          console.assert(
+            !$("producto" + idx),
+            "Input eliminado no debe existir"
+          );
+          console.assert(
+            !vp2.includes("TEST-PROD"),
+            "Vista previa no debe incluir producto eliminado"
+          );
+          // 2) auto-recalc al modificar cantidad
+          agregarProducto();
+          const idx2 = contador - 1;
+          $("producto" + idx2).value = "X";
+          $("cantidad" + idx2).value = "1";
+          $("precio" + idx2).value = "10";
+          generarCotizacion();
+          const prevA = $("vistaPrevia").innerHTML;
+          $("cantidad" + idx2).value = "3";
+          $("cantidad" + idx2).dispatchEvent(new Event("input"));
+          const prevB = $("vistaPrevia").innerHTML;
+          console.assert(prevA !== prevB, "Debe recalcular al cambiar inputs");
+          // 3) limpiarTodo
+          limpiarTodo();
+          console.assert(
+            $("productos").children.length === 0 && contador === 0,
+            "Limpiar debe vaciar productos y resetear contador"
+          );
+          console.assert(
+            $("vistaPrevia").innerHTML === "",
+            "Vista previa vacía tras limpiar"
+          );
+          // 3.1) Click real en el botón debe agregar una fila
+          const beforeChildren = $("productos").children.length;
+          const btnA = $("btnAgregar");
+          btnA && btnA.click();
+          console.assert(
+            $("productos").children.length === beforeChildren + 1,
+            'Click en "Agregar producto" debe insertar una fila'
+          );
+          // 4) metodoPago agrega item a formas de pago
+          $("metodoPago") && ($("metodoPago").value = "ACH");
+          generarCotizacion();
+          const vp3 = $("vistaPrevia").innerHTML;
+          console.assert(
+            vp3.includes("ACH"),
+            "Formas de pago debe incluir el método extra"
+          );
+          // 5) Normaliza coma a punto en precio por libra y afecta envío
+          agregarProducto();
+          const idx3 = contador - 1;
+          $("producto" + idx3).value = "PESO-TEST";
+          $("cantidad" + idx3).value = "1";
+          $("precio" + idx3).value = "0";
+          $("peso" + idx3).value = "4";
+          $("precioLibra").value = "3,5";
+          $("precioLibra").dispatchEvent(new Event("input"));
+          generarCotizacion();
+          const vpEnv = $("vistaPrevia").innerHTML;
+          console.assert(
+            $("precioLibra").value.indexOf(",") === -1,
+            "precioLibra debe normalizar coma a punto"
+          );
+          console.assert(
+            vpEnv.includes("$14.00"),
+            "Total envío 3.5 x 4 = 14.00"
+          );
+          $("precioLibra").value = "2.95";
+          $("precioLibra").dispatchEvent(new Event("input"));
+          generarCotizacion();
+          const vpEnv2 = $("vistaPrevia").innerHTML;
+          console.assert(
+            vpEnv2.includes("Precio por libra:") && vpEnv2.includes("$2.95"),
+            "Debe mostrar Precio por libra: $2.95"
+          );
+          console.assert(
+            vpEnv2.includes("$11.80"),
+            "Total envío 2.95 x 4 = 11.80"
+          );
+          console.assert(
+            vpEnv.includes("Precio por libra:") && vpEnv.includes("$3.50"),
+            "Debe mostrar Precio por libra: $3.50 en la vista previa"
+          );
+          // Verifica fechas iniciales
+          const f = $("fecha").value;
+          const val = $("validez").value;
+          console.assert(
+            !!f && !!val,
+            "Fecha y Validez deben inicializarse al cargar"
+          );
+          console.log("%cTests OK", "color:#10b981");
+        } catch (e) {
+          console.warn("Tests fallaron:", e);
+        }
+      }
+    </script>
+  </body>
+</html>
