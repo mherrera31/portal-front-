@@ -9,147 +9,118 @@
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔎</text></svg>"
   />
   <style>
-    :root {
-      --bg: #ffffff;
-      --fg: #111114;
-      --muted: #6c6d75;
-      --border: #e5e5ea;
-      --card: #ffffff;
-      --shadow: 0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
-      --blue: #007aff; --blue-press: #0062d6;
-      --warn: #b26c00; --ok: #00a34a; --err: #d70015;
-      --radius: 16px;
-      --font: -apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    :root{
+      --bg:#ffffff; --fg:#111114; --muted:#6c6d75; --border:#e5e5ea; --card:#ffffff;
+      --shadow:0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+      --blue:#007aff; --blue-press:#0062d6; --ok:#00a34a; --err:#d70015; --warn:#b26c00;
+      --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
       --mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+      --radius:16px;
     }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font);
-      display: flex; align-items: flex-start; justify-content: center; padding: 32px;
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; background:var(--bg); color:var(--fg); font-family:var(--font);
+      display:flex; align-items:flex-start; justify-content:center; padding:32px;
     }
-    .wrap { width: 100%; max-width: 1100px; display: grid; gap: 18px; }
-    .title { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
-    .subtitle { color: var(--muted); margin: 0; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
-    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .search { position: relative; flex: 1; min-width: 260px; }
-    .search input[type="search"] {
-      width: 100%; height: 48px; padding: 0 48px 0 44px;
-      border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--fg); font-size: 16px;
-      box-shadow: 0 1px 0 rgba(0,0,0,.02) inset; transition: box-shadow .2s ease, border-color .2s ease;
+    .wrap{ width:100%; max-width:1100px; display:grid; gap:18px; }
+    .title{ font-size:28px; font-weight:700; letter-spacing:-.01em; margin:0; }
+    .subtitle{ color:var(--muted); margin:0; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .search{ position:relative; flex:1; min-width:260px; }
+    .search input[type="search"]{
+      width:100%; height:48px; padding:0 48px 0 44px; border:1px solid var(--border); border-radius:12px;
+      background:#fff; color:var(--fg); font-size:16px; box-shadow:0 1px 0 rgba(0,0,0,.02) inset; transition:box-shadow .2s ease, border-color .2s ease;
     }
-    .search input[type="search"]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,.25); }
-    .search .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: .55; }
-    .btn {
-      height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border);
-      background: #fff; color: var(--fg); cursor: pointer; font-weight: 600;
-      transition: transform .04s ease, box-shadow .2s ease, border-color .2s ease;
+    .search input[type="search"]:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,122,255,.25); }
+    .search .icon{ position:absolute; left:14px; top:50%; transform:translateY(-50%); opacity:.55; }
+    .btn{
+      height:48px; padding:0 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--fg);
+      cursor:pointer; font-weight:600; transition:transform .04s ease, box-shadow .2s ease, border-color .2s ease;
     }
-    .btn:hover { box-shadow: 0 3px 10px rgba(0,0,0,.06); }
-    .btn:active { transform: translateY(1px); }
+    .btn:hover{ box-shadow:0 3px 10px rgba(0,0,0,.06); }
+    .btn:active{ transform:translateY(1px); }
     .btn[disabled]{ opacity:.5; cursor:not-allowed; }
-    .btn.primary { background: var(--blue); border-color: transparent; color: #fff; }
-    .btn.primary:hover { box-shadow: 0 6px 16px rgba(0,122,255,.25); }
-    .btn.primary:active { background: var(--blue-press); }
+    .btn.primary{ background:var(--blue); border-color:transparent; color:#fff; }
+    .btn.primary:hover{ box-shadow:0 6px 16px rgba(0,122,255,.25); }
+    .btn.primary:active{ background:var(--blue-press); }
+    .status{ font-size:13px; }
+    .status.ok{ color:var(--ok); } .status.err{ color:var(--err); } .status.warn{ color:var(--warn); }
+    .badge{ display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px; border:1px solid var(--border); border-radius:999px; background:#fff; color:#222; }
+    .meta{ display:flex; gap:10px; align-items:center; color:var(--muted); font-size:13px; }
 
-    .meta { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: #222; }
-    .status { font-size: 13px; }
-    .status.ok { color: var(--ok); } .status.err { color: var(--err); } .status.warn { color: var(--warn); }
-
-    table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
-    thead th {
-      font-size: 12px; color: #7a7a80; text-transform: uppercase; letter-spacing: .08em;
-      font-weight: 700; border-bottom: 1px solid var(--border); padding: 10px 12px;
+    table{ width:100%; border-collapse:separate; border-spacing:0 8px; }
+    thead th{
+      font-size:12px; color:#7a7a80; text-transform:uppercase; letter-spacing:.08em; font-weight:700; border-bottom:1px solid var(--border); padding:10px 12px; text-align:left;
     }
-    tbody td {
-      background: #fff; border: 1px solid var(--border); border-left: none; border-right: none; padding: 12px; font-family: var(--mono);
+    tbody td{
+      background:#fff; border:1px solid var(--border); border-left:none; border-right:none; padding:12px; font-family:var(--mono);
     }
-    tbody tr { border-radius: 12px; }
-    tbody tr:hover td { background: #fbfbfd; }
-    tbody td:first-child { border-left: 1px solid var(--border); border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
-    tbody td:last-child { border-right: 1px solid var(--border); border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
-    .muted { color: var(--muted); }
-    .empty { padding: 14px; font-size: 13px; color: var(--muted); }
+    tbody tr{ border-radius:12px; }
+    tbody tr:hover td{ background:#fbfbfd; }
+    tbody td:first-child{ border-left:1px solid var(--border); border-top-left-radius:12px; border-bottom-left-radius:12px; }
+    tbody td:last-child{ border-right:1px solid var(--border); border-top-right-radius:12px; border-bottom-right-radius:12px; }
+    .mono{ font-family:var(--mono); }
+    .pill{ display:inline-block; padding:2px 10px; border-radius:9999px; font-size:12px; border:1px solid var(--border); }
+    .pill.ml-true{ background:#fff6e3; color:#8a6110; border-color:#ecd59a; } /* naranja */
+    .small{ font-size:12px; color:var(--muted); }
 
-    .pill { padding: 2px 10px; border-radius: 9999px; font-size: 12px; border: 1px solid var(--border); display:inline-block; }
-    .pill.ok { background:#e9f9ef; color:#106d37; border-color:#bfe9cd; }
-    .mono-btn { font-family: var(--mono); }
-
-    @media (max-width: 640px) {
-      body { padding: 18px; }
-      .title { font-size: 24px; }
-      .btn { height: 44px; }
+    @media (max-width: 640px){
+      body{ padding:18px; }
+      .title{ font-size:24px; }
     }
-
-    /* Volver */
-    .psc-back-main{
-      position: fixed; top: 16px; left: 16px; z-index: 9999;
-      display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
-      text-decoration:none; font-weight:600; font-size:14px;
-      border:1px solid var(--border); background:#ffffff; color:#111827;
-      box-shadow:0 8px 24px rgba(0,0,0,.12);
-      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    }
-    .psc-back-main:hover{ transform: translateY(-1px); box-shadow: 0 12px 32px rgba(0,0,0,.18); border-color:#d1d5db; }
-    .psc-back-main:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(0,122,255,.35), 0 12px 32px rgba(0,0,0,.2); }
   </style>
 </head>
 <body>
-  <a class="psc-back-main" href="/" aria-label="Volver al portal">
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-    <span>Volver</span>
-  </a>
-
   <main class="wrap">
-    <section class="card" style="padding: 24px 20px">
+    <section class="card" style="padding:24px 20px">
       <h1 class="title">Trackings</h1>
       <p class="subtitle">BUSCA EN BASE DE DATOS PSC.</p>
 
-      <div class="row" style="margin-top: 12px">
+      <div class="row" style="margin-top:12px">
         <div class="search">
           <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M21 21l-4.2-4.2" stroke="#000" opacity=".35" stroke-width="2" stroke-linecap="round"/>
             <circle cx="11" cy="11" r="7" stroke="#000" opacity=".35" stroke-width="2"/>
           </svg>
-          <input id="q" type="search" placeholder="Escribe el tracking y presiona Enter…" autocomplete="off" />
+          <input id="q" type="search" placeholder="Escribe el tracking y presiona Enter…" autocomplete="off"/>
         </div>
         <button id="btnSearch" class="btn primary">Buscar</button>
         <button id="btnClear" class="btn">Limpiar</button>
       </div>
 
-      <div class="row" style="margin-top: 10px; justify-content: space-between">
+      <div class="row" style="margin-top:10px; justify-content:space-between">
         <div class="meta">
           <div id="modeBadge" class="badge" title="Modo de búsqueda">
             <span id="modeIcon">🔍</span><span id="modeText">Listo</span>
           </div>
-          <div id="resultCount" class="small muted"></div>
+          <div id="resultCount" class="small"></div>
         </div>
         <div id="status" class="status muted">Listo.</div>
       </div>
     </section>
 
     <section class="card">
-      <div style="overflow: auto">
+      <div style="overflow:auto">
         <table aria-label="Resultados de la búsqueda de trackings">
           <thead>
             <tr>
-              <th style="width:60px">#</th>
+              <th style="width:46px">#</th>
               <th>Original</th>
               <th>Corregido</th>
               <th>Peso (lbs)</th>
               <th>Cuenta</th>
-              <th>N.º Casillero</th>
+              <th>Num. Casillero</th>
               <th>Estado</th>
               <th>Fecha</th>
               <th>ML</th>
-              <th style="width:160px">Acción</th>
+              <th style="width:160px">Acciones</th>
             </tr>
           </thead>
           <tbody id="tbody">
             <tr id="emptyRow">
-              <td colspan="10" class="empty">Sin resultados.</td>
+              <td colspan="10" class="small">Sin resultados.</td>
             </tr>
           </tbody>
         </table>
@@ -158,11 +129,11 @@
   </main>
 
   <script>
-    // ==== ENDPOINTS ====
+    // ===== Endpoints =====
     const SEARCH_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/search-tracking";
     const MARK_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/mark-registered";
 
-    // ==== UI Refs ====
+    // ===== UI =====
     const ui = {
       q: document.getElementById("q"),
       btnSearch: document.getElementById("btnSearch"),
@@ -175,168 +146,181 @@
       resultCount: document.getElementById("resultCount"),
     };
 
-    let lastQuery = "";
-
-    // ==== Helpers ====
-    function setStatus(msg, type = "") {
-      ui.status.textContent = msg;
-      ui.status.className = "status " + (type || "muted");
+    function setStatus(msg, type=""){ ui.status.textContent = msg; ui.status.className = "status " + (type || "muted"); }
+    function setMode(mode){
+      let text="Listo", icon="🔍";
+      if(mode==="exact"){ text="Exacto"; icon="🎯"; }
+      else if(mode==="partial"){ text="Subcadena"; icon="🧩"; }
+      else if(mode==="none"){ text="Sin coincidencias"; icon="🕳️"; }
+      ui.modeText.textContent = text; ui.modeIcon.textContent = icon;
     }
-    function setMode(mode) {
-      let text = "Listo", icon = "🔍";
-      if (mode === "exact") { text = "Exacto"; icon = "🎯"; }
-      else if (mode === "partial") { text = "Subcadena"; icon = "🧩"; }
-      else if (mode === "none") { text = "Sin coincidencias"; icon = "🕳️"; }
-      ui.modeText.textContent = text;
-      ui.modeIcon.textContent = icon;
-    }
-    function clearTable() {
+    function clearTable(){
       ui.tbody.innerHTML = "";
       const tr = document.createElement("tr");
       tr.id = "emptyRow";
       const td = document.createElement("td");
       td.colSpan = 10;
-      td.className = "empty";
+      td.className = "small";
       td.textContent = "Sin resultados.";
       tr.appendChild(td);
       ui.tbody.appendChild(tr);
       ui.resultCount.textContent = "";
     }
-    function safe(text) {
-      return text == null ? "" : String(text);
+    function td(text, cls=""){
+      const el = document.createElement("td");
+      if(cls) el.className = cls;
+      el.textContent = text ?? "";
+      return el;
     }
-    function fmtFecha(r) {
-      return safe(r.updated_at || r.update_at || r.created_at || "");
-    }
-    function isMLTrue(r) {
-      const v = String(r["ML"] ?? r.ml ?? "").trim().toLowerCase();
-      return v === "true";
+    function fmtDate(s){
+      if(!s) return "";
+      try{
+        const d = new Date(s);
+        if(isNaN(+d)) return String(s);
+        // YYYY-MM-DD HH:mm:ss local
+        const pad = n => String(n).padStart(2,"0");
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }catch{ return String(s); }
     }
 
-    function rowActionCell(r) {
-      const td = document.createElement("td");
-      if (!isMLTrue(r) || !r.id) {
-        td.innerHTML = `<span class="muted">—</span>`;
-        return td;
+    function buildRow(r, idx){
+      const tr = document.createElement("tr");
+      const id = r.id; // UUID string
+      const trackingOrig = r.tracking_original ?? "";
+      const trackingCorr = r.tracking_corrected ?? "";
+      const weight = r.weight_lbs == null ? "" : String(r.weight_lbs);
+      const cuenta = r.cuenta ?? "";
+      const numCas = r.num_casillero ?? "";
+      const status = r.status ?? r.estado ?? "";
+      const fecha = r.updated_at ?? r.created_at ?? "";
+      const mlVal = r.ML ?? r.ml ?? null;
+
+      tr.append(
+        td(String(idx+1), "small"),
+        td(trackingOrig, "mono"),
+        td(trackingCorr, "mono"),
+        td(weight, "mono"),
+        td(cuenta, "mono"),
+        td(numCas, "mono"),
+        td(status, "mono"),
+        td(fmtDate(fecha), "mono"),
+      );
+
+      // ML pill
+      const tdMl = document.createElement("td");
+      if(String(mlVal).toLowerCase()==="true"){
+        const span = document.createElement("span");
+        span.className = "pill ml-true";
+        span.textContent = "true";
+        tdMl.appendChild(span);
+      } else {
+        tdMl.textContent = "";
       }
+      tr.appendChild(tdMl);
+
+      // Acciones
+      const tdAct = document.createElement("td");
       const btn = document.createElement("button");
-      btn.className = "btn mono-btn";
+      btn.className = "btn";
       btn.textContent = "ML Facturado";
-      btn.addEventListener("click", async () => {
+      btn.onclick = async () => {
         btn.disabled = true;
-        const prev = btn.textContent;
-        btn.textContent = "Actualizando…";
-        setStatus("Marcando ML facturado…", "warn");
-        try {
+        const prev = ui.status.textContent;
+        setStatus("Actualizando…","warn");
+        try{
           const res = await fetch(MARK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: String(r.id) }) // UUID como string
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ id })
           });
-          const txt = await res.text().catch(() => "");
+          const txt = await res.text().catch(()=> "");
           let payload = {};
-          try { payload = JSON.parse(txt || "{}"); } catch {}
-          if (!res.ok || payload?.ok !== true) {
+          try{ payload = JSON.parse(txt || "{}"); }catch{}
+          if(!res.ok || payload?.ok !== true){
             const msg = payload?.error || payload?.detail || res.statusText || `HTTP ${res.status}`;
-            setStatus(`Error: ${msg}`, "err");
-            btn.disabled = false; btn.textContent = prev;
+            setStatus(`No se pudo actualizar: ${msg}`, "err");
+            btn.disabled = false;
             return;
           }
-          setStatus("Actualizado. Refrescando…", "ok");
-          // Re-ejecutar la última búsqueda
-          if (lastQuery) await search(lastQuery, /*silent*/true);
-          setStatus("Listo.", "");
-        } catch (e) {
-          setStatus(`Error: ${e.message}`, "err");
-          btn.disabled = false; btn.textContent = prev;
-        }
-      });
-      td.appendChild(btn);
-      return td;
-    }
 
-    function fillTable(rows) {
-      ui.tbody.innerHTML = "";
-      rows.forEach((r, i) => {
-        const tr = document.createElement("tr");
-
-        const td0 = document.createElement("td"); td0.className = "small muted"; td0.textContent = String(i + 1);
-        const td1 = document.createElement("td"); td1.className = "mono"; td1.textContent = safe(r.tracking_original);
-        const td2 = document.createElement("td"); td2.className = "mono"; td2.textContent = safe(r.tracking_corrected);
-        const td3 = document.createElement("td"); td3.className = "mono"; td3.textContent = r.weight_lbs == null ? "" : String(r.weight_lbs);
-        const td4 = document.createElement("td"); td4.className = "mono"; td4.textContent = safe(r.cuenta);
-        const td5 = document.createElement("td"); td5.className = "mono"; td5.textContent = safe(r.num_casillero);
-        const td6 = document.createElement("td"); td6.className = "mono"; td6.textContent = safe(r.status ?? r.estado);
-        const td7 = document.createElement("td"); td7.className = "mono"; td7.textContent = fmtFecha(r);
-
-        const td8 = document.createElement("td");
-        if (isMLTrue(r)) {
-          td8.innerHTML = `<span class="pill ok">true</span>`;
-        } else {
-          td8.innerHTML = `<span class="muted">—</span>`;
-        }
-
-        const td9 = rowActionCell(r);
-
-        tr.append(td0, td1, td2, td3, td4, td5, td6, td7, td8, td9);
-        ui.tbody.appendChild(tr);
-      });
-      if (!rows.length) clearTable();
-      ui.resultCount.textContent = rows.length ? `${rows.length} resultado(s)` : "";
-    }
-
-    // ==== SEARCH ====
-    async function search(qArg, silent = false) {
-      const q = typeof qArg === "string" ? qArg : ui.q.value;
-      if (!q || !q.trim()) {
-        if (!silent) {
-          setStatus("Escribe un tracking para buscar.", "warn");
-          setMode("none");
-          clearTable();
-        }
-        return;
-      }
-      lastQuery = q; // guarda última consulta
-      ui.btnSearch.disabled = true;
-      if (!silent) { setStatus("Buscando…"); setMode(""); }
-      try {
-        const res = await fetch(SEARCH_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q }),
-        });
-        const txt = await res.text().catch(() => "");
-        let payload = {};
-        try { payload = JSON.parse(txt || "{}"); } catch {}
-        if (!res.ok) {
-          if (!silent) {
-            setStatus(payload.detail || payload.error || res.statusText || `HTTP ${res.status}`, "err");
-            setMode("none"); clearTable();
+          // Si el backend devuelve la fila actualizada, refrescamos SOLO esta fila
+          if(payload.row && typeof payload.row === "object"){
+            const updated = payload.row;
+            // re-escribir celdas:
+            tr.children[6].textContent = (updated.status ?? updated.estado ?? status) || ""; // Estado
+            tr.children[7].textContent = fmtDate(updated.updated_at ?? updated.created_at ?? fecha); // Fecha
+            // ML
+            tdMl.innerHTML = "";
+            const newMl = updated.ML ?? updated.ml ?? null;
+            if(String(newMl).toLowerCase()==="true"){
+              const span = document.createElement("span");
+              span.className = "pill ml-true";
+              span.textContent = "true";
+              tdMl.appendChild(span);
+            }
+            setStatus("Actualizado.","ok");
+            btn.disabled = false;
+            return;
           }
-          return;
+
+          // Si no viene la fila, relanza la búsqueda para refrescar
+          await search(true); // silent=true
+          setStatus("Actualizado.","ok");
+        }catch(e){
+          setStatus(`Error de red: ${e.message}`,"err");
+        }finally{
+          btn.disabled = false;
+        }
+      };
+      tdAct.appendChild(btn);
+      tr.appendChild(tdAct);
+
+      return tr;
+    }
+
+    async function search(silent=false){
+      const q = ui.q.value;
+      if(!q || !q.trim()){
+        if(!silent){ setStatus("Escribe un tracking para buscar.","warn"); setMode("none"); }
+        clearTable(); return;
+      }
+      ui.btnSearch.disabled = true;
+      if(!silent){ setStatus("Buscando…"); setMode(""); }
+      try{
+        const res = await fetch(SEARCH_URL, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ q })
+        });
+        const txt = await res.text().catch(()=> "");
+        let payload = {};
+        try{ payload = JSON.parse(txt || "{}"); }catch{}
+        if(!res.ok){
+          if(!silent){ setStatus(payload.detail || payload.error || res.statusText || `HTTP ${res.status}`, "err"); setMode("none"); }
+          clearTable(); return;
         }
         const mode = payload.mode || (payload.rows?.length ? "partial" : "none");
-        if (!silent) setMode(mode);
+        if(!silent){ setMode(mode); }
         const rows = Array.isArray(payload.rows) ? payload.rows : [];
-        fillTable(rows);
-        if (!silent) {
-          if (mode === "exact") setStatus(`Resultado exacto (${rows.length}).`, "ok");
-          else if (mode === "partial") setStatus(`Búsqueda por subcadena (${rows.length}).`, "ok");
+        ui.tbody.innerHTML = "";
+        rows.forEach((r, i) => ui.tbody.appendChild(buildRow(r, i)));
+        if(!rows.length) clearTable();
+        ui.resultCount.textContent = rows.length ? `${rows.length} resultado(s)` : "";
+        if(!silent){
+          if(mode === "exact") setStatus(`Resultado exacto (${rows.length}).`, "ok");
+          else if(mode === "partial") setStatus(`Búsqueda por subcadena (${rows.length}).`, "ok");
           else setStatus(payload.hint || "Sin coincidencias.", "warn");
         }
-      } catch (e) {
-        if (!silent) {
-          setStatus(`Error: ${e.message}`, "err");
-          setMode("none"); clearTable();
-        }
-      } finally {
+      }catch(e){
+        if(!silent){ setStatus(`Error: ${e.message}`,"err"); setMode("none"); }
+        clearTable();
+      }finally{
         ui.btnSearch.disabled = false;
       }
     }
 
-    // ==== EVENTS ====
-    ui.btnSearch.onclick = () => search();
-    ui.q.addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+    ui.btnSearch.onclick = () => search(false);
+    ui.q.addEventListener("keydown", e => { if(e.key === "Enter") search(false); });
     ui.btnClear.onclick = () => { ui.q.value = ""; clearTable(); setStatus("Listo."); setMode(""); };
 
     // init
@@ -344,3 +328,4 @@
   </script>
 </body>
 </html>
+
