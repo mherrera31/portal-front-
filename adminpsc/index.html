@@ -97,6 +97,10 @@
       .btn.ghost:hover { background: #1b1c1f; }
       .row-end { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; align-items: center; }
       .dup { color: var(--err); font-weight: 600; }
+
+      /* NUEVO: naranja para ML solicitado */
+      .ml { color: #f6c744; font-weight: 600; }
+
       .status { font-size: 13px; }
       .status.ok { color: var(--ok); }
       .status.err { color: var(--err); }
@@ -187,7 +191,9 @@
 
       <div class="card hidden" id="previewCard">
         <h3 style="margin: 0 0 8px">Vista previa</h3>
-        <div class="small muted">Corrección (preview): elimina <code>]c1</code> (insensible a mayúsc./minúsc.); elimina <code>|</code>; reemplaza cada <code>\/</code> por un espacio; se conservan <b>guiones (-)</b>. No se aplica ninguna otra transformación. Marcará de color <span style="color: var(--err); font-weight:600;">rojo</span> los trackings duplicados.</div>
+        <div class="small muted">
+          Corrección (preview): elimina <code>]c1</code> (insensible a mayúsc./minúsc.); elimina <code>|</code>; reemplaza cada <code>\/</code> por un espacio; se conservan <b>guiones (-)</b>. No se aplica ninguna otra transformación. Marcará de color <span style="color: var(--err); font-weight:600;">rojo</span> los trackings duplicados y de <span style="color:#f6c744; font-weight:600;">naranja</span> los ML solicitados.
+        </div>
 
         <div id="previewWrap" style="margin-top: 12px; overflow: auto">
           <table id="preview">
@@ -235,6 +241,10 @@
       const EXPORT_URL =
         "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today";
 
+      /* NUEVO: Check ML */
+      const CHECK_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
+
       const CODE_COL = 2;
       const WEIGHT_COL = 6;
       const DEFAULT_WEIGHT = 0.0;
@@ -270,6 +280,46 @@
       let currentAccount = storageGet("psc_account") || ACCOUNT_DEFAULT;
 
       let saveLocked = false;
+
+      /* NUEVO: cache ML (naranja) — persiste hasta Guardar/Limpiar */
+      const mlCache = new Map(); // key: code lower (original/corrected), value: true
+
+      async function refreshMlMarks() {
+        try {
+          const uniq = new Set();
+          for (const r of rows) {
+            if (r.original)  uniq.add(r.original.trim().toLowerCase());
+            if (r.corrected) uniq.add(r.corrected.trim().toLowerCase());
+          }
+          const list = Array.from(uniq);
+          if (list.length === 0) return;
+
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 8000);
+
+          const res = await fetch(CHECK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trackings: list }),
+            signal: ctrl.signal
+          }).catch(() => null);
+          clearTimeout(t);
+          if (!res || !res.ok) return;
+
+          const payload = await res.json().catch(() => ({}));
+          if (!payload || payload.ok !== true || !Array.isArray(payload.items)) return;
+
+          for (const it of payload.items) {
+            const key = String(it.tracking || "").trim().toLowerCase();
+            const isMl = Boolean(it.ml || it.ML === "true" || it.status === "ML");
+            if (key) mlCache.set(key, isMl);
+          }
+          // Re-render para aplicar clases .ml
+          render();
+        } catch {
+          // Silencioso: no romper UI si la función no responde
+        }
+      }
 
       function initAccountSelector() {
         const radios = document.querySelectorAll('input[name="account"]');
@@ -328,11 +378,16 @@
         }
         ui.empty.style.display = "none";
         rows.forEach((r, i) => {
+          const keyCorr = String(r.corrected || "").trim().toLowerCase();
+          const keyOrig = String(r.original  || "").trim().toLowerCase();
+          const isMl =
+            mlCache.get(keyCorr) === true || mlCache.get(keyOrig) === true;
+
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td class="small muted">${i + 1}</td>
-            <td class="mono ${r.dup ? "dup" : ""}">${r.original || ""}</td>
-            <td class="mono ${r.dup ? "dup" : ""}">${r.corrected || ""}</td>
+            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.original || ""}</td>
+            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.corrected || ""}</td>
             <td class="mono">${Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""}</td>
             <td class="mono">${r.estado}</td>
             <td class="mono">${currentAccount}</td>
@@ -373,6 +428,9 @@
         }
         markDuplicates();
         render();
+
+        // NUEVO: pedir marcas ML (naranja) — no bloqueante
+        refreshMlMarks();
       }
 
       function refreshUI() {
@@ -457,6 +515,10 @@
 
         setStatus(`Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`, "ok");
         ui.btnSave.textContent = `Guardado ${okCount}/${rows.length}`;
+
+        /* NUEVO: limpiar cache ML tras guardar */
+        mlCache.clear();
+        render();
       }
 
       async function exportXlsxTodayForUser() {
@@ -511,6 +573,8 @@
       ui.paste.addEventListener("input", () => { clearTimeout(window.__debounce); window.__debounce = setTimeout(parsePasted, 200); });
       ui.btnClear.onclick = () => {
         ui.paste.value = ""; rows = []; saveLocked = false;
+        /* NUEVO: limpiar cache ML al limpiar */
+        mlCache.clear();
         render(); ui.btnSave.disabled = true; ui.btnSave.textContent = "Guardar 0 filas"; setStatus("Listo para guardar.", "muted"); setBatch("");
       };
       ui.btnSave.onclick = saveAll;
