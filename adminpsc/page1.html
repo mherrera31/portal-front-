@@ -10,7 +10,6 @@
     />
     <style>
       :root {
-        /* PALETA APPLE (CLARO) */
         --bg: #ffffff;
         --card: #ffffff;
         --fg: #1c1c1e;
@@ -19,314 +18,77 @@
         --border: #e5e5ea;
         --ok: #2ecc71;
         --err: #e5484d;
-        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-          Arial, sans-serif;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      /* CENTRADO + “BAJAR UN POCO” */
+      * { box-sizing: border-box; }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--fg);
         font-family: var(--font);
         display: flex;
-        justify-content: center; /* centrado horizontal */
-        align-items: flex-start; /* contenido “bajado” (no pegado arriba) */
+        justify-content: center;
+        align-items: flex-start;
         padding: clamp(24px, 3vw, 40px);
-        padding-top: clamp(48px, 8vh, 96px); /* MÁS ESPACIO ARRIBA */
+        padding-top: clamp(48px, 8vh, 96px);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      body.ready {
-        display: block;
-      }
-
-      .wrap {
-        width: 100%;
-        max-width: 980px;
-        display: grid;
-        gap: 16px;
-        margin: 0 auto; /* centrado del contenedor */
-      }
-      body:not(.ready) .wrap {
-        width: auto;
-        max-width: none;
-      }
-
+      body.ready { display: block; }
+      .wrap { width: 100%; max-width: 980px; display: grid; gap: 16px; margin: 0 auto; }
+      body:not(.ready) .wrap { width: auto; max-width: none; }
       .card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 16px;
         padding: 16px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 10px 30px rgba(0,0,0,.06);
       }
-
-      /* MODO PÚBLICO: ocultar UI de login interna */
-      #loginCard {
-        display: none !important;
-      }
-      #btnLogout,
-      #btnLogoutTop {
-        display: none !important;
-      }
-
-      .muted {
-        color: var(--muted);
-      }
-      .mono {
-        font-family: ui-monospace, Menlo, monospace;
-      }
-      .small {
-        font-size: 12px;
-      }
-
+      .muted { color: var(--muted); }
+      .mono { font-family: ui-monospace, Menlo, monospace; }
+      .small { font-size: 12px; }
       textarea {
-        width: 100%;
-        min-height: 240px;
-        background: #fff;
-        color: var(--fg);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px;
-        font-family: ui-monospace, Menlo, monospace;
+        width: 100%; min-height: 240px; background: #fff; color: var(--fg);
+        border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-family: ui-monospace, Menlo, monospace;
       }
       input[type="text"] {
-        padding: 10px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: #fff;
-        color: var(--fg);
-        min-width: 260px;
+        padding: 10px; border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--fg); min-width: 260px;
       }
-      table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 6px;
-      }
-      th,
-      td {
-        padding: 10px 12px;
-        text-align: left;
-      }
-      th {
-        color: #3a3a3c;
-        font-weight: 600;
-        border-bottom: 1px solid var(--border);
-      }
-      tr {
-        background: #fff;
-        border: 1px solid var(--border);
-      }
-      tbody tr:hover {
-        background: #f7f7f8;
-      }
-
+      table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+      th, td { padding: 10px 12px; text-align: left; }
+      th { color: #3a3a3c; font-weight: 600; border-bottom: 1px solid var(--border); }
+      tr { background: #fff; border: 1px solid var(--border); }
+      tbody tr:hover { background: #f7f7f8; }
       .btn {
-        background: #fff;
-        border: 1px solid var(--border);
-        color: #111;
-        padding: 10px 14px;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: box-shadow 0.15s ease, transform 0.15s ease;
+        background: #fff; border: 1px solid var(--border); color: #111; padding: 10px 14px;
+        border-radius: 12px; cursor: pointer; font-weight: 600; transition: box-shadow .15s ease, transform .15s ease;
       }
-      .btn:hover {
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-        transform: translateY(-1px);
-      }
-      .btn.primary {
-        background: var(--accent);
-        color: #fff;
-        border-color: transparent;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-      }
-      .btn.primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
-      }
-      .btn.ghost {
-        background: #f4f4f5;
-      }
-
-      .row-end {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 12px;
-        align-items: center;
-      }
-      .dup {
-        color: var(--err);
-        font-weight: 600;
-      }
-
-      /* Etiqueta naranja para ML solicitado */
-      .ml {
-        color: #f6c744;
-        font-weight: 600;
-      }
-
-      .status {
-        font-size: 13px;
-      }
-      .status.ok {
-        color: var(--ok);
-      }
-      .status.err {
-        color: var(--err);
-      }
-      .status.warn {
-        color: #f6c744;
-      }
-      .hidden {
-        display: none;
-      }
-
-      .login-grid {
-        display: grid;
-        grid-template-columns: 380px 180px;
-        align-items: center;
-        gap: 36px;
-        min-height: 180px;
-      }
-      .login-left {
-        width: 380px;
-        display: grid;
-        gap: 10px;
-      }
-      .login-right {
-        display: grid;
-        place-items: center;
-        padding: 8px 0;
-      }
-      .brand-logo {
-        width: 160px;
-        height: auto;
-        display: block;
-        opacity: 0.95;
-        image-rendering: auto;
-      }
-
-      .app-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-      .app-right {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-      .brand-logo-sm {
-        width: 56px;
-        height: auto;
-        display: block;
-        opacity: 0.95;
-      }
-
-      .seg {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
-      }
-      .seg label {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 8px;
-        border-radius: 8px;
-        cursor: pointer;
-        user-select: none;
-        font-size: 12px;
-      }
-      .seg input {
-        display: none;
-      }
-      .seg input:checked + span {
-        background: var(--accent);
-        color: #fff;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 6px;
-      }
-
-      :is(input[type="text"], textarea, .btn):focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
-      }
-
+      .btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,.06); transform: translateY(-1px); }
+      .btn.primary { background: var(--accent); color: #fff; border-color: transparent; box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+      .btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.16); }
+      .btn.ghost { background: #f4f4f5; }
+      .row-end { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; align-items: center; }
+      .dup { color: var(--err); font-weight: 600; }
+      .ml { color: #f6c744; font-weight: 600; }
+      .status { font-size: 13px; }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+      .status.warn { color: #f6c744; }
+      .hidden { display: none; }
+      .app-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .app-right { display: flex; gap: 10px; align-items: center; }
+      .brand-logo-sm { width: 56px; height: auto; opacity: .95; display: block; }
       @media (max-width: 640px) {
-        body {
-          padding-top: clamp(40px, 10vh, 96px);
-        }
-        #loginCard {
-          width: 100%;
-        }
-        .login-grid {
-          grid-template-columns: 1fr;
-          gap: 16px;
-          justify-items: center;
-        }
-        .login-left {
-          width: 100%;
-          max-width: 420px;
-        }
-        .brand-logo {
-          width: 130px;
-        }
-        .brand-logo-sm {
-          width: 44px;
-        }
-      }
-
-      /* Botón volver estilo Apple claro */
-      .psc-back-main {
-        position: fixed;
-        top: 16px;
-        left: 16px;
-        z-index: 9999;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
-        color: #111;
-        text-decoration: none;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-        font-family: var(--font);
-        font-size: 14px;
-        font-weight: 600;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      }
-      .psc-back-main svg {
-        stroke: currentColor;
-      }
-      .psc-back-main:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 44px rgba(0, 0, 0, 0.1);
-      }
-      .psc-back-main:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35),
-          0 16px 44px rgba(0, 0, 0, 0.1);
+        body { padding-top: clamp(40px, 10vh, 96px); }
+        .brand-logo-sm { width: 44px; }
       }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <link rel="stylesheet" href="portal.css">
+    <!-- OPCIONAL: si quieres “sembrar” por variable global, defínela ANTES de config/guard -->
+    <!-- <script>window.PSC_USER = "admin@psccargas.com";</script> -->
     <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="guard.js"></script>
@@ -340,7 +102,19 @@
       </div>
     </noscript>
 
-    <!-- MODO PÚBLICO: toma usuario global solo si es email válido -->
+    <!-- Semilla por URL: ?user=correo@psc.com -->
+    <script>
+      (function seedUserFromURL(){
+        try {
+          const q = new URL(location.href).searchParams.get('user');
+          if (q && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.trim())) {
+            localStorage.setItem('psc_user', q.trim());
+          }
+        } catch {}
+      })();
+    </script>
+
+    <!-- Cargar usuario global SOLO si es email válido -->
     <script>
       (function () {
         try {
@@ -358,79 +132,34 @@
     </script>
 
     <div class="wrap">
-      <div class="card" id="loginCard">
-        <!-- OCULTO en modo público -->
-        <h2 style="margin: 0 0 8px">Admin - PSC</h2>
-        <div class="login-grid">
-          <div class="login-left">
-            <p class="muted small" style="margin: 0 0 4px">Ingrese Usuario.</p>
-            <input
-              id="username"
-              type="text"
-              placeholder="Usuario (ej. juan.p@psc)"
-            />
-            <button class="btn primary" id="btnEnter" type="button">
-              Entrar
-            </button>
-            <div id="loginMsg" class="status muted"></div>
-          </div>
-          <div class="login-right">
-            <img
-              src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp"
-              alt="PSC"
-              class="brand-logo"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="card hidden" id="appCard">
+      <!-- SIN login local: interfaz principal siempre visible -->
+      <div class="card" id="appCard">
         <div class="app-bar">
           <h2 style="margin: 0">Ingrese Facturas de GEL</h2>
           <div class="app-right">
-            <div class="seg" title="Cuenta">
-              <label
-                ><input type="radio" name="account" value="PSC" /><span
-                  >PSC</span
-                ></label
-              >
-              <label
-                ><input type="radio" name="account" value="C10PA" /><span
-                  >C10PA</span
-                ></label
-              >
+            <div class="seg" title="Cuenta" style="display:inline-flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--border);border-radius:12px;background:#fff">
+              <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;cursor:pointer;font-size:12px">
+                <input type="radio" name="account" value="PSC" style="display:none" /><span>PSC</span>
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;cursor:pointer;font-size:12px">
+                <input type="radio" name="account" value="C10PA" style="display:none" /><span>C10PA</span>
+              </label>
             </div>
 
             <div class="small muted" id="whoami"></div>
-            <button class="btn ghost small" id="btnLogoutTop" title="Salir">
-              Salir
-            </button>
-            <img
-              src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp"
-              alt="PSC"
-              class="brand-logo-sm"
-              loading="lazy"
-            />
+            <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="PSC" class="brand-logo-sm" loading="lazy" />
           </div>
         </div>
-        <textarea
-          id="paste"
-          placeholder="Pega aqui sin encabezado. Maximo 500 filas."
-        ></textarea>
+        <textarea id="paste" placeholder="Pega aqui sin encabezado. Maximo 500 filas."></textarea>
       </div>
 
-      <div class="card hidden" id="previewCard">
+      <div class="card" id="previewCard">
         <h3 style="margin: 0 0 8px">Vista previa</h3>
         <div class="small muted">
-          Corrección (preview): elimina <code>]c1,+c1,]</code> (insensible a
-          mayúsc./minúsc.); elimina <code>|</code>; reemplaza <code>\/</code> o
-          <code>/</code> por un espacio; se conservan <b>guiones (-)</b>. No se
-          aplica ninguna otra transformación. Marcará de color
-          <span style="color: var(--err); font-weight: 600">rojo</span> los
-          trackings duplicados y de
-          <span style="color: #f6c744; font-weight: 600">naranja</span> los ML
-          solicitados.
+          Corrección (preview): elimina <code>]c1,+c1,]</code> (insensible a mayúsc./minúsc.); elimina <code>|</code>;
+          reemplaza <code>\/</code> o <code>/</code> por un espacio; se conservan <b>guiones (-)</b>.
+          Duplicados en <span style="color: var(--err); font-weight: 600">rojo</span> y ML solicitados en
+          <span style="color:#f6c744;font-weight:600">naranja</span>.
         </div>
 
         <div id="previewWrap" style="margin-top: 12px; overflow: auto">
@@ -457,42 +186,21 @@
           </div>
           <div style="display: flex; gap: 8px; align-items: center">
             <button class="btn" id="btnClear">Limpiar</button>
-            <button class="btn" id="btnLogout">Salir</button>
             <button class="btn" id="btnExport">Exportar XLSX</button>
-            <button class="btn primary" id="btnSave" disabled>
-              Guardar 0 filas
-            </button>
+            <button class="btn primary" id="btnSave" disabled>Guardar 0 filas</button>
           </div>
         </div>
       </div>
     </div>
 
     <script>
-      function storageGet(k) {
-        try {
-          return localStorage.getItem(k);
-        } catch {
-          return null;
-        }
-      }
-      function storageSet(k, v) {
-        try {
-          localStorage.setItem(k, v);
-        } catch {}
-      }
-      function storageRemove(k) {
-        try {
-          localStorage.removeItem(k);
-        } catch {}
-      }
-    </script>
+      function storageGet(k){ try { return localStorage.getItem(k); } catch { return null; } }
+      function storageSet(k,v){ try { localStorage.setItem(k,v); } catch {} }
+      function storageRemove(k){ try { localStorage.removeItem(k); } catch {} }
 
-    <!-- Helpers de validación y resolución de usuario -->
-    <script>
-      function isValidEmail(u) {
-        return typeof u === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.trim());
-      }
-      function resolveUser() {
+      // Helpers de usuario global
+      function isValidEmail(u){ return typeof u==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.trim()); }
+      function resolveUser(){
         const cands = [];
         try { cands.push((window.PSC && window.PSC.user && window.PSC.user.email) || null); } catch {}
         try { cands.push(typeof window.PSC_USER === "string" ? window.PSC_USER : null); } catch {}
@@ -503,16 +211,10 @@
     </script>
 
     <script>
-      const FUNCTION_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
-      const START_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/start-upload";
-      const EXPORT_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today";
-
-      /* NUEVO: Check ML */
-      const CHECK_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
+      const FUNCTION_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
+      const START_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/start-upload";
+      const EXPORT_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today";
+      const CHECK_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
 
       const CODE_COL = 2;
       const WEIGHT_COL = 6;
@@ -521,20 +223,10 @@
       const MAX_ROWS = 500;
 
       const ui = {
-        loginCard: document.getElementById("loginCard"),
-        loginMsg: document.getElementById("loginMsg"),
-        username: document.getElementById("username"),
-        btnEnter: document.getElementById("btnEnter"),
-
-        appCard: document.getElementById("appCard"),
-        previewCard: document.getElementById("previewCard"),
         whoami: document.getElementById("whoami"),
-
         paste: document.getElementById("paste"),
         btnSave: document.getElementById("btnSave"),
         btnClear: document.getElementById("btnClear"),
-        btnLogout: document.getElementById("btnLogout"),
-        btnLogoutTop: document.getElementById("btnLogoutTop"),
         btnExport: document.getElementById("btnExport"),
         previewBody: document.querySelector("#preview tbody"),
         empty: document.getElementById("empty"),
@@ -549,123 +241,38 @@
       let currentAccount = storageGet("psc_account") || ACCOUNT_DEFAULT;
 
       let saveLocked = false;
+      const mlCache = new Map(); // key: tracking (lower), value: true
 
-      /* NUEVO: cache ML (naranja) — persiste hasta Guardar/Limpiar */
-      const mlCache = new Map(); // key: code lower (original/corrected), value: true
+      function setStatus(msg, type=""){ ui.status.textContent = msg; ui.status.className = "status " + (type || "muted"); }
+      function setBatch(msg){ ui.batchMsg.textContent = msg || ""; }
 
-      async function refreshMlMarks() {
-        try {
-          const uniq = new Set();
-          for (const r of rows) {
-            if (r.original) uniq.add(r.original.trim().toLowerCase());
-            if (r.corrected) uniq.add(r.corrected.trim().toLowerCase());
-          }
-          const list = Array.from(uniq);
-          if (list.length === 0) return;
-
-          const ctrl = new AbortController();
-          const t = setTimeout(() => ctrl.abort(), 8000);
-
-          const res = await fetch(CHECK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ trackings: list }),
-            signal: ctrl.signal,
-          }).catch(() => null);
-          clearTimeout(t);
-          if (!res || !res.ok) return;
-
-          const payload = await res.json().catch(() => ({}));
-          if (!payload || payload.ok !== true || !Array.isArray(payload.items))
-            return;
-
-          for (const it of payload.items) {
-            const key = String(it.tracking || "")
-              .trim()
-              .toLowerCase();
-            const isMl = Boolean(
-              it.ml || it.ML === "true" || it.status === "ML"
-            );
-            if (key) mlCache.set(key, isMl);
-          }
-          // Re-render para aplicar clases .ml
-          render();
-        } catch {
-          // Silencioso: no romper UI si la función no responde
-        }
+      function splitLine(line){
+        if (line.includes("	")) return line.split("	").map(c=>c.trim());
+        if (line.includes(",")) return line.split(",").map(c=>c.trim());
+        return line.split(/\s{2,}/).map(c=>c.trim()).filter(Boolean);
       }
 
-      function initAccountSelector() {
-        const radios = document.querySelectorAll('input[name="account"]');
-        let matched = false;
-        radios.forEach((r) => {
-          if (r.value === currentAccount) {
-            r.checked = true;
-            matched = true;
-          }
-          r.addEventListener("change", () => {
-            if (r.checked) {
-              currentAccount = r.value;
-              storageSet("psc_account", currentAccount);
-              render();
-            }
-          });
-        });
-        if (!matched) {
-          currentAccount = ACCOUNT_DEFAULT;
-          storageSet("psc_account", currentAccount);
-          const def = Array.from(radios).find(
-            (r) => r.value === ACCOUNT_DEFAULT
-          );
-          if (def) def.checked = true;
-        }
-      }
-
-      function show(el) {
-        el.classList.remove("hidden");
-      }
-      function hide(el) {
-        el.classList.add("hidden");
-      }
-      function setStatus(msg, type = "") {
-        ui.status.textContent = msg;
-        ui.status.className = "status " + (type || "muted");
-      }
-      function setBatch(msg) {
-        ui.batchMsg.textContent = msg || "";
-      }
-      function splitLine(line) {
-        if (line.includes("	")) return line.split("	").map((c) => c.trim());
-        if (line.includes(",")) return line.split(",").map((c) => c.trim());
-        return line
-          .split(/\s{2,}/)
-          .map((c) => c.trim())
-          .filter(Boolean);
-      }
-
-      /* FIX 1: función sin errores y manteniendo tu lógica */
-      function correctPreview(code) {
+      // Fix: sin errores y respetando reglas
+      function correctPreview(code){
         let s = code ?? "";
-        s = s.replace(/\]c1/gi, "");   // quitar ]c1
-        s = s.replace(/\+c1/gi, "");   // quitar +c1
-        s = s.replace(/\]/g, "");      // quitar ]
-        s = s.replace(/\|/g, "");      // quitar |
-        s = s.replace(/\\\//g, " ");   // reemplazar '\/' por espacio
-        s = s.replace(/\//g, " ");     // reemplazar '/' por espacio (por robustez)
+        s = s.replace(/\]c1/gi, "");
+        s = s.replace(/\+c1/gi, "");
+        s = s.replace(/\]/g, "");
+        s = s.replace(/\|/g, "");
+        s = s.replace(/\\\//g, " ");
+        s = s.replace(/\//g, " ");
         return s;
       }
 
-      function markDuplicates() {
+      function markDuplicates(){
         const counts = new Map();
-        rows.forEach((r) =>
-          counts.set(r.corrected, (counts.get(r.corrected) || 0) + 1)
-        );
-        rows.forEach((r) => (r.dup = (counts.get(r.corrected) || 0) > 1));
+        rows.forEach(r => counts.set(r.corrected, (counts.get(r.corrected)||0)+1));
+        rows.forEach(r => r.dup = (counts.get(r.corrected)||0) > 1);
       }
 
-      function render() {
+      function render(){
         ui.previewBody.innerHTML = "";
-        if (rows.length === 0) {
+        if (rows.length === 0){
           ui.empty.style.display = "block";
           ui.btnSave.disabled = true;
           ui.btnSave.textContent = "Guardar 0 filas";
@@ -674,22 +281,17 @@
           return;
         }
         ui.empty.style.display = "none";
-        rows.forEach((r, i) => {
-          const keyCorr = String(r.corrected || "")
-            .trim()
-            .toLowerCase();
-          const keyOrig = String(r.original || "")
-            .trim()
-            .toLowerCase();
-          const isMl =
-            mlCache.get(keyCorr) === true || mlCache.get(keyOrig) === true;
 
+        rows.forEach((r,i)=>{
+          const keyCorr = String(r.corrected||"").trim().toLowerCase();
+          const keyOrig = String(r.original||"").trim().toLowerCase();
+          const isMl = mlCache.get(keyCorr)===true || mlCache.get(keyOrig)===true;
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td class="small muted">${i + 1}</td>
-            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.original || ""}</td>
-            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.corrected || ""}</td>
-            <td class="mono">${Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""}</td>
+            <td class="small muted">${i+1}</td>
+            <td class="mono ${r.dup?"dup":""} ${isMl?"ml":""}">${r.original||""}</td>
+            <td class="mono ${r.dup?"dup":""} ${isMl?"ml":""}">${r.corrected||""}</td>
+            <td class="mono">${Number.isFinite(r.weight)? r.weight.toFixed(2): ""}</td>
             <td class="mono">${r.status}</td>
             <td class="mono">${currentAccount}</td>
           `;
@@ -700,35 +302,56 @@
         setStatus("Listo para guardar.", "muted");
       }
 
-      function parsePasted() {
+      async function refreshMlMarks(){
+        try {
+          const uniq = new Set();
+          for (const r of rows){
+            if (r.original)  uniq.add(r.original.trim().toLowerCase());
+            if (r.corrected) uniq.add(r.corrected.trim().toLowerCase());
+          }
+          const list = Array.from(uniq);
+          if (list.length===0) return;
+
+          const ctrl = new AbortController();
+          const t = setTimeout(()=>ctrl.abort(), 8000);
+          const res = await fetch(CHECK_URL, {
+            method:"POST", headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ trackings: list }), signal: ctrl.signal
+          }).catch(()=>null);
+          clearTimeout(t);
+          if (!res || !res.ok) return;
+          const payload = await res.json().catch(()=>({}));
+          if (!payload || payload.ok!==true || !Array.isArray(payload.items)) return;
+
+          for (const it of payload.items){
+            const key = String(it.tracking||"").trim().toLowerCase();
+            const isMl = Boolean(it.ml || it.ML === "true" || it.status === "ML");
+            if (key) mlCache.set(key, isMl);
+          }
+          render();
+        } catch {}
+      }
+
+      function parsePasted(){
         const text = ui.paste.value.trim();
         rows = [];
-        if (!text) {
-          render();
-          return;
-        }
+        if (!text){ render(); return; }
 
-        let lines = text.split(/\r?\n/).filter((l) => l.trim().length);
-        if (lines.length > MAX_ROWS) {
+        let lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+        if (lines.length > MAX_ROWS){
           lines = lines.slice(0, MAX_ROWS);
-          setStatus(
-            `Se pegaron más de ${MAX_ROWS} filas: se tomaron las primeras ${MAX_ROWS}.`,
-            "warn"
-          );
+          setStatus(`Se pegaron más de ${MAX_ROWS} filas: se tomaron las primeras ${MAX_ROWS}.`, "warn");
         }
 
         const codeIdx0 = Math.max(1, CODE_COL) - 1;
         const weightIdx0 = Math.max(1, WEIGHT_COL) - 1;
 
-        for (const line of lines) {
+        for (const line of lines){
           const cells = splitLine(line);
           if (!cells.length) continue;
 
           const original = (cells[codeIdx0] ?? "").trim();
-          let weight = (cells[weightIdx0] ?? "")
-            .toString()
-            .replace(",", ".")
-            .trim();
+          let weight = (cells[weightIdx0] ?? "").toString().replace(",", ".").trim();
           const w = parseFloat(weight);
           const weightNum = Number.isFinite(w) ? w : DEFAULT_WEIGHT;
 
@@ -744,47 +367,19 @@
         }
         markDuplicates();
         render();
-
-        // solicitar marcas ML (naranja) — no bloqueante
-        refreshMlMarks();
+        refreshMlMarks(); // no bloqueante
       }
 
-      function refreshUI() {
-        // MODO PÚBLICO: siempre mostrar app
+      function refreshUI(){
         currentUser = resolveUser();
         document.body.classList.add("ready");
-        hide(ui.loginCard);
-        show(ui.appCard);
-        show(ui.previewCard);
         if (ui.whoami) ui.whoami.textContent = isValidEmail(currentUser) ? `Conectado: ${currentUser}` : "Conectado: (sin usuario)";
       }
 
-      // Manejadores login (inofensivos al estar ocultos)
-      ui.btnEnter.onclick = () => {
-        const u = ui.username?.value?.trim();
-        currentUser = u || currentUser;
-        if (isValidEmail(currentUser)) storageSet("psc_user", currentUser);
-        if (ui.loginMsg) {
-          ui.loginMsg.textContent = isValidEmail(currentUser) ? "OK" : "Ingrese un email válido";
-          ui.loginMsg.className = "status " + (isValidEmail(currentUser) ? "ok" : "err");
-        }
-        refreshUI();
-      };
-      ui.btnLogout.onclick = () => {
-        storageRemove("psc_user");
-        currentUser = null;
-        refreshUI();
-      };
-      ui.btnLogoutTop.onclick = () => {
-        storageRemove("psc_user");
-        currentUser = null;
-        refreshUI();
-      };
-
-      async function startUpload(expectedRows) {
-        currentUser = resolveUser(); // refrescar por si cambió
-        if (!isValidEmail(currentUser)) {
-          setStatus("Usuario inválido o ausente. Verifique sesión global (window.PSC.user.email o PSC_USER).", "err");
+      async function startUpload(expectedRows){
+        currentUser = resolveUser();
+        if (!isValidEmail(currentUser)){
+          setStatus("Usuario inválido o ausente. Verifique sesión global (PSC.user.email / PSC_USER / ?user=).", "err");
           throw new Error("invalid_user");
         }
         const res = await fetch(START_URL, {
@@ -797,25 +392,19 @@
             cuenta: currentAccount,
           }),
         });
-        const txt = await res.text().catch(() => "");
+        const txt = await res.text().catch(()=> "");
         let payload = {};
-        try {
-          payload = JSON.parse(txt || "{}");
-        } catch {}
-        if (!res.ok) {
-          const msg =
-            payload.detail ||
-            payload.error ||
-            res.statusText ||
-            `HTTP ${res.status}`;
+        try { payload = JSON.parse(txt || "{}"); } catch {}
+        if (!res.ok){
+          const msg = payload.detail || payload.error || res.statusText || `HTTP ${res.status}`;
           throw new Error(msg);
         }
         return payload.batch_id;
       }
 
-      async function saveAll() {
+      async function saveAll(){
         if (rows.length === 0) return;
-        if (!isValidEmail(resolveUser())) {
+        if (!isValidEmail(resolveUser())){
           setStatus("Usuario inválido o ausente. Verifique sesión global.", "err");
           return;
         }
@@ -830,7 +419,7 @@
         try {
           batchId = await startUpload(rows.length);
           setBatch(`Lote: ${batchId}`);
-        } catch (e) {
+        } catch (e){
           setStatus(`No se pudo iniciar el lote: ${e.message}`, "err");
           return;
         }
@@ -838,7 +427,7 @@
         setStatus(`Guardando… (lote ${batchId})`, "muted");
 
         let okCount = 0;
-        for (let i = 0; i < rows.length; i++) {
+        for (let i=0; i<rows.length; i++){
           const r = rows[i];
           try {
             const res = await fetch(FUNCTION_URL, {
@@ -852,86 +441,65 @@
                 batch_id: batchId,
                 account: currentAccount,
                 cuenta: currentAccount,
-                user: currentUser, // enviar usuario real
+                user: currentUser,
               }),
             });
-            if (!res.ok) {
-              const txt = await res.text().catch(() => "");
+            if (!res.ok){
+              const txt = await res.text().catch(()=> "");
               let msg = "Error inesperado";
               try {
                 const j = JSON.parse(txt || "{}");
                 msg = j.error || j.detail || j.message || JSON.stringify(j);
-              } catch {
-                msg = txt || res.statusText || `HTTP ${res.status}`;
-              }
-              setStatus(
-                `Error en fila ${i + 1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,
-                "err"
-              );
+              } catch { msg = txt || res.statusText || `HTTP ${res.status}`; }
+              setStatus(`Error en fila ${i+1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`, "err");
               return;
             }
             okCount++;
-          } catch (e) {
-            setStatus(
-              `Error de red en fila ${i + 1} (${r.original}): ${e.message}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,
-              "err"
-            );
+          } catch (e){
+            setStatus(`Error de red en fila ${i+1} (${r.original}): ${e.message}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`, "err");
             return;
           }
         }
 
-        setStatus(
-          `Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`,
-          "ok"
-        );
+        setStatus(`Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`, "ok");
         ui.btnSave.textContent = `Guardado ${okCount}/${rows.length}`;
-
         mlCache.clear();
         render();
       }
 
-      async function exportXlsxTodayForUser() {
+      async function exportXlsxTodayForUser(){
         currentUser = resolveUser();
-        if (!isValidEmail(currentUser)) {
+        if (!isValidEmail(currentUser)){
           setStatus("Usuario inválido o ausente. Verifique sesión global.", "err");
           return;
         }
         setStatus("Preparando XLSX…", "muted");
 
         const now = new Date();
-        const start = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const end = new Date(start); end.setDate(end.getDate()+1);
         const startISO = start.toISOString();
         const endISO = end.toISOString();
 
         const res = await fetch(EXPORT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user: currentUser,
-            start_iso: startISO,
-            end_iso: endISO,
-          }),
+          body: JSON.stringify({ user: currentUser, start_iso: startISO, end_iso: endISO }),
         });
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok || !payload.ok) {
+        const payload = await res.json().catch(()=> ({}));
+        if (!res.ok || !payload.ok){
           const msg = payload.detail || payload.error || res.statusText;
           setStatus(`No se pudo exportar: ${msg}`, "err");
           return;
         }
 
         const trows = payload.rows || [];
-        if (trows.length === 0) {
+        if (trows.length === 0){
           setStatus(payload.message || "No hay trackings pendientes para exportar.", "warn");
           return;
         }
 
-        const rowsX = trows.map((r) => ({
+        const rowsX = trows.map(r => ({
           WAREHOUSE: "",
           TRACKING: String(r.tracking_corrected ?? ""),
           CLIENTE: "",
@@ -939,13 +507,13 @@
           PESO: r.weight_lbs == null ? "" : String(r.weight_lbs),
         }));
 
-        const headersX = ["WAREHOUSE", "TRACKING", "CLIENTE", "PIEZAS", "PESO"];
+        const headersX = ["WAREHOUSE","TRACKING","CLIENTE","PIEZAS","PESO"];
         const ws = XLSX.utils.json_to_sheet(rowsX, { header: headersX });
 
         const range = XLSX.utils.decode_range(ws["!ref"]);
-        for (let R = range.s.r; R <= range.e.r; ++R) {
-          for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        for (let R = range.s.r; R <= range.e.r; ++R){
+          for (let C = range.s.c; C <= range.e.c; ++C){
+            const cellRef = XLSX.utils.encode_cell({ r:R, c:C });
             const cell = ws[cellRef];
             if (!cell) continue;
             cell.t = "s";
@@ -956,23 +524,19 @@
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Hoja1");
 
-        const pad = (n) => String(n).padStart(2, "0");
-        const fname = `corte_${now.getFullYear()}${pad(
-          now.getMonth() + 1
-        )}${pad(now.getDate())}_${(currentUser || "PUBLIC").replace(
-          /[^A-Za-z0-9._-]/g,
-          "-"
-        )}.xlsx`;
+        const pad = (n)=> String(n).padStart(2, "0");
+        const fname = `corte_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${(currentUser||"PUBLIC").replace(/[^A-Za-z0-9._-]/g,"-")}.xlsx`;
         XLSX.writeFile(wb, fname);
 
         setStatus(`XLSX creado (${rowsX.length} filas, todo texto).`, "ok");
       }
 
-      ui.paste.addEventListener("input", () => {
+      // eventos UI
+      ui.paste.addEventListener("input", ()=>{
         clearTimeout(window.__debounce);
         window.__debounce = setTimeout(parsePasted, 200);
       });
-      ui.btnClear.onclick = () => {
+      ui.btnClear.onclick = ()=>{
         ui.paste.value = "";
         rows = [];
         saveLocked = false;
@@ -986,43 +550,38 @@
       ui.btnSave.onclick = saveAll;
       ui.btnExport.onclick = exportXlsxTodayForUser;
 
-      /* FIX 2: fallback de arranque para no quedar en blanco */
-      (function bootWhenReady() {
+      // Boot: global-only (sin login local)
+      (function bootWhenReady(){
         const start = () => {
           try {
+            // Radio cuenta (persistencia)
+            const radios = document.querySelectorAll('input[name="account"]');
+            let matched = false;
+            radios.forEach((r:any)=>{
+              if (r.value === currentAccount){ r.checked = true; matched = true; }
+              r.addEventListener("change", ()=>{ if (r.checked){ currentAccount = r.value; storageSet("psc_account", currentAccount); render(); }});
+            });
+            if (!matched){
+              currentAccount = ACCOUNT_DEFAULT;
+              storageSet("psc_account", currentAccount);
+              const def = Array.from(radios).find((r:any)=> r.value===ACCOUNT_DEFAULT);
+              if (def) def.checked = true;
+            }
+
             currentUser = resolveUser();
-            if (isValidEmail(currentUser)) {
-              storageSet("psc_user", currentUser);
-            } else {
-              console.warn("PSC: usuario inválido o ausente -> revisa guard.js / window.PSC_USER");
-            }
+            if (isValidEmail(currentUser)) storageSet("psc_user", currentUser);
             refreshUI();
-            initAccountSelector();
-          } catch (e) {
+          } catch(e){
             console.error("PSC boot error:", e);
-            // Fallback visible
             document.body.classList.add("ready");
-            const app = document.getElementById("appCard");
-            const prev = document.getElementById("previewCard");
-            if (app) app.classList.remove("hidden");
-            if (prev) prev.classList.remove("hidden");
             const st = document.getElementById("statusMsg");
-            if (st) {
-              st.textContent = "Error al iniciar: " + (e?.message || e);
-              st.className = "status err";
-            }
+            if (st){ st.textContent = "Error al iniciar: " + (e?.message || e); st.className = "status err"; }
           }
         };
-        if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", start);
-        } else {
-          start();
-        }
+        if (document.readyState === "loading"){ document.addEventListener("DOMContentLoaded", start); } else { start(); }
       })();
     </script>
 
     <script src="portal.js"></script>
   </body>
 </html>
-
-
