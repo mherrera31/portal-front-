@@ -690,7 +690,7 @@
             <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.original || ""}</td>
             <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.corrected || ""}</td>
             <td class="mono">${Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""}</td>
-            <td class="mono">${r.estado}</td>
+            <td class="mono">${r.status}</td>
             <td class="mono">${currentAccount}</td>
           `;
           ui.previewBody.appendChild(tr);
@@ -738,7 +738,7 @@
             original,
             corrected,
             weight: weightNum,
-            estado: DEFAULT_STATUS,
+            status: DEFAULT_STATUS,
             dup: false,
           });
         }
@@ -848,7 +848,7 @@
                 tracking_original: r.original,
                 tracking_corrected: r.corrected,
                 weight_lbs: r.weight,
-                status: r.estado,
+                status: r.status,
                 batch_id: batchId,
                 account: currentAccount,
                 cuenta: currentAccount,
