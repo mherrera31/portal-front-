@@ -63,10 +63,10 @@
   <!-- XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- OPCIONAL: si quieres sembrar user por variable global, define esto ANTES de config/guard -->
+  <!-- OPCIONAL: sembrar user global ANTES de config/guard -->
   <!-- <script>window.PSC_USER = "admin@psccargas.com";</script> -->
 
-  <!-- Tu config / guard (deben definir PSC.user.email o PSC_USER si hay sesión) -->
+  <!-- Tu config/guard (deben exponer PSC.user.email o PSC_USER si hay sesión) -->
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="guard.js"></script>
@@ -123,20 +123,24 @@
 
   <script>
   "use strict";
+
   // =========================
-  //  SECCIÓN: Utilidades
+  //  SECCIÓN: Constantes / Endpoints
   // =========================
   const FUNCTION_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
   const START_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/start-upload";
   const EXPORT_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today";
   const CHECK_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
 
-  const CODE_COL = 2;                 // Columna (1-based) del código a corregir
+  const CODE_COL = 2;                 // Columna (1-based) del código
   const WEIGHT_COL = 6;               // Columna (1-based) del peso
   const DEFAULT_WEIGHT = 0.0;
   const DEFAULT_STATUS = "Centro de Dist. PSC";
   const MAX_ROWS = 500;
 
+  // =========================
+  //  SECCIÓN: Estado/UI
+  // =========================
   const ui = {
     whoami: document.getElementById("whoami"),
     paste: document.getElementById("paste"),
@@ -158,20 +162,24 @@
 
   const mlCache = new Map();       // cache de ML: key(lower) -> true
 
-  // ---- helpers de storage/strings
+  // =========================
+  //  SECCIÓN: Helpers generales
+  // =========================
   function storageGet(k){ try { return localStorage.getItem(k); } catch { return null; } }
   function storageSet(k,v){ try { localStorage.setItem(k,v); } catch {} }
   function isValidEmail(u){ return typeof u==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.trim()); }
   function setStatus(msg, type=""){ ui.status.textContent = msg; ui.status.className = "status " + (type || "muted"); }
   function setBatch(msg){ ui.batchMsg.textContent = msg || ""; }
 
-  // ---- origen del usuario: PSC.user.email -> PSC_USER -> localStorage -> ?user=
+  // --- Sembrar user desde ?user=
   (function seedUserFromURL(){
     try {
       const q = new URL(location.href).searchParams.get("user");
       if (q && isValidEmail(q)) localStorage.setItem("psc_user", q.trim());
     } catch {}
   })();
+
+  // --- Intento inicial de tomar user de PSC.user.email / PSC_USER
   (function loadGlobalUser(){
     try {
       const g1 = (window.PSC && window.PSC.user && window.PSC.user.email);
@@ -180,6 +188,8 @@
       if (isValidEmail(cand)) localStorage.setItem("psc_user", cand);
     } catch (e) { console.error("PSC: error leyendo usuario global", e); }
   })();
+
+  // --- Resolver user en orden de prioridad
   function resolveUser(){
     const cands = [];
     try { cands.push((window.PSC && window.PSC.user && window.PSC.user.email) || null); } catch {}
@@ -187,6 +197,27 @@
     try { cands.push(storageGet("psc_user")); } catch {}
     const u = cands.find(x => typeof x === "string" && x.trim().length) || null;
     return u ? u.trim() : null;
+  }
+
+  // --- Watcher asíncrono: si guard.js publica el usuario más tarde, lo capturamos
+  function startUserWatcher() {
+    let tries = 0;
+    const maxTries = 20; // 20 * 500ms = 10s
+    const timer = setInterval(() => {
+      tries++;
+      try {
+        const g1 = (window.PSC && window.PSC.user && window.PSC.user.email);
+        const g2 = (typeof window.PSC_USER === "string") ? window.PSC_USER : null;
+        const cand = (typeof g1 === "string" && g1.trim()) ? g1.trim() : (g2 && g2.trim()) || null;
+        if (cand && isValidEmail(cand)) {
+          localStorage.setItem("psc_user", cand);
+          currentUser = cand;
+          if (ui.whoami) ui.whoami.textContent = `Conectado: ${currentUser}`;
+          clearInterval(timer);
+        }
+      } catch {}
+      if (tries >= maxTries) clearInterval(timer);
+    }, 500);
   }
 
   // =========================
@@ -245,7 +276,7 @@
   }
 
   async function refreshMlMarks(){
-    // Consulta a CHECK_URL para pintar ML (naranja). Ignora errores silenciosamente.
+    // Consulta CHECK_URL y pinta ML (naranja). Ignora errores silenciosamente.
     try {
       const uniq = new Set();
       for (const r of rows){
@@ -313,7 +344,7 @@
   }
 
   // =========================
-  //  SECCIÓN: Flujo de guardado / export
+  //  SECCIÓN: Guardado / Export
   // =========================
   function refreshUI(){
     currentUser = resolveUser();
@@ -321,7 +352,7 @@
   }
 
   async function startUpload(expectedRows){
-    // Crea batch (quién sube): requiere user email válido del global
+    // Crea batch (quién sube): requiere email válido del global
     currentUser = resolveUser();
     if (!isValidEmail(currentUser)){
       setStatus("Usuario inválido o ausente. Defina PSC.user.email, PSC_USER o use ?user=…","err");
@@ -350,20 +381,19 @@
     }
     currentUser = resolveUser();
 
-    // Lock del botón mientras guardamos
+    // Lock mientras guardamos
     saveLocked = true;
     ui.btnSave.disabled = true;
     setStatus("Creando lote…","muted");
     setBatch("");
 
-    let batchId;
     try {
       // 1) Crear batch
-      batchId = await startUpload(rows.length);
+      const batchId = await startUpload(rows.length);
       setBatch(`Lote: ${batchId}`);
       setStatus(`Guardando… (lote ${batchId})`,"muted");
 
-      // 2) Enviar cada fila
+      // 2) Enviar filas
       let okCount = 0;
       for (let i=0;i<rows.length;i++){
         const r = rows[i];
@@ -374,11 +404,11 @@
             tracking_original: r.original,
             tracking_corrected: r.corrected,
             weight_lbs: r.weight,
-            status: r.status,               // <- usar 'status'
+            status: r.status,               // usar 'status'
             batch_id: batchId,
             account: currentAccount,
             cuenta: currentAccount,
-            user: currentUser,              // <- email global
+            user: currentUser,              // email global
           })
         });
 
@@ -402,7 +432,7 @@
     } catch(e){
       setStatus(`No se pudo guardar: ${e && e.message ? e.message : e}`,"err");
     } finally {
-      // Siempre liberar el botón, aún si hubo error
+      // Liberar botón pase lo que pase
       saveLocked = false;
       ui.btnSave.disabled = (rows.length === 0);
     }
@@ -529,6 +559,8 @@
       currentUser = resolveUser();
       if (isValidEmail(currentUser)) storageSet("psc_user", currentUser);
       refreshUI();
+      // <- Captura PSC.user.email cuando guard.js lo publique más tarde
+      startUserWatcher();
     } catch(e){
       console.error("PSC boot error:", e);
       setStatus("Error al iniciar: " + (e && e.message ? e.message : e), "err");
@@ -537,4 +569,5 @@
   </script>
 </body>
 </html>
+
 
