@@ -334,6 +334,12 @@
 <style>:root{--psc-bg:#F2F2F7}</style>
 </head>
   <body>
+    <noscript>
+      <div style="margin:16px;padding:12px;border:1px solid #e5e5ea;border-radius:12px">
+        Activa JavaScript para usar esta página.
+      </div>
+    </noscript>
+
     <!-- MODO PÚBLICO: ahora toma usuario global; no forzar PUBLIC -->
     <script>
       (function () {
@@ -413,7 +419,7 @@
       <div class="card hidden" id="previewCard">
         <h3 style="margin: 0 0 8px">Vista previa</h3>
         <div class="small muted">
-          Corrección (preview): elimina <code>]c1,+c1,]</code>  (insensible a
+          Corrección (preview): elimina <code>]c1,+c1,]</code> (insensible a
           mayúsc./minúsc.); elimina <code>|</code>; reemplaza cada
           <code>\/</code> por un espacio; se conservan <b>guiones (-)</b>. No se
           aplica ninguna otra transformación. Marcará de color
@@ -618,13 +624,17 @@
           .filter(Boolean);
       }
 
+      // >>> FIX 1: función sin errores y manteniendo tu lógica
       function correctPreview(code) {
         let s = code ?? "";
-        s = s.replace(/\]/gi), "");
-        s = s.replace(/\+c1/gi, "");
-        s = s.replace(/\]c1/gi, "");
-        s = s.replace(/\|/g, "");
-        s = s.replace(/\//g, " ");
+        s = s.replace(/\]c1/gi, "");   // quitar ]c1
+        s = s.replace(/\+c1/gi, "");   // quitar +c1
+        s = s.replace(/\]/g, "");      // quitar ]
+        s = s.replace(/\|/g, "");      // quitar |
+        // Si la fuente trae el par '\/', usa la regex con backslash:
+        s = s.replace(/\\\//g, " ");   // reemplazar '\/' por espacio
+        // Y por robustez, si viene un '/' suelto también se reemplaza:
+        s = s.replace(/\//g, " ");     // reemplazar '/' por espacio
         return s;
       }
 
@@ -661,11 +671,11 @@
           tr.innerHTML = `
             <td class="small muted">${i + 1}</td>
             <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${
-            r.original || ""
-          }</td>
+              r.original || ""
+            }</td>
             <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${
-            r.corrected || ""
-          }</td>
+              r.corrected || ""
+            }</td>
             <td class="mono">${
               Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""
             }</td>
@@ -962,19 +972,35 @@
       ui.btnSave.onclick = saveAll;
       ui.btnExport.onclick = exportXlsxTodayForUser;
 
+      // >>> FIX 2: fallback de arranque para no quedar en blanco
       (function bootWhenReady() {
-        const start = async () => {
-          // Tomar usuario de sesión global si existe
+        const start = () => {
           try {
-            var g =
-              (window.PSC && window.PSC.user && window.PSC.user.email) ||
-              window.PSC_USER ||
-              null;
-            if (g) storageSet("psc_user", g);
-          } catch {}
-          currentUser = storageGet("psc_user");
-          refreshUI();
-          initAccountSelector();
+            // Tomar usuario de sesión global si existe
+            try {
+              var g =
+                (window.PSC && window.PSC.user && window.PSC.user.email) ||
+                window.PSC_USER ||
+                null;
+              if (g) storageSet("psc_user", g);
+            } catch {}
+            currentUser = storageGet("psc_user");
+            refreshUI();
+            initAccountSelector();
+          } catch (e) {
+            console.error("PSC boot error:", e);
+            // Fallback visible
+            document.body.classList.add("ready");
+            const app = document.getElementById("appCard");
+            const prev = document.getElementById("previewCard");
+            if (app) app.classList.remove("hidden");
+            if (prev) prev.classList.remove("hidden");
+            const st = document.getElementById("statusMsg");
+            if (st) {
+              st.textContent = "Error al iniciar: " + (e?.message || e);
+              st.className = "status err";
+            }
+          }
         };
         if (document.readyState === "loading") {
           document.addEventListener("DOMContentLoaded", start);
@@ -987,3 +1013,4 @@
 <script src="portal.js"></script>
 </body>
 </html>
+
