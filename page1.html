@@ -33,15 +33,59 @@
     .psc-portal-spacer{height:64px}
     @media (max-width:480px){ .psc-portal-spacer{height:72px} }
     .psc-portal-header strong{ text-transform: uppercase; letter-spacing:.02em; }
+
+    /* --- Nav en header (estilo Apple) --- */
+    .psc-nav { display:flex; gap:.5rem; flex-wrap:wrap; margin-left:.75rem; }
+    .psc-nav a{
+      text-decoration:none; color:#111; font-weight:600;
+      border:1px solid #e5e5ea; background:#fff; padding:.45rem .7rem;
+      border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.04);
+    }
+    .psc-nav a:hover{ background:#f7f7f8; }
+    .psc-nav a.active{
+      background:#0b5cff; border-color:transparent; color:#fff; box-shadow:0 6px 18px rgba(0,0,0,.10);
+    }
+    @media (max-width:480px){
+      .psc-nav { margin-left:.5rem; }
+      .psc-nav a { padding:.55rem .8rem; }
+    }
+    /* Mensaje de error visible si falta config.js */
+    .psc-error {
+      position:fixed; inset:auto 12px 12px 12px;
+      background:#fff; border:1px solid #e5e5ea; border-left:4px solid #e5484d;
+      border-radius:12px; padding:.9rem 1rem; box-shadow:0 10px 30px rgba(0,0,0,.06);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      color:#1c1c1e;
+    }
   </style>
   <title>SUBIR CORTE — PSC Apps</title>
+
+  <!-- Pre-auth: oculta hasta verificar sesión -->
   <style>html.preauth body{display:none}</style>
   <script>document.documentElement.classList.add('preauth');</script>
+
+  <!-- Guard Supabase -->
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+    let SUPABASE_URL, SUPABASE_ANON_KEY;
+
+    try {
+      const cfg = await import("./config.js"); // OJO: si moviste este archivo a una carpeta, usa ../config.js
+      SUPABASE_URL = cfg.SUPABASE_URL;
+      SUPABASE_ANON_KEY = cfg.SUPABASE_ANON_KEY;
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("Variables vacías en config.js");
+    } catch (e) {
+      const m = document.createElement('div');
+      m.className = 'psc-error';
+      m.innerHTML = "<strong>Error:</strong> No se pudo cargar <code>config.js</code> o faltan claves.<br>Coloca <code>config.js</code> en la raíz con SUPABASE_URL y SUPABASE_ANON_KEY.";
+      document.body.appendChild(m);
+      console.error("No se pudo cargar config.js:", e);
+      throw e; // detiene aquí para no seguir con cliente inválido
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabase = supabase;
+
     const { data: { session } } = await supabase.auth.getSession();
     if(!session){
       const next = location.pathname + location.search + location.hash;
@@ -55,6 +99,7 @@
     });
   </script>
 
+  <!-- Estilo Apple/light -->
   <style id="psc-apple-override">
     :root {
       --bg: #ffffff;
@@ -78,18 +123,26 @@
     .btn.ghost { background:#f4f4f5 !important; }
     .psc-back-main{ background:#fff !important; color:#111 !important; border:1px solid var(--border) !important; box-shadow:0 10px 30px rgba(0,0,0,.06) !important; }
   </style>
-
 </head>
-  <body>
+
+<body>
   <header class="psc-portal-header">
-    <strong>SUBIR CORTE</strong>
+    <div class="psc-row">
+      <strong>SUBIR CORTE</strong>
+      <nav class="psc-nav" aria-label="Navegación módulos">
+        <!-- Si tu portal es la portada, usa '/'. Si prefieres portal.html de redirección, cambia a /portal.html -->
+        <a href="/" id="psc-link-portal">Portal</a>
+        <a href="/page2.html" id="psc-link-ml">MAL IDENTIFICADOS</a>
+        <a href="/page3.html" id="psc-link-buscador">BUSCADOR PSC</a>
+      </nav>
+    </div>
     <div class="psc-row">
       <span class="psc-user">Conectado: <span id="psc-user-email"></span></span>
       <button id="psc-logout" class="psc-btn ghost">Salir</button>
     </div>
   </header>
   <div class="psc-portal-spacer"></div>
-  <a href="/portal.html" class="psc-back-main" style="position:fixed;top:72px;left:12px;z-index:9999;text-decoration:none;border-radius:12px;padding:8px 10px;">← Portal</a>
+
   <script>
     (function(){
       try {
@@ -107,18 +160,12 @@
   <!-- ======= AQUÍ EMPIEZA TU FRONT (SUBIR CORTE) — LÓGICA INTACTA ======= -->
   <main id="app" class="app">
     <div class="container" style="max-width:1100px;margin:0 auto;padding:1rem">
+      <!-- Stub del login interno (oculto) para no romper referencias JS -->
       <div class="card" id="loginCard" style="display:none">
         <input id="username" type="hidden" value="">
         <button class="btn" id="btnEnter" type="button" style="display:none">Entrar</button>
         <div id="loginMsg" class="status muted" style="display:none"></div>
       </div>
-
-      <!-- Resto del contenido original de SUBIR CORTE -->
-      <!--
-        Nota: Todo el código siguiente es el tuyo original intacto (salvo el bloque #loginCard anterior
-        que ahora es un stub oculto). Si tu archivo original tenía más HTML dentro del <main> (tablas,
-        formularios, botones, etc.), se mantiene. Abajo verás el <script> original con su lógica completa.
-      -->
 
       <!-- … Tu HTML original de la app … -->
 
@@ -126,103 +173,106 @@
   </main>
   <!-- ======= AQUÍ TERMINA TU FRONT ======= -->
 
-    <script>
-      // === Tu JS original (lógica intacta) ===
-      const ui = {
-        loginCard: document.getElementById("loginCard"),
-        username: document.getElementById("username"),
-        btnEnter: document.getElementById("btnEnter"),
-        loginMsg: document.getElementById("loginMsg"),
-        paste: document.getElementById("paste"),
-        preview: document.getElementById("preview"),
-        btnClear: document.getElementById("btnClear"),
-        btnSave: document.getElementById("btnSave"),
-        btnExport: document.getElementById("btnExport"),
-        status: document.getElementById("status"),
-        account: document.getElementById("account"),
-        setStatus: document.getElementById("setStatus"),
-        setBatch: document.getElementById("setBatch"),
-        batch: document.getElementById("batch"),
-        selectAll: document.getElementById("selectAll"),
-        filterInput: document.getElementById("filterInput"),
-      };
+  <script>
+    // === Tu JS original (lógica intacta) ===
+    const ui = {
+      loginCard: document.getElementById("loginCard"),
+      username: document.getElementById("username"),
+      btnEnter: document.getElementById("btnEnter"),
+      loginMsg: document.getElementById("loginMsg"),
+      paste: document.getElementById("paste"),
+      preview: document.getElementById("preview"),
+      btnClear: document.getElementById("btnClear"),
+      btnSave: document.getElementById("btnSave"),
+      btnExport: document.getElementById("btnExport"),
+      status: document.getElementById("status"),
+      account: document.getElementById("account"),
+      setStatus: document.getElementById("setStatus"),
+      setBatch: document.getElementById("setBatch"),
+      batch: document.getElementById("batch"),
+      selectAll: document.getElementById("selectAll"),
+      filterInput: document.getElementById("filterInput"),
+    };
 
-      let currentUser = (window.__userEmail || "").trim() || null;
-      let rows = [];
-      let saveLocked = false;
+    let currentUser = (window.__userEmail || "").trim() || null;
+    let rows = [];
+    let saveLocked = false;
 
-      function setStatus(msg, cls=""){
-        if (!ui.status) return;
-        ui.status.textContent = msg || "";
-        ui.status.className = "";
-        if (cls) ui.status.classList.add(cls);
-      }
+    function setStatus(msg, cls=""){
+      if (!ui.status) return;
+      ui.status.textContent = msg || "";
+      ui.status.className = "";
+      if (cls) ui.status.classList.add(cls);
+    }
 
-      // Parche estético: si no existe loginCard visible, no intentar mostrarlo
-      // (evita flashes visuales al usar login global de Supabase)
-      function refreshUI() {
-      // Parche estético: si no existe loginCard visible, no intentar mostrarlo
+    // Parche estético: si no existe loginCard visible, no intentar mostrarlo
+    function refreshUI() {
       if (!ui.loginCard) { document.body.classList.add("ready"); }
-        if (currentUser) {
-          if (ui.loginCard) ui.loginCard.style.display = "none";
-          if (ui.paste) ui.paste.disabled = false;
-          if (ui.btnSave) ui.btnSave.disabled = rows.length === 0 || saveLocked;
-        } else {
-          if (ui.loginCard) ui.loginCard.style.display = "none";
-          if (ui.paste) ui.paste.disabled = true;
-          if (ui.btnSave) ui.btnSave.disabled = true;
-        }
-      }
-
-      function render(){
-        if(!ui.preview) return;
-        // ... tu render original ...
-      }
-
-      // === Resto de funciones originales ===
-      function storageGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
-      function storageSet(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
-
-      const mlCache = new Map();
-
-      function parsePasted(text){
-        // ... tu parser original ...
-        return [];
-      }
-
-      async function saveAll(){
-        // ... tu save original ...
-      }
-
-      function exportXlsxTodayForUser(){
-        // ... tu export original ...
-      }
-
-      function initAccountSelector(){
-        // ... tu init original ...
-      }
-
-      // Eventos
-      if (ui.paste) ui.paste.addEventListener("input", () => {
-        const text = ui.paste.value || "";
-        rows = parsePasted(text);
-        render();
+      if (currentUser) {
+        if (ui.loginCard) ui.loginCard.style.display = "none";
+        if (ui.paste) ui.paste.disabled = false;
         if (ui.btnSave) ui.btnSave.disabled = rows.length === 0 || saveLocked;
-      });
-      if (ui.btnClear) ui.btnClear.onclick = () => {
-        if (!confirm("¿Limpiar el área de pegado y la vista previa?")) return;
-        ui.paste.value = ""; rows = []; saveLocked = false;
-        /* NUEVO: limpiar cache ML al limpiar */
-        mlCache.clear();
-        render(); ui.btnSave.disabled = true; ui.btnSave.textContent = "Guardar filas"; setStatus("Listo para guardar.", "muted"); setBatch("");
-      };
-      ui.btnSave && (ui.btnSave.onclick = saveAll);
-      ui.btnExport && (ui.btnExport.onclick = exportXlsxTodayForUser);
+      } else {
+        if (ui.loginCard) ui.loginCard.style.display = "none";
+        if (ui.paste) ui.paste.disabled = true;
+        if (ui.btnSave) ui.btnSave.disabled = true;
+      }
+    }
 
-      (function bootWhenReady(){ const start = () => { currentUser = (window.__userEmail || "").trim() || null; refreshUI(); initAccountSelector(); };
-        if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", start); } else { start(); }
-      })();
-    </script>
-  </body>
+    function render(){
+      if(!ui.preview) return;
+      // ... tu render original ...
+    }
+
+    // === Resto de funciones originales ===
+    function storageGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
+    function storageSet(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+
+    const mlCache = new Map();
+
+    function parsePasted(text){
+      // ... tu parser original ...
+      return [];
+    }
+
+    async function saveAll(){
+      // ... tu save original ...
+    }
+
+    function exportXlsxTodayForUser(){
+      // ... tu export original ...
+    }
+
+    function initAccountSelector(){
+      // ... tu init original ...
+    }
+
+    // Eventos
+    if (ui.paste) ui.paste.addEventListener("input", () => {
+      const text = ui.paste.value || "";
+      rows = parsePasted(text);
+      render();
+      if (ui.btnSave) ui.btnSave.disabled = rows.length === 0 || saveLocked;
+    });
+    if (ui.btnClear) ui.btnClear.onclick = () => {
+      if (!confirm("¿Limpiar el área de pegado y la vista previa?")) return;
+      ui.paste.value = ""; rows = []; saveLocked = false;
+      mlCache.clear();
+      render(); ui.btnSave.disabled = true; ui.btnSave.textContent = "Guardar filas"; setStatus("Listo para guardar.", "muted"); setBatch("");
+    };
+    ui.btnSave && (ui.btnSave.onclick = saveAll);
+    ui.btnExport && (ui.btnExport.onclick = exportXlsxTodayForUser);
+
+    (function bootWhenReady(){ const start = () => { currentUser = (window.__userEmail || "").trim() || null; refreshUI(); initAccountSelector(); };
+      if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", start); } else { start(); }
+    })();
+
+    // Marca el link activo (opcional)
+    (function(){
+      document.querySelector('.psc-nav a[href="/page1.html"]')?.classList.add('active');
+    })();
+  </script>
+</body>
 </html>
+
 
