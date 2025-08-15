@@ -2,14 +2,31 @@
 # Place this file at the ROOT of your repository.
 
 [build]
-  # No build step required for plain HTML/CSS/JS
   publish = "."
 
-# Ensure /adminpsc resolves to its index.html cleanly
+# Normalize routes to concrete HTML to avoid pretty-url conflicts
 [[redirects]]
   from = "/adminpsc"
-  to = "/adminpsc/"
-  status = 301
+  to = "/adminpsc/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/adminpsc/"
+  to = "/adminpsc/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/adminpsc/login"
+  to = "/adminpsc/login.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/adminpsc/reset"
+  to = "/adminpsc/reset.html"
+  status = 200
   force = true
 
 # Security + no-cache for HTML in /adminpsc (avoid stale auth views)
@@ -22,7 +39,7 @@
     X-Frame-Options = "SAMEORIGIN"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# Cache static assets in /adminpsc for a week (tune as needed)
+# Cache static assets in /adminpsc for a week
 [[headers]]
   for = "/adminpsc/*.js"
   [headers.values]
@@ -34,17 +51,6 @@
     Cache-Control = "public, max-age=604800"
 
 [[headers]]
-  for = "/adminpsc/*.png"
+  for = "/adminpsc/*.{png,webp,svg,woff2}"
   [headers.values]
     Cache-Control = "public, max-age=604800"
-
-[[headers]]
-  for = "/adminpsc/*.webp"
-  [headers.values]
-    Cache-Control = "public, max-age=604800"
-
-# Optional: allow cross-origin for assets (only if you embed from other origins)
-# [[headers]]
-#   for = "/adminpsc/*"
-#   [headers.values]
-#     Access-Control-Allow-Origin = "*"
