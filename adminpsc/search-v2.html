@@ -27,13 +27,8 @@
         --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
           "Liberation Mono", monospace;
       }
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        height: 100%;
-      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
         background: var(--bg);
@@ -44,24 +39,9 @@
         justify-content: center;
         padding: 32px;
       }
-      .wrap {
-        width: 100%;
-        max-width: 1100px;
-        display: grid;
-        gap: 18px;
-      }
-      .title {
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        margin: 0;
-        text-align: center;
-      }
-      .subtitle {
-        color: var(--muted);
-        margin: 0;
-        text-align: center;
-      }
+      .wrap { width: 100%; max-width: 1100px; display: grid; gap: 18px; }
+      .title { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-align: center; }
+      .subtitle { color: var(--muted); margin: 0; text-align: center; }
       .card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -69,227 +49,80 @@
         box-shadow: var(--shadow);
         padding: 20px;
       }
-      .row {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .search {
-        position: relative;
-        flex: 1;
-        min-width: 260px;
-      }
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .search { position: relative; flex: 1; min-width: 260px; }
       .search input[type="search"] {
-        width: 100%;
-        height: 48px;
-        padding: 0 48px 0 44px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
-        color: var(--fg);
-        font-size: 16px;
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02) inset;
-        transition: box-shadow 0.2s, border-color 0.2s;
+        width: 100%; height: 48px; padding: 0 48px 0 44px;
+        border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--fg);
+        font-size: 16px; box-shadow: 0 1px 0 rgba(0,0,0,.02) inset; transition: box-shadow .2s, border-color .2s;
       }
-      .search input[type="search"]:focus {
-        outline: none;
-        border-color: var(--blue);
-        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
-      }
-      .search .icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        opacity: 0.55;
-      }
+      .search input[type="search"]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,.25); }
+      .search .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: .55; }
       .btn {
-        height: 48px;
-        padding: 0 16px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: #fff;
-        color: var(--fg);
-        cursor: pointer;
-        font-weight: 600;
-        transition: transform 0.04s, box-shadow 0.2s, border-color 0.2s;
+        height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--border);
+        background: #fff; color: var(--fg); cursor: pointer; font-weight: 600;
+        transition: transform .04s, box-shadow .2s, border-color .2s;
       }
-      .btn:hover {
-        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
-      }
-      .btn:active {
-        transform: translateY(1px);
-      }
-      .btn[disabled] {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .btn.primary {
-        background: var(--blue);
-        border-color: transparent;
-        color: #fff;
-      }
-      .btn.primary:hover {
-        box-shadow: 0 6px 16px rgba(0, 122, 255, 0.25);
-      }
-      .btn.primary:active {
-        background: var(--blue-press);
-      }
-
-      .meta {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        color: var(--muted);
-        font-size: 13px;
-      }
+      .btn:hover { box-shadow: 0 3px 10px rgba(0,0,0,.06); }
+      .btn:active { transform: translateY(1px); }
+      .btn[disabled] { opacity: .5; cursor: not-allowed; }
+      .btn.primary { background: var(--blue); border-color: transparent; color: #fff; }
+      .btn.primary:hover { box-shadow: 0 6px 16px rgba(0,122,255,.25); }
+      .btn.primary:active { background: var(--blue-press); }
+      .meta { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
       .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 28px;
-        padding: 0 10px;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        background: #fff;
-        color: #222;
+        display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+        border: 1px solid var(--border); border-radius: 999px; background: #fff; color: #222;
       }
-      .status {
-        font-size: 13px;
-      }
-      .status.ok {
-        color: var(--ok);
-      }
-      .status.err {
-        color: var(--err);
-      }
-      .status.warn {
-        color: var(--warn);
-      }
-
-      table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 8px;
-      }
+      .status { font-size: 13px; }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+      .status.warn { color: var(--warn); }
+      table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
       thead th {
-        font-size: 12px;
-        color: #7a7a80;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-weight: 700;
-        border-bottom: 1px solid var(--border);
-        padding: 10px 12px;
+        font-size: 12px; color: #7a7a80; text-transform: uppercase; letter-spacing: .08em;
+        font-weight: 700; border-bottom: 1px solid var(--border); padding: 10px 12px;
       }
       tbody td {
-        background: #fff;
-        border: 1px solid var(--border);
-        border-left: none;
-        border-right: none;
-        padding: 12px;
-        font-family: var(--mono);
+        background: #fff; border: 1px solid var(--border); border-left: none; border-right: none;
+        padding: 12px; font-family: var(--mono);
       }
-      tbody tr:hover td {
-        background: #fbfbfd;
-      }
-      tbody td:first-child {
-        border-left: 1px solid var(--border);
-        border-top-left-radius: 12px;
-        border-bottom-left-radius: 12px;
-      }
-      tbody td:last-child {
-        border-right: 1px solid var(--border);
-        border-top-right-radius: 12px;
-        border-bottom-right-radius: 12px;
-      }
-
-      .muted {
-        color: var(--muted);
-      }
-      .empty {
-        padding: 14px;
-        font-size: 13px;
-        color: var(--muted);
-        text-align: center;
-      }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 24px;
-        padding: 0 10px;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        font-size: 12px;
-        background: #fff;
-      }
-      .pill.ok {
-        background: #e9f9ef;
-        color: #106d37;
-        border-color: #bfe9cd;
-      }
-      .pill.none {
-        color: #7c7c82;
-      }
+      tbody tr:hover td { background: #fbfbfd; }
+      tbody td:first-child { border-left: 1px solid var(--border); border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+      tbody td:last-child { border-right: 1px solid var(--border); border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+      .muted { color: var(--muted); }
+      .empty { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
+      .pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; background: #fff; }
+      .pill.ok { background: #e9f9ef; color: #106d37; border-color: #bfe9cd; }
+      .pill.none { color: #7c7c82; }
 
       @media (max-width: 640px) {
-        body {
-          padding: 18px;
-        }
-        .title {
-          font-size: 24px;
-        }
+        body { padding: 18px; }
+        .title { font-size: 24px; }
       }
 
       .psc-back-main {
-        position: fixed;
-        top: 16px;
-        left: 16px;
-        z-index: 9999;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 14px;
-        border: 1px solid var(--border);
-        background: #ffffff;
-        color: #111827;
+        position: fixed; top: 16px; left: 16px; z-index: 9999;
+        display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px;
+        border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 14px;
+        border: 1px solid var(--border); background: #ffffff; color: #111827;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+        transition: transform .15s, box-shadow .15s, border-color .15s;
       }
-      .psc-back-main:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
-        border-color: #d1d5db;
-      }
-      .psc-back-main:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.35),
-          0 12px 32px rgba(0, 0, 0, 0.2);
-      }
+      .psc-back-main:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); border-color: #d1d5db; }
+      .psc-back-main:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.35), 0 12px 32px rgba(0, 0, 0, 0.2); }
     </style>
-  
-<link rel="stylesheet" href="portal.css">
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="guard.js"></script>
 
-<style>:root{--psc-bg:#F2F2F7}</style>
-</head>
+    <link rel="stylesheet" href="portal.css">
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="guard.js"></script>
+
+    <style>:root{--psc-bg:#F2F2F7}</style>
+  </head>
   <body>
     <a class="psc-back-main" href="/" aria-label="Volver al portal">
-      <svg
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M15 18l-6-6 6-6" />
       </svg>
       <span>Volver</span>
@@ -302,45 +135,17 @@
 
         <div class="row" style="margin-top: 12px">
           <div class="search">
-            <svg
-              class="icon"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M21 21l-4.2-4.2"
-                stroke="#000"
-                opacity=".35"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-              <circle
-                cx="11"
-                cy="11"
-                r="7"
-                stroke="#000"
-                opacity=".35"
-                stroke-width="2"
-              />
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 21l-4.2-4.2" stroke="#000" opacity=".35" stroke-width="2" stroke-linecap="round" />
+              <circle cx="11" cy="11" r="7" stroke="#000" opacity=".35" stroke-width="2" />
             </svg>
-            <input
-              id="q"
-              type="search"
-              placeholder="Escribe el tracking y presiona Enter…"
-              autocomplete="off"
-            />
+            <input id="q" type="search" placeholder="Escribe el tracking y presiona Enter…" autocomplete="off" />
           </div>
           <button id="btnSearch" class="btn primary">Buscar</button>
           <button id="btnClear" class="btn">Limpiar</button>
         </div>
 
-        <div
-          class="row"
-          style="margin-top: 10px; justify-content: space-between"
-        >
+        <div class="row" style="margin-top: 10px; justify-content: space-between">
           <div class="meta">
             <div id="modeBadge" class="badge" title="Modo de búsqueda">
               <span id="modeIcon">🔍</span><span id="modeText">Listo</span>
@@ -361,6 +166,7 @@
                 <th>Corregido</th>
                 <th>Peso (lbs)</th>
                 <th>Cuenta</th>
+                <th>Nombre</th><!-- NUEVO -->
                 <th>N.º Casillero</th>
                 <th>Estado</th>
                 <th>ML</th>
@@ -369,7 +175,7 @@
             </thead>
             <tbody id="tbody">
               <tr id="emptyRow">
-                <td colspan="9" class="empty">Sin resultados.</td>
+                <td colspan="10" class="empty">Sin resultados.</td> <!-- actualizado a 10 -->
               </tr>
             </tbody>
           </table>
@@ -379,10 +185,8 @@
 
     <script>
       // ==== CONFIG ====
-      const SEARCH_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/search-tracking";
-      const MARK_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/mark-registered"; // <-- nueva Edge
+      const SEARCH_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/search-tracking";
+      const MARK_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/mark-registered"; // Edge
       const STATUS_REGISTERED = "Centro de Dist. PSC"; // Consistente con Admin
 
       // ==== UI REFS ====
@@ -405,32 +209,17 @@
         ui.status.className = "status " + (type || "muted");
       }
       function setMode(mode) {
-        let text = "Listo",
-          icon = "🔍";
-        if (mode === "exact") {
-          text = "Exacto";
-          icon = "🎯";
-        } else if (mode === "partial") {
-          text = "Subcadena";
-          icon = "🧩";
-        } else if (mode === "none") {
-          text = "Sin coincidencias";
-          icon = "🕳️";
-        }
-        ui.modeText.textContent = text;
-        ui.modeIcon.textContent = icon;
+        let text = "Listo", icon = "🔍";
+        if (mode === "exact") { text = "Exacto"; icon = "🎯"; }
+        else if (mode === "partial") { text = "Subcadena"; icon = "🧩"; }
+        else if (mode === "none") { text = "Sin coincidencias"; icon = "🕳️"; }
+        ui.modeText.textContent = text; ui.modeIcon.textContent = icon;
       }
       function clearTable() {
         ui.tbody.innerHTML = "";
-        const tr = document.createElement("tr");
-        tr.id = "emptyRow";
-        const td = document.createElement("td");
-        td.colSpan = 9;
-        td.className = "empty";
-        td.textContent = "Sin resultados.";
-        tr.appendChild(td);
-        ui.tbody.appendChild(tr);
-        ui.resultCount.textContent = "";
+        const tr = document.createElement("tr"); tr.id = "emptyRow";
+        const td = document.createElement("td"); td.colSpan = 10; td.className = "empty"; td.textContent = "Sin resultados.";
+        tr.appendChild(td); ui.tbody.appendChild(tr); ui.resultCount.textContent = "";
       }
       function safeCell(text) {
         const td = document.createElement("td");
@@ -447,29 +236,27 @@
 
       function renderRow(r, index) {
         const tr = document.createElement("tr");
+
         const c0 = document.createElement("td");
         c0.className = "small muted";
         c0.textContent = String(index + 1);
+
         const c1 = safeCell(r.tracking_original);
         const c2 = safeCell(r.tracking_corrected);
         const c3 = safeCell(r.weight_lbs == null ? "" : String(r.weight_lbs));
         const c4 = safeCell(r.cuenta);
-        const c5 = safeCell(r.num_casillero);
+        const c5 = safeCell(r.name);                 // NUEVO: nombre
+        const c6 = safeCell(r.num_casillero);
         const estadoVal = r.status ?? r.estado ?? "";
-        const c6 = safeCell(estadoVal);
-        const c7 = document.createElement("td");
+        const c7 = safeCell(estadoVal);
+        const c8 = document.createElement("td");
         const pill = document.createElement("span");
         const mlVal = r.ML ?? r.ml ?? r.Ml ?? null;
-        if (isTrue(mlVal)) {
-          pill.className = "pill ok";
-          pill.textContent = "true";
-        } else {
-          pill.className = "pill none";
-          pill.textContent = "—";
-        }
-        c7.appendChild(pill);
+        if (isTrue(mlVal)) { pill.className = "pill ok"; pill.textContent = "true"; }
+        else { pill.className = "pill none"; pill.textContent = "—"; }
+        c8.appendChild(pill);
 
-        const c8 = document.createElement("td");
+        const c9 = document.createElement("td");
         const btn = document.createElement("button");
         btn.className = "btn";
         btn.textContent = "Registrado";
@@ -497,19 +284,13 @@
             });
             const txt = await res.text().catch(() => "");
             let json = {};
-            try {
-              json = JSON.parse(txt || "{}");
-            } catch {}
+            try { json = JSON.parse(txt || "{}"); } catch {}
             if (!res.ok || json?.ok !== true) {
-              const msg =
-                json?.error ||
-                json?.detail ||
-                res.statusText ||
-                `HTTP ${res.status}`;
+              const msg = json?.error || json?.detail || res.statusText || `HTTP ${res.status}`;
               throw new Error(msg);
             }
-            // Update UI
-            c6.textContent = STATUS_REGISTERED;
+            // Update UI (nota: ahora el estado está en c7)
+            c7.textContent = STATUS_REGISTERED;
             pill.className = "pill none";
             pill.textContent = "—";
             btn.textContent = "Hecho";
@@ -521,8 +302,8 @@
           }
         });
 
-        c8.appendChild(btn);
-        tr.append(c0, c1, c2, c3, c4, c5, c6, c7, c8);
+        c9.appendChild(btn);
+        tr.append(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
         return tr;
       }
 
@@ -530,9 +311,7 @@
         ui.tbody.innerHTML = "";
         rows.forEach((r, i) => ui.tbody.appendChild(renderRow(r, i)));
         if (!rows.length) clearTable();
-        ui.resultCount.textContent = rows.length
-          ? `${rows.length} resultado(s)`
-          : "";
+        ui.resultCount.textContent = rows.length ? `${rows.length} resultado(s)` : "";
       }
 
       // ==== SEARCH ====
@@ -555,30 +334,19 @@
           });
           const txt = await res.text().catch(() => "");
           let payload = {};
-          try {
-            payload = JSON.parse(txt || "{}");
-          } catch {}
+          try { payload = JSON.parse(txt || "{}"); } catch {}
           if (!res.ok) {
-            setStatus(
-              payload.detail ||
-                payload.error ||
-                res.statusText ||
-                `HTTP ${res.status}`,
-              "err"
-            );
+            setStatus(payload.detail || payload.error || res.statusText || `HTTP ${res.status}`, "err");
             setMode("none");
             clearTable();
             return;
           }
-          const mode =
-            payload.mode || (payload.rows?.length ? "partial" : "none");
+          const mode = payload.mode || (payload.rows?.length ? "partial" : "none");
           setMode(mode);
           const rows = Array.isArray(payload.rows) ? payload.rows : [];
           fillTable(rows);
-          if (mode === "exact")
-            setStatus(`Resultado exacto (${rows.length}).`, "ok");
-          else if (mode === "partial")
-            setStatus(`Búsqueda por subcadena (${rows.length}).`, "ok");
+          if (mode === "exact") setStatus(`Resultado exacto (${rows.length}).`, "ok");
+          else if (mode === "partial") setStatus(`Búsqueda por subcadena (${rows.length}).`, "ok");
           else setStatus(payload.hint || "Sin coincidencias.", "warn");
         } catch (e) {
           setStatus(`Error: ${e.message}`, "err");
@@ -591,20 +359,13 @@
 
       // ==== EVENTS ====
       ui.btnSearch.onclick = search;
-      ui.q.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") search();
-      });
-      ui.btnClear.onclick = () => {
-        ui.q.value = "";
-        clearTable();
-        setStatus("Listo.");
-        setMode("");
-      };
+      ui.q.addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+      ui.btnClear.onclick = () => { ui.q.value = ""; clearTable(); setStatus("Listo."); setMode(""); };
 
       // init
       clearTable();
     </script>
-  
-<script src="portal.js"></script>
-</body>
+
+    <script src="portal.js"></script>
+  </body>
 </html>
