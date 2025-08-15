@@ -334,11 +334,18 @@
 <style>:root{--psc-bg:#F2F2F7}</style>
 </head>
   <body>
-    <!-- MODO PÚBLICO: forzar usuario 'PUBLIC' para que la app funcione sin login -->
+    <!-- MODO PÚBLICO: ahora toma usuario global; no forzar PUBLIC -->
     <script>
-      try {
-        localStorage.setItem("psc_user", "PUBLIC");
-      } catch (e) {}
+      (function () {
+        try {
+          var g = (window.PSC && window.PSC.user && window.PSC.user.email) || window.PSC_USER || null;
+          if (g) {
+            localStorage.setItem("psc_user", g);
+          } else {
+            console.error("PSC: No hay usuario global disponible (window.PSC.user.email o window.PSC_USER).");
+          }
+        } catch (e) { console.error("PSC: error leyendo usuario global", e); }
+      })();
     </script>
 <div class="wrap">
       <div class="card" id="loginCard">
@@ -603,7 +610,7 @@
         ui.batchMsg.textContent = msg || "";
       }
       function splitLine(line) {
-        if (line.includes("\t")) return line.split("\t").map((c) => c.trim());
+        if (line.includes("	")) return line.split("	").map((c) => c.trim());
         if (line.includes(",")) return line.split(",").map((c) => c.trim());
         return line
           .split(/\s{2,}/)
@@ -721,19 +728,19 @@
 
       function refreshUI() {
         // MODO PÚBLICO: siempre mostrar app
-        currentUser = storageGet("psc_user") || "PUBLIC";
+        currentUser = storageGet("psc_user");
         document.body.classList.add("ready");
         hide(ui.loginCard);
         show(ui.appCard);
         show(ui.previewCard);
-        if (ui.whoami) ui.whoami.textContent = `Conectado: ${currentUser}`;
+        if (ui.whoami) ui.whoami.textContent = currentUser ? `Conectado: ${currentUser}` : "Conectado: (sin usuario)";
       }
 
       // Manejadores login (quedan inofensivos al estar ocultos)
       ui.btnEnter.onclick = () => {
         const u = ui.username?.value?.trim();
-        currentUser = u || "PUBLIC";
-        storageSet("psc_user", currentUser);
+        currentUser = u || currentUser;
+        if (currentUser) storageSet("psc_user", currentUser);
         if (ui.loginMsg) {
           ui.loginMsg.textContent = "OK";
           ui.loginMsg.className = "status ok";
@@ -742,22 +749,26 @@
       };
       ui.btnLogout.onclick = () => {
         storageRemove("psc_user");
-        currentUser = "PUBLIC";
+        currentUser = null;
         refreshUI();
       };
       ui.btnLogoutTop.onclick = () => {
         storageRemove("psc_user");
-        currentUser = "PUBLIC";
+        currentUser = null;
         refreshUI();
       };
 
       async function startUpload(expectedRows) {
+        if (!currentUser) {
+          setStatus("No hay usuario de sesión. Verifique inicio de sesión global.", "err");
+          throw new Error("missing_user");
+        }
         const res = await fetch(START_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             expected_rows: expectedRows,
-            user: currentUser || "PUBLIC",
+            user: currentUser,
             account: currentAccount,
             cuenta: currentAccount,
           }),
@@ -780,6 +791,10 @@
 
       async function saveAll() {
         if (rows.length === 0) return;
+        if (!currentUser) {
+          setStatus("No hay usuario de sesión. Verifique inicio de sesión global.", "err");
+          return;
+        }
 
         saveLocked = true;
         ui.btnSave.disabled = true;
@@ -812,6 +827,7 @@
                 batch_id: batchId,
                 account: currentAccount,
                 cuenta: currentAccount,
+                user: currentUser, // enviar usuario real
               }),
             });
             if (!res.ok) {
@@ -824,11 +840,7 @@
                 msg = txt || res.statusText || `HTTP ${res.status}`;
               }
               setStatus(
-                `Error en fila ${i + 1} (${
-                  r.original
-                }): ${msg}. Guardados ${okCount}/${
-                  rows.length
-                } (lote ${batchId}).`,
+                `Error en fila ${i + 1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,
                 "err"
               );
               return;
@@ -836,9 +848,7 @@
             okCount++;
           } catch (e) {
             setStatus(
-              `Error de red en fila ${i + 1} (${r.original}): ${
-                e.message
-              }. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,
+              `Error de red en fila ${i + 1} (${r.original}): ${e.message}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,
               "err"
             );
             return;
@@ -856,6 +866,10 @@
       }
 
       async function exportXlsxTodayForUser() {
+        if (!currentUser) {
+          setStatus("No hay usuario de sesión. Verifique inicio de sesión global.", "err");
+          return;
+        }
         setStatus("Preparando XLSX…", "muted");
 
         const now = new Date();
@@ -873,7 +887,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            user: currentUser || "PUBLIC",
+            user: currentUser,
             start_iso: startISO,
             end_iso: endISO,
           }),
@@ -887,7 +901,7 @@
 
         const trows = payload.rows || [];
         if (trows.length === 0) {
-          setStatus("No hay trackings hoy para exportar.", "warn");
+          setStatus(payload.message || "No hay trackings pendientes para exportar.", "warn");
           return;
         }
 
@@ -899,8 +913,8 @@
           PESO: r.weight_lbs == null ? "" : String(r.weight_lbs),
         }));
 
-        const headers = ["WAREHOUSE", "TRACKING", "CLIENTE", "PIEZAS", "PESO"];
-        const ws = XLSX.utils.json_to_sheet(rowsX, { header: headers });
+        const headersX = ["WAREHOUSE", "TRACKING", "CLIENTE", "PIEZAS", "PESO"];
+        const ws = XLSX.utils.json_to_sheet(rowsX, { header: headersX });
 
         const range = XLSX.utils.decode_range(ws["!ref"]);
         for (let R = range.s.r; R <= range.e.r; ++R) {
@@ -947,9 +961,16 @@
       ui.btnExport.onclick = exportXlsxTodayForUser;
 
       (function bootWhenReady() {
-        const start = () => {
-          // MODO PÚBLICO: fuerza usuario por defecto, inicia UI directa
-          currentUser = storageGet("psc_user") || "PUBLIC";
+        const start = async () => {
+          // Tomar usuario de sesión global si existe
+          try {
+            var g =
+              (window.PSC && window.PSC.user && window.PSC.user.email) ||
+              window.PSC_USER ||
+              null;
+            if (g) storageSet("psc_user", g);
+          } catch {}
+          currentUser = storageGet("psc_user");
           refreshUI();
           initAccountSelector();
         };
