@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PSC Portal — Redirigiendo…</title>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style> body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; } </style>
+</head>
+<body>
+  <p>Redirigiendo…</p>
+  <script>
+    // Prevent redirect loops using a short-lived sessionStorage flag
+    try {
+      const flagKey = 'psc_adminpsc_redirecting';
+      if (sessionStorage.getItem(flagKey) === '1') {
+        // If we already redirected very recently, stop here and show a simple link
+        document.body.insertAdjacentHTML('beforeend', '<p><a href="login.html">Entrar</a></p>');
+        throw new Error('Redirect guarded');
+      }
+      sessionStorage.setItem(flagKey, '1');
+      setTimeout(()=>sessionStorage.removeItem(flagKey), 4000);
+    } catch(_) {}
+    (async () => {
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.__PSC_CONFIG__ || {};
+      const supabase = window.supabase?.createClient?.(SUPABASE_URL, SUPABASE_ANON_KEY);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) location.replace('/adminpsc/landing.html');
+        else location.replace('/adminpsc/login.html');
+      } catch (_) {
+        location.replace('/adminpsc/login.html');
+      }
+    })();
+  </script>
+</body>
+</html>

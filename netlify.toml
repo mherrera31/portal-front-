@@ -1,10 +1,7 @@
-# Netlify configuration for PSC Portal under /adminpsc
-# Place this file at the ROOT of your repository.
-
 [build]
   publish = "."
 
-# Normalize routes to concrete HTML to avoid pretty-url conflicts
+# Normalize /adminpsc to index.html
 [[redirects]]
   from = "/adminpsc"
   to = "/adminpsc/index.html"
@@ -17,6 +14,7 @@
   status = 200
   force = true
 
+# Pretty URLs for key pages
 [[redirects]]
   from = "/adminpsc/login"
   to = "/adminpsc/login.html"
@@ -29,7 +27,13 @@
   status = 200
   force = true
 
-# Security + no-cache for HTML in /adminpsc (avoid stale auth views)
+[[redirects]]
+  from = "/adminpsc/home"
+  to = "/adminpsc/landing.html"
+  status = 200
+  force = true
+
+# Security & caching rules
 [[headers]]
   for = "/adminpsc/*.html"
   [headers.values]
@@ -39,7 +43,6 @@
     X-Frame-Options = "SAMEORIGIN"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# Cache static assets in /adminpsc for a week
 [[headers]]
   for = "/adminpsc/*.js"
   [headers.values]

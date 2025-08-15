@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADMIN-PSC — Inicio</title>
+  <link rel="stylesheet" href="portal.css" />
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="guard.js"></script>
+  <style>
+    :root{ --wrap:960px; }
+    body{ background:#F2F2F7; }
+    .wrap{ max-width:var(--wrap); margin:0 auto; padding:24px 16px 80px; }
+    .hero{ margin-top: 96px; } /* ya hay 1" de respiro por portal.css, esto agrega título */
+    .hero h1{ margin:0 0 8px; font-size:28px; letter-spacing:-.02em; }
+    .hero p{ margin:0; color:#6e6e73; }
+    .grid{ display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin-top:22px; }
+    a.card{ position:relative; display:block; padding:18px; border-radius:20px; border:1px solid #e5e5ea; background:#fff; text-decoration:none; color:inherit; box-shadow:0 6px 24px rgba(0,0,0,.05); transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+    a.card:hover{ transform:translateY(-2px); box-shadow:0 12px 36px rgba(0,0,0,.08); border-color:#dcdce0; }
+    .top{ display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+    .icon{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:#f5f6ff; }
+    h3{ margin:0; font-size:18px; }
+    p.desc{ margin:4px 0 14px; color:#555; font-size:14px; }
+    .cta{ display:inline-flex; align-items:center; gap:8px; font-weight:600; }
+    .cta svg{ width:16px; height:16px; }
+    .me{ font-size:12px; color:#6e6e73; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Bienvenido a ADMIN-PSC</h1>
+      <p class="me" id="me">Sesión: —</p>
+    </section>
+
+    <section class="grid" aria-label="Apps del portal">
+      <a class="card" href="page1.html" aria-label="Abrir SUBIR CORTE">
+        <div class="top">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l9 5 9-5"/>
+              <path d="M3 7v10l9 5 9-5V7"/>
+              <path d="M12 12v10"/>
+            </svg>
+          </div>
+          <h3>SUBIR CORTE</h3>
+        </div>
+        <p class="desc">Carga de cortes.</p>
+        <span class="cta">Abrir
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>
+        </span>
+      </a>
+
+      <a class="card" href="MLadmin.html" aria-label="Abrir MAL IDENTIFICADOS">
+        <div class="top">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/>
+            </svg>
+          </div>
+          <h3>MAL IDENTIFICADOS</h3>
+        </div>
+        <p class="desc">Corrección de identificaciones.</p>
+        <span class="cta">Abrir
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>
+        </span>
+      </a>
+
+      <a class="card" href="search-v2.html" aria-label="Abrir SEARCH &amp; ML">
+        <div class="top">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="6"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+          </div>
+          <h3>SEARCH &amp; ML</h3>
+        </div>
+        <p class="desc">Búsqueda y ML.</p>
+        <span class="cta">Abrir
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>
+        </span>
+      </a>
+    </section>
+  </div>
+
+  <!-- Header unificado -->
+  <script src="portal.js"></script>
+  <script>
+    // Muestra email de la sesión (best-effort)
+    (async ()=>{
+      try {
+        const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.__PSC_CONFIG__ || {};
+        const sb = window.supabase?.createClient?.(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data } = await sb.auth.getUser();
+        const el = document.getElementById('me');
+        if (data?.user?.email) el.textContent = 'Sesión: ' + data.user.email;
+      } catch(_) {}
+    })();
+  </script>
+</body>
+</html>
