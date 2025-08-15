@@ -1,0 +1,50 @@
+# Netlify configuration for PSC Portal under /adminpsc
+# Place this file at the ROOT of your repository.
+
+[build]
+  # No build step required for plain HTML/CSS/JS
+  publish = "."
+
+# Ensure /adminpsc resolves to its index.html cleanly
+[[redirects]]
+  from = "/adminpsc"
+  to = "/adminpsc/"
+  status = 301
+  force = true
+
+# Security + no-cache for HTML in /adminpsc (avoid stale auth views)
+[[headers]]
+  for = "/adminpsc/*.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache static assets in /adminpsc for a week (tune as needed)
+[[headers]]
+  for = "/adminpsc/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/adminpsc/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/adminpsc/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/adminpsc/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Optional: allow cross-origin for assets (only if you embed from other origins)
+# [[headers]]
+#   for = "/adminpsc/*"
+#   [headers.values]
+#     Access-Control-Allow-Origin = "*"
