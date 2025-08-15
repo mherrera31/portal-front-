@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  
+  <style id="psc-portal-style">
+    .psc-portal-header{
+      position:fixed; top:0; left:0; right:0;
+      display:flex; justify-content:space-between; align-items:center;
+      min-height:56px;
+      padding: max(12px, env(safe-area-inset-top)) 16px 12px 16px;
+      background:#fff; border-bottom:1px solid #e5e5ea;
+      box-shadow:0 6px 18px rgba(0,0,0,.04); z-index: 9999;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+      -webkit-tap-highlight-color:transparent;
+    }
+    @media (max-width:480px){
+      .psc-portal-header{
+        min-height:60px;
+        padding: calc(env(safe-area-inset-top) + 10px) 12px 10px 12px;
+      }
+    }
+    .psc-row{display:flex; gap:.6rem; align-items:center;}
+    .psc-user{font-size:.9rem; color:#6e6e73;}
+    .psc-btn{
+      padding:.5rem .75rem; border:1px solid #e5e5ea; border-radius:12px;
+      background:#fff; cursor:pointer; font-weight:600;
+      min-height:36px;
+    }
+    .psc-btn.ghost{background:#f4f4f5; border-color:#e5e5ea;}
+    @media (max-width:480px){
+      .psc-btn{min-height:44px; padding:.6rem .9rem;}
+    }
+    .psc-portal-spacer{height:64px}
+    @media (max-width:480px){ .psc-portal-spacer{height:72px} }
+    .psc-portal-header strong{ text-transform: uppercase; letter-spacing:.02em; }
+    .psc-subtitle{margin-left:.5rem;color:#6e6e73;font-weight:600;font-size:.9rem;}
+  </style>
+
+
+  
+  <style>html.preauth body{display:none}</style>
+  <script>document.documentElement.classList.add('preauth');</script>
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabase = supabase;
+    const { data: { session } } = await supabase.auth.getSession();
+    if(!session){
+      const next = location.pathname + location.search + location.hash;
+      location.replace("/login.html?next=" + encodeURIComponent(next));
+    } else {
+      document.documentElement.classList.remove('preauth');
+      window.__userEmail = (session.user?.email || "");
+    }
+    supabase.auth.onAuthStateChange((_evt, sess) => {
+      if(!sess) location.replace("/login.html");
+    });
+  </script>
+<meta charset="utf-8" />
+  <title>BUSCADOR PSC — PSC Apps</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link
+    rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔎</text></svg>"
+  />
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#111114; --muted:#6c6d75; --border:#e5e5ea; --card:#ffffff;
+      --shadow:0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+      --blue:#007aff; --blue-press:#0062d6; --ok:#00a34a; --err:#d70015; --warn:#b26c00;
+      --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      --mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+      --radius:16px;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; background:var(--bg); color:var(--fg); font-family:var(--font);
+      display:flex; align-items:flex-start; justify-content:center; padding:32px;
+    }
+    .wrap{ width:100%; max-width:1100px; display:grid; gap:18px; }
+    .title{ font-size:28px; font-weight:700; letter-spacing:-.01em; margin:0; }
+    .subtitle{ color:var(--muted); margin:0; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .search{ position:relative; flex:1; min-width:260px; }
+    .search input[type="search"]{
+      width:100%; height:48px; padding:0 48px 0 44px; border:1px solid var(--border); border-radius:12px;
+      background:#fff; color:var(--fg); font-size:16px; box-shadow:0 1px 0 rgba(0,0,0,.02) inset; transition:box-shadow .2s ease, border-color .2s ease;
+    }
+    .search input[type="search"]:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,122,255,.25); }
+    .search .icon{ position:absolute; left:14px; top:50%; transform:translateY(-50%); opacity:.55; }
+    .btn{
+      height:48px; padding:0 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--fg);
+      cursor:pointer; font-weight:600; transition:transform .04s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .btn:hover{ box-shadow:0 3px 10px rgba(0,0,0,.06); }
+    .btn:active{ transform:translateY(1px); }
+    .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+    .btn.primary{ background:var(--blue); border-color:transparent; color:#fff; }
+    .btn.primary:hover{ box-shadow:0 6px 16px rgba(0,122,255,.25); }
+    .btn.primary:active{ background:var(--blue-press); }
+    .status{ font-size:13px; }
+    .status.ok{ color:var(--ok); } .status.err{ color:var(--err); } .status.warn{ color:var(--warn); }
+    .badge{ display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px; border:1px solid var(--border); border-radius:999px; background:#fff; color:#222; }
+    .meta{ display:flex; gap:10px; align-items:center; color:var(--muted); font-size:13px; }
+
+    table{ width:100%; border-collapse:separate; border-spacing:0 8px; }
+    thead th{
+      font-size:12px; color:#7a7a80; text-transform:uppercase; letter-spacing:.08em; font-weight:700; border-bottom:1px solid var(--border); padding:10px 12px; text-align:left;
+    }
+    tbody td{
+      background:#fff; border:1px solid var(--border); border-left:none; border-right:none; padding:12px; font-family:var(--mono);
+    }
+    tbody tr{ border-radius:12px; }
+    tbody tr:hover td{ background:#fbfbfd; }
+    tbody td:first-child{ border-left:1px solid var(--border); border-top-left-radius:12px; border-bottom-left-radius:12px; }
+    tbody td:last-child{ border-right:1px solid var(--border); border-top-right-radius:12px; border-bottom-right-radius:12px; }
+    .mono{ font-family:var(--mono); }
+    .pill{ display:inline-block; padding:2px 10px; border-radius:9999px; font-size:12px; border:1px solid var(--border); }
+    .pill.ml-true{ background:#fff6e3; color:#8a6110; border-color:#ecd59a; } /* naranja */
+    .small{ font-size:12px; color:var(--muted); }
+
+    @media (max-width: 640px){
+      body{ padding:18px; }
+      .title{ font-size:24px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="psc-portal-header">
+    <strong>BUSCADOR PSC</strong><span class="psc-subtitle">Buscador Trackings</span>
+    <div class="psc-row">
+      <span class="psc-user">Conectado: <span id="psc-user-email"></span></span>
+      <button id="psc-logout" class="psc-btn ghost">Salir</button>
+    </div>
+  </header>
+  <div class="psc-portal-spacer"></div>
+  <script>
+    (function(){
+      try {
+        var span = document.getElementById('psc-user-email');
+        if (span && window.__userEmail) span.append(document.createTextNode(window.__userEmail));
+      } catch(e) {}
+      var btn = document.getElementById('psc-logout');
+      if (btn) btn.addEventListener('click', async function(){
+        try { await (window.supabase && window.supabase.auth && window.supabase.auth.signOut && window.supabase.auth.signOut()); } catch(e){}
+        location.replace('/login.html');
+      });
+    })();
+  </script>
+
+  
+  <a href="/portal.html" style="position:fixed;top:12px;left:12px;z-index:9999;text-decoration:none;border:1px solid #e5e5ea;border-radius:12px;padding:8px 10px;background:#fff;color:#111;box-shadow:0 6px 18px rgba(0,0,0,.08)">← Portal</a>
+<main class="wrap">
+    <section class="card" style="padding:24px 20px">
+      <h1 class="title">Trackings</h1>
+      <p class="subtitle">BUSCA EN BASE DE DATOS PSC.</p>
+
+      <div class="row" style="margin-top:12px">
+        <div class="search">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 21l-4.2-4.2" stroke="#000" opacity=".35" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="11" cy="11" r="7" stroke="#000" opacity=".35" stroke-width="2"/>
+          </svg>
+          <input id="q" type="search" placeholder="Escribe el tracking y presiona Enter…" autocomplete="off"/>
+        </div>
+        <button id="btnSearch" class="btn primary">Buscar</button>
+        <button id="btnClear" class="btn">Limpiar</button>
+      </div>
+
+      <div class="row" style="margin-top:10px; justify-content:space-between">
+        <div class="meta">
+          <div id="modeBadge" class="badge" title="Modo de búsqueda">
+            <span id="modeIcon">🔍</span><span id="modeText">Listo</span>
+          </div>
+          <div id="resultCount" class="small"></div>
+        </div>
+        <div id="status" class="status muted">Listo.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div style="overflow:auto">
+        <table aria-label="Resultados de la búsqueda de trackings">
+          <thead>
+            <tr>
+              <th style="width:46px">#</th>
+              <th>Original</th>
+              <th>Corregido</th>
+              <th>Peso (lbs)</th>
+              <th>Cuenta</th>
+              <th>Num. Casillero</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th>ML</th>
+              <th style="width:160px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr id="emptyRow">
+              <td colspan="10" class="small">Sin resultados.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ===== Endpoints =====
+    const SEARCH_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/search-tracking";
+    const MARK_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/mark-registered";
+
+    // ===== UI =====
+    const ui = {
+      q: document.getElementById("q"),
+      btnSearch: document.getElementById("btnSearch"),
+      btnClear: document.getElementById("btnClear"),
+      status: document.getElementById("status"),
+      tbody: document.getElementById("tbody"),
+      emptyRow: document.getElementById("emptyRow"),
+      modeIcon: document.getElementById("modeIcon"),
+      modeText: document.getElementById("modeText"),
+      resultCount: document.getElementById("resultCount"),
+    };
+
+    function setStatus(msg, type=""){ ui.status.textContent = msg; ui.status.className = "status " + (type || "muted"); }
+    function setMode(mode){
+      let text="Listo", icon="🔍";
+      if(mode==="exact"){ text="Exacto"; icon="🎯"; }
+      else if(mode==="partial"){ text="Subcadena"; icon="🧩"; }
+      else if(mode==="none"){ text="Sin coincidencias"; icon="🕳️"; }
+      ui.modeText.textContent = text; ui.modeIcon.textContent = icon;
+    }
+    function clearTable(){
+      ui.tbody.innerHTML = "";
+      const tr = document.createElement("tr");
+      tr.id = "emptyRow";
+      const td = document.createElement("td");
+      td.colSpan = 10;
+      td.className = "small";
+      td.textContent = "Sin resultados.";
+      tr.appendChild(td);
+      ui.tbody.appendChild(tr);
+      ui.resultCount.textContent = "";
+    }
+    function td(text, cls=""){
+      const el = document.createElement("td");
+      if(cls) el.className = cls;
+      el.textContent = text ?? "";
+      return el;
+    }
+    function fmtDate(s){
+      if(!s) return "";
+      try{
+        const d = new Date(s);
+        if(isNaN(+d)) return String(s);
+        // YYYY-MM-DD HH:mm:ss local
+        const pad = n => String(n).padStart(2,"0");
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }catch{ return String(s); }
+    }
+
+    function buildRow(r, idx){
+      const tr = document.createElement("tr");
+      const id = r.id; // UUID string
+      const trackingOrig = r.tracking_original ?? "";
+      const trackingCorr = r.tracking_corrected ?? "";
+      const weight = r.weight_lbs == null ? "" : String(r.weight_lbs);
+      const cuenta = r.cuenta ?? "";
+      const numCas = r.num_casillero ?? "";
+      const status = r.status ?? r.estado ?? "";
+      const fecha = r.updated_at ?? r.created_at ?? "";
+      const mlVal = r.ML ?? r.ml ?? null;
+
+      tr.append(
+        td(String(idx+1), "small"),
+        td(trackingOrig, "mono"),
+        td(trackingCorr, "mono"),
+        td(weight, "mono"),
+        td(cuenta, "mono"),
+        td(numCas, "mono"),
+        td(status, "mono"),
+        td(fmtDate(fecha), "mono"),
+      );
+
+      // ML pill
+      const tdMl = document.createElement("td");
+      if(String(mlVal).toLowerCase()==="true"){
+        const span = document.createElement("span");
+        span.className = "pill ml-true";
+        span.textContent = "true";
+        tdMl.appendChild(span);
+      } else {
+        tdMl.textContent = "";
+      }
+      tr.appendChild(tdMl);
+
+      // Acciones
+      const tdAct = document.createElement("td");
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = "ML Facturado";
+      btn.onclick = async () => {
+        btn.disabled = true;
+        const prev = ui.status.textContent;
+        setStatus("Actualizando…","warn");
+        try{
+          const res = await fetch(MARK_URL, {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ id })
+          });
+          const txt = await res.text().catch(()=> "");
+          let payload = {};
+          try{ payload = JSON.parse(txt || "{}"); }catch{}
+          if(!res.ok || payload?.ok !== true){
+            const msg = payload?.error || payload?.detail || res.statusText || `HTTP ${res.status}`;
+            setStatus(`No se pudo actualizar: ${msg}`, "err");
+            btn.disabled = false;
+            return;
+          }
+
+          // Si el backend devuelve la fila actualizada, refrescamos SOLO esta fila
+          if(payload.row && typeof payload.row === "object"){
+            const updated = payload.row;
+            // re-escribir celdas:
+            tr.children[6].textContent = (updated.status ?? updated.estado ?? status) || ""; // Estado
+            tr.children[7].textContent = fmtDate(updated.updated_at ?? updated.created_at ?? fecha); // Fecha
+            // ML
+            tdMl.innerHTML = "";
+            const newMl = updated.ML ?? updated.ml ?? null;
+            if(String(newMl).toLowerCase()==="true"){
+              const span = document.createElement("span");
+              span.className = "pill ml-true";
+              span.textContent = "true";
+              tdMl.appendChild(span);
+            }
+            setStatus("Actualizado.","ok");
+            btn.disabled = false;
+            return;
+          }
+
+          // Si no viene la fila, relanza la búsqueda para refrescar
+          await search(true); // silent=true
+          setStatus("Actualizado.","ok");
+        }catch(e){
+          setStatus(`Error de red: ${e.message}`,"err");
+        }finally{
+          btn.disabled = false;
+        }
+      };
+      tdAct.appendChild(btn);
+      tr.appendChild(tdAct);
+
+      return tr;
+    }
+
+    async function search(silent=false){
+      const q = ui.q.value;
+      if(!q || !q.trim()){
+        if(!silent){ setStatus("Escribe un tracking para buscar.","warn"); setMode("none"); }
+        clearTable(); return;
+      }
+      ui.btnSearch.disabled = true;
+      if(!silent){ setStatus("Buscando…"); setMode(""); }
+      try{
+        const res = await fetch(SEARCH_URL, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ q })
+        });
+        const txt = await res.text().catch(()=> "");
+        let payload = {};
+        try{ payload = JSON.parse(txt || "{}"); }catch{}
+        if(!res.ok){
+          if(!silent){ setStatus(payload.detail || payload.error || res.statusText || `HTTP ${res.status}`, "err"); setMode("none"); }
+          clearTable(); return;
+        }
+        const mode = payload.mode || (payload.rows?.length ? "partial" : "none");
+        if(!silent){ setMode(mode); }
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        ui.tbody.innerHTML = "";
+        rows.forEach((r, i) => ui.tbody.appendChild(buildRow(r, i)));
+        if(!rows.length) clearTable();
+        ui.resultCount.textContent = rows.length ? `${rows.length} resultado(s)` : "";
+        if(!silent){
+          if(mode === "exact") setStatus(`Resultado exacto (${rows.length}).`, "ok");
+          else if(mode === "partial") setStatus(`Búsqueda por subcadena (${rows.length}).`, "ok");
+          else setStatus(payload.hint || "Sin coincidencias.", "warn");
+        }
+      }catch(e){
+        if(!silent){ setStatus(`Error: ${e.message}`,"err"); setMode("none"); }
+        clearTable();
+      }finally{
+        ui.btnSearch.disabled = false;
+      }
+    }
+
+    ui.btnSearch.onclick = () => search(false);
+    ui.q.addEventListener("keydown", e => { if(e.key === "Enter") search(false); });
+    ui.btnClear.onclick = () => { ui.q.value = ""; clearTable(); setStatus("Listo."); setMode(""); };
+
+    // init
+    clearTable();
+  </script>
+</body>
+</html>
+

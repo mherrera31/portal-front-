@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+  <style id="psc-theme-align">
+    :root {
+      --bg:#ffffff; --fg:#1c1c1e; --border:#e5e5ea; --muted:#6e6e73; --accent:#0b5cff;
+    }
+    html, body { background:#ffffff !important; color:var(--fg); }
+    .app, .container, .wrapper, .page, main, .content, .card { background:#ffffff !important; }
+    header, footer { background:#ffffff !important; }
+  </style>
+
+  
+  <style id="psc-portal-style">
+    .psc-portal-header{
+      position:fixed; top:0; left:0; right:0;
+      display:flex; justify-content:space-between; align-items:center;
+      min-height:56px;
+      padding: max(12px, env(safe-area-inset-top)) 16px 12px 16px;
+      background:#fff; border-bottom:1px solid #e5e5ea;
+      box-shadow:0 6px 18px rgba(0,0,0,.04); z-index: 9999;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+      -webkit-tap-highlight-color:transparent;
+    }
+    @media (max-width:480px){
+      .psc-portal-header{
+        min-height:60px;
+        padding: calc(env(safe-area-inset-top) + 10px) 12px 10px 12px;
+      }
+    }
+    .psc-row{display:flex; gap:.6rem; align-items:center;}
+    .psc-user{font-size:.9rem; color:#6e6e73;}
+    .psc-btn{
+      padding:.5rem .75rem; border:1px solid #e5e5ea; border-radius:12px;
+      background:#fff; cursor:pointer; font-weight:600;
+      min-height:36px;
+    }
+    .psc-btn.ghost{background:#f4f4f5; border-color:#e5e5ea;}
+    @media (max-width:480px){
+      .psc-btn{min-height:44px; padding:.6rem .9rem;}
+    }
+    .psc-portal-spacer{height:64px}
+    @media (max-width:480px){ .psc-portal-spacer{height:72px} }
+    .psc-portal-header strong{ text-transform: uppercase; letter-spacing:.02em; }
+    .psc-subtitle{margin-left:.5rem;color:#6e6e73;font-weight:600;font-size:.9rem;}
+  </style>
+
+
+    
+  <style>html.preauth body{display:none}</style>
+  <script>document.documentElement.classList.add('preauth');</script>
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabase = supabase;
+    const { data: { session } } = await supabase.auth.getSession();
+    if(!session){
+      const next = location.pathname + location.search + location.hash;
+      location.replace("/login.html?next=" + encodeURIComponent(next));
+    } else {
+      document.documentElement.classList.remove('preauth');
+      window.__userEmail = (session.user?.email || "");
+    }
+    supabase.auth.onAuthStateChange((_evt, sess) => {
+      if(!sess) location.replace("/login.html");
+    });
+  </script>
+<meta charset="utf-8" />
+    <title>SUBIR CORTE — PSC Apps</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📦</text></svg>"
+    />
+    <style>
+      :root {
+        --bg: #0b0b0c;
+        --card: #111214;
+        --fg: #eaeaec;
+        --muted: #9a9aa1;
+        --accent: #ffd54a;
+        --border: #222327;
+        --ok: #2ecc71;
+        --err: #ff6b6b;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        display: flex;
+        justify-content: center;
+        padding: 24px;
+        padding-top: 40px;
+        -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      }
+      body.ready { display: block; }
+
+      .wrap { width: 100%; max-width: 980px; display: grid; gap: 16px; }
+      body:not(.ready) .wrap { width: auto; max-width: none; }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      }
+
+      #loginCard { width: max-content; max-width: 100%; margin: 0 auto; }
+
+      .muted { color: var(--muted); }
+      .mono { font-family: ui-monospace, Menlo, monospace; }
+      .small { font-size: 12px; }
+
+      textarea {
+        width: 100%;
+        min-height: 240px;
+        background: #0f0f11;
+        color: var(--fg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        font-family: ui-monospace, Menlo, monospace;
+      }
+      input[type="text"] {
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #0f0f11;
+        color: var(--fg);
+        min-width: 260px;
+      }
+      table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+      th, td { padding: 10px 12px; text-align: left; }
+      th { color: #b8b8bf; font-weight: 600; border-bottom: 1px solid var(--border); }
+      tr { background: #0f0f11; border: 1px solid var(--border); }
+      tbody tr:hover { background: #131417; }
+
+      .btn {
+        background: #1b1c1f;
+        border: 1px solid var(--border);
+        color: var(--fg);
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      .btn:hover { border-color: #2a2b30; }
+      .btn.primary {
+        background: var(--accent);
+        color: #111;
+        font-weight: 600;
+        border-color: transparent;
+        box-shadow: 0 6px 18px rgba(0,0,0,.2);
+      }
+      .btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.26); }
+      .btn.ghost { background: transparent; }
+      .btn.ghost:hover { background: #1b1c1f; }
+      .row-end { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; align-items: center; }
+      .dup { color: var(--err); font-weight: 600; }
+
+      /* NUEVO: naranja para ML solicitado */
+      .ml { color: #f6c744; font-weight: 600; }
+
+      .status { font-size: 13px; }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+      .status.warn { color: #f6c744; }
+      .hidden { display: none; }
+
+      .login-grid { display: grid; grid-template-columns: 380px 180px; align-items: center; gap: 36px; min-height: 180px; }
+      .login-left { width: 380px; display: grid; gap: 10px; }
+      .login-right { display: grid; place-items: center; padding: 8px 0; }
+      .brand-logo { width: 160px; height: auto; display: block; opacity: 0.95; image-rendering: auto; }
+
+      .app-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .app-right { display: flex; gap: 10px; align-items: center; }
+      .brand-logo-sm { width: 56px; height: auto; display: block; opacity: 0.95; }
+
+      .seg { display: inline-flex; align-items: center; gap: 4px; padding: 2px; border: 1px solid var(--border); border-radius: 12px; background: #0f0f11; }
+      .seg label { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; cursor: pointer; user-select: none; font-size: 12px; }
+      .seg input { display: none; }
+      .seg input:checked + span { background: var(--accent); color: #111; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+
+      :is(input[type="text"], textarea, .btn):focus-visible {
+        outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.35);
+      }
+
+      @media (max-width: 640px) {
+        body { justify-content: start; }
+        #loginCard { width: 100%; }
+        .login-grid { grid-template-columns: 1fr; gap: 16px; justify-items: center; }
+        .login-left { width: 100%; max-width: 420px; }
+        .brand-logo { width: 130px; }
+        .brand-logo-sm { width: 44px; }
+      }
+
+      .psc-back-main{
+        position:fixed; top:16px; left:16px; z-index:999999;
+        display:inline-flex; align-items:center; gap:8px;
+        padding:10px 12px; border:1px solid var(--border); border-radius:12px;
+        background:#0f0f11; color:var(--fg); text-decoration:none;
+        box-shadow:0 12px 36px rgba(0,0,0,.35);
+        font-family:var(--font); font-size:14px; font-weight:600;
+        transition:transform .15s ease, box-shadow .15s ease;
+      }
+      .psc-back-main svg{ stroke: currentColor; }
+      .psc-back-main:hover{ transform:translateY(-1px); box-shadow:0 16px 44px rgba(0,0,0,.45); }
+      .psc-back-main:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(59,130,246,.35), 0 16px 44px rgba(0,0,0,.45); }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+  <header class="psc-portal-header">
+    <strong>SUBIR CORTE</strong>
+    <div class="psc-row">
+      <span class="psc-user">Conectado: <span id="psc-user-email"></span></span>
+      <button id="psc-logout" class="psc-btn ghost">Salir</button>
+    </div>
+  </header>
+  <div class="psc-portal-spacer"></div>
+  <script>
+    (function(){
+      try {
+        var span = document.getElementById('psc-user-email');
+        if (span && window.__userEmail) span.append(document.createTextNode(window.__userEmail));
+      } catch(e) {}
+      var btn = document.getElementById('psc-logout');
+      if (btn) btn.addEventListener('click', async function(){
+        try { await (window.supabase && window.supabase.auth && window.supabase.auth.signOut && window.supabase.auth.signOut()); } catch(e){}
+        location.replace('/login.html');
+      });
+    })();
+  </script>
+
+    <a class="psc-back-main" href="/portal.html" aria-label="Volver al portal">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Volver</span>
+    </a>
+
+    <div class="wrap">
+      <div class="card" id="loginCard">
+        <h2 style="margin: 0 0 8px">Admin - PSC</h2>
+        <div class="login-grid">
+          <div class="login-left">
+            <p class="muted small" style="margin: 0 0 4px">Ingrese Usuario.</p>
+            <input id="username" type="text" placeholder="Usuario (ej. juan.p@psc)" />
+            <button class="btn primary" id="btnEnter" type="button">Entrar</button>
+            <div id="loginMsg" class="status muted"></div>
+          </div>
+          <div class="login-right">
+            <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="PSC" class="brand-logo" loading="lazy" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card hidden" id="appCard">
+        <div class="app-bar">
+          <h2 style="margin: 0">Ingrese Facturas de GEL</h2>
+          <div class="app-right">
+            <div class="seg" title="Cuenta">
+              <label><input type="radio" name="account" value="PSC" /><span>PSC</span></label>
+              <label><input type="radio" name="account" value="C10PA" /><span>C10PA</span></label>
+            </div>
+
+            <div class="small muted" id="whoami"></div>
+            <button class="btn ghost small" id="btnLogoutTop" title="Salir">Salir</button>
+            <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="PSC" class="brand-logo-sm" loading="lazy" />
+          </div>
+        </div>
+        <textarea id="paste" placeholder="Pega aqui sin encabezado. Maximo 500 filas."></textarea>
+      </div>
+
+      <div class="card hidden" id="previewCard">
+        <h3 style="margin: 0 0 8px">Vista previa</h3>
+        <div class="small muted">
+          Corrección (preview): elimina <code>]c1</code> (insensible a mayúsc./minúsc.); elimina <code>|</code>; reemplaza cada <code>\/</code> por un espacio; se conservan <b>guiones (-)</b>. No se aplica ninguna otra transformación. Marcará de color <span style="color: var(--err); font-weight:600;">rojo</span> los trackings duplicados y de <span style="color:#f6c744; font-weight:600;">naranja</span> los ML solicitados.
+        </div>
+
+        <div id="previewWrap" style="margin-top: 12px; overflow: auto">
+          <table id="preview">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Original</th>
+                <th>Corregido (preview)</th>
+                <th>Peso</th>
+                <th>Estado</th>
+                <th>Cuenta</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="empty" class="muted small">No hay datos aún.</div>
+        </div>
+
+        <div class="row-end" style="justify-content: space-between">
+          <div>
+            <div id="statusMsg" class="status muted">Listo para guardar.</div>
+            <div id="batchMsg" class="small muted"></div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button class="btn" id="btnClear">Limpiar</button>
+            <button class="btn" id="btnLogout">Salir</button>
+            <button class="btn" id="btnExport">Exportar XLSX</button>
+            <button class="btn primary" id="btnSave" disabled>Guardar 0 filas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function storageGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+      function storageSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+      function storageRemove(k) { try { localStorage.removeItem(k); } catch {} }
+    </script>
+
+    <script>
+      const FUNCTION_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
+      const START_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/start-upload";
+      const EXPORT_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today";
+
+      /* NUEVO: Check ML */
+      const CHECK_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
+
+      const CODE_COL = 2;
+      const WEIGHT_COL = 6;
+      const DEFAULT_WEIGHT = 0.0;
+      const DEFAULT_STATUS = "Centro de Dist. PSC";
+      const MAX_ROWS = 500;
+
+      const ui = {
+        loginCard: document.getElementById("loginCard"),
+        loginMsg: document.getElementById("loginMsg"),
+        username: document.getElementById("username"),
+        btnEnter: document.getElementById("btnEnter"),
+
+        appCard: document.getElementById("appCard"),
+        previewCard: document.getElementById("previewCard"),
+        whoami: document.getElementById("whoami"),
+
+        paste: document.getElementById("paste"),
+        btnSave: document.getElementById("btnSave"),
+        btnClear: document.getElementById("btnClear"),
+        btnLogout: document.getElementById("btnLogout"),
+        btnLogoutTop: document.getElementById("btnLogoutTop"),
+        btnExport: document.getElementById("btnExport"),
+        previewBody: document.querySelector("#preview tbody"),
+        empty: document.getElementById("empty"),
+        status: document.getElementById("statusMsg"),
+        batchMsg: document.getElementById("batchMsg"),
+      };
+
+      let rows = []; // {original, corrected, weight, estado, dup}
+      let currentUser = null;
+
+      const ACCOUNT_DEFAULT = "PSC";
+      let currentAccount = storageGet("psc_account") || ACCOUNT_DEFAULT;
+
+      let saveLocked = false;
+
+      /* NUEVO: cache ML (naranja) — persiste hasta Guardar/Limpiar */
+      const mlCache = new Map(); // key: code lower (original/corrected), value: true
+
+      async function refreshMlMarks() {
+        try {
+          const uniq = new Set();
+          for (const r of rows) {
+            if (r.original)  uniq.add(r.original.trim().toLowerCase());
+            if (r.corrected) uniq.add(r.corrected.trim().toLowerCase());
+          }
+          const list = Array.from(uniq);
+          if (list.length === 0) return;
+
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 8000);
+
+          const res = await fetch(CHECK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trackings: list }),
+            signal: ctrl.signal
+          }).catch(() => null);
+          clearTimeout(t);
+          if (!res || !res.ok) return;
+
+          const payload = await res.json().catch(() => ({}));
+          if (!payload || payload.ok !== true || !Array.isArray(payload.items)) return;
+
+          for (const it of payload.items) {
+            const key = String(it.tracking || "").trim().toLowerCase();
+            const isMl = Boolean(it.ml || it.ML === "true" || it.status === "ML");
+            if (key) mlCache.set(key, isMl);
+          }
+          // Re-render para aplicar clases .ml
+          render();
+        } catch {
+          // Silencioso: no romper UI si la función no responde
+        }
+      }
+
+      function initAccountSelector() {
+        const radios = document.querySelectorAll('input[name="account"]');
+        let matched = false;
+        radios.forEach((r) => {
+          if (r.value === currentAccount) { r.checked = true; matched = true; }
+          r.addEventListener("change", () => {
+            if (r.checked) {
+              currentAccount = r.value;
+              storageSet("psc_account", currentAccount);
+              render();
+            }
+          });
+        });
+        if (!matched) {
+          currentAccount = ACCOUNT_DEFAULT;
+          storageSet("psc_account", currentAccount);
+          const def = Array.from(radios).find((r) => r.value === ACCOUNT_DEFAULT);
+          if (def) def.checked = true;
+        }
+      }
+
+      function show(el) { el.classList.remove("hidden"); }
+      function hide(el) { el.classList.add("hidden"); }
+      function setStatus(msg, type = "") { ui.status.textContent = msg; ui.status.className = "status " + (type || "muted"); }
+      function setBatch(msg) { ui.batchMsg.textContent = msg || ""; }
+      function splitLine(line) {
+        if (line.includes("\t")) return line.split("\t").map((c) => c.trim());
+        if (line.includes(",")) return line.split(",").map((c) => c.trim());
+        return line.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean);
+      }
+
+      function correctPreview(code) {
+        let s = code ?? "";
+        s = s.replace(/\]c1/gi, ""); 
+        s = s.replace(/\|/g, ""); 
+        s = s.replace(/\//g, " "); 
+        return s;
+      }
+
+      function markDuplicates() {
+        const counts = new Map();
+        rows.forEach((r) => counts.set(r.corrected, (counts.get(r.corrected) || 0) + 1));
+        rows.forEach((r) => (r.dup = (counts.get(r.corrected) || 0) > 1));
+      }
+
+      function render() {
+        ui.previewBody.innerHTML = "";
+        if (rows.length === 0) {
+          ui.empty.style.display = "block";
+          ui.btnSave.disabled = true;
+          ui.btnSave.textContent = "Guardar 0 filas";
+          setStatus("Listo para guardar.", "muted");
+          setBatch("");
+          return;
+        }
+        ui.empty.style.display = "none";
+        rows.forEach((r, i) => {
+          const keyCorr = String(r.corrected || "").trim().toLowerCase();
+          const keyOrig = String(r.original  || "").trim().toLowerCase();
+          const isMl =
+            mlCache.get(keyCorr) === true || mlCache.get(keyOrig) === true;
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="small muted">${i + 1}</td>
+            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.original || ""}</td>
+            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.corrected || ""}</td>
+            <td class="mono">${Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""}</td>
+            <td class="mono">${r.estado}</td>
+            <td class="mono">${currentAccount}</td>
+          `;
+          ui.previewBody.appendChild(tr);
+        });
+        ui.btnSave.disabled = saveLocked;
+        ui.btnSave.textContent = `Guardar ${rows.length} filas`;
+        setStatus("Listo para guardar.", "muted");
+      }
+
+      function parsePasted() {
+        const text = ui.paste.value.trim();
+        rows = [];
+        if (!text) { render(); return; }
+
+        let lines = text.split(/\r?\n/).filter((l) => l.trim().length);
+        if (lines.length > MAX_ROWS) {
+          lines = lines.slice(0, MAX_ROWS);
+          setStatus(`Se pegaron más de ${MAX_ROWS} filas: se tomaron las primeras ${MAX_ROWS}.`, "warn");
+        }
+
+        const codeIdx0 = Math.max(1, CODE_COL) - 1;
+        const weightIdx0 = Math.max(1, WEIGHT_COL) - 1;
+
+        for (const line of lines) {
+          const cells = splitLine(line);
+          if (!cells.length) continue;
+
+          const original = (cells[codeIdx0] ?? "").trim();
+          let weight = (cells[weightIdx0] ?? "").toString().replace(",", ".").trim();
+          const w = parseFloat(weight);
+          const weightNum = Number.isFinite(w) ? w : DEFAULT_WEIGHT;
+
+          if (!original) continue;
+          const corrected = correctPreview(original);
+          rows.push({ original, corrected, weight: weightNum, estado: DEFAULT_STATUS, dup: false });
+        }
+        markDuplicates();
+        render();
+
+        // NUEVO: pedir marcas ML (naranja) — no bloqueante
+        refreshMlMarks();
+      }
+
+      function refreshUI() {
+        if (currentUser) {
+          document.body.classList.add("ready");
+          hide(ui.loginCard); show(ui.appCard); show(ui.previewCard);
+          ui.whoami.textContent = `Conectado: ${currentUser}`;
+        } else {
+          document.body.classList.remove("ready");
+          show(ui.loginCard); hide(ui.appCard); hide(ui.previewCard);
+          ui.whoami.textContent = "";
+        }
+      }
+      ui.btnEnter.onclick = () => {
+        const u = ui.username.value.trim();
+        if (!u) { ui.loginMsg.textContent = "Escribe un usuario."; ui.loginMsg.className = "status err"; return; }
+        currentUser = u; storageSet("psc_user", currentUser);
+        ui.loginMsg.textContent = "OK"; ui.loginMsg.className = "status ok";
+        refreshUI();
+      };
+      ui.btnLogout.onclick = async () => { await window.supabase.auth.signOut(); location.replace("/login.html"); };
+      ui.btnLogoutTop.onclick = async () => { await window.supabase.auth.signOut(); location.replace("/login.html"); };
+
+      async function startUpload(expectedRows) {
+        const res = await fetch(START_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expected_rows: expectedRows, user: currentUser, account: currentAccount, cuenta: currentAccount }),
+        });
+        const txt = await res.text().catch(() => "");
+        let payload = {};
+        try { payload = JSON.parse(txt || "{}"); } catch {}
+        if (!res.ok) {
+          const msg = payload.detail || payload.error || res.statusText || `HTTP ${res.status}`; throw new Error(msg);
+        }
+        return payload.batch_id;
+      }
+
+      async function saveAll() {
+        if (!currentUser) { setStatus("No autenticado (usuario requerido).", "err"); return; }
+        if (rows.length === 0) return;
+
+        saveLocked = true; ui.btnSave.disabled = true; setStatus("Creando lote…", "muted"); setBatch("");
+
+        let batchId;
+        try { batchId = await startUpload(rows.length); setBatch(`Lote: ${batchId}`); }
+        catch (e) { setStatus(`No se pudo iniciar el lote: ${e.message}`, "err"); return; }
+
+        setStatus(`Guardando… (lote ${batchId})`, "muted");
+
+        let okCount = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          try {
+            const res = await fetch(FUNCTION_URL, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                tracking_original: r.original,
+                tracking_corrected: r.corrected,
+                weight_lbs: r.weight,
+                status: r.estado,
+                batch_id: batchId,
+                account: currentAccount,
+                cuenta: currentAccount,
+              }),
+            });
+            if (!res.ok) {
+              const txt = await res.text().catch(() => "");
+              let msg = "Error inesperado";
+              try { const j = JSON.parse(txt || "{}"); msg = j.error || j.detail || j.message || JSON.stringify(j); }
+              catch { msg = txt || res.statusText || `HTTP ${res.status}`; }
+              setStatus(`Error en fila ${i + 1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`, "err");
+              return;
+            }
+            okCount++;
+          } catch (e) {
+            setStatus(`Error de red en fila ${i + 1} (${r.original}): ${e.message}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`, "err");
+            return;
+          }
+        }
+
+        setStatus(`Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`, "ok");
+        ui.btnSave.textContent = `Guardado ${okCount}/${rows.length}`;
+
+        /* NUEVO: limpiar cache ML tras guardar */
+        mlCache.clear();
+        render();
+      }
+
+      async function exportXlsxTodayForUser() {
+        if (!currentUser) { setStatus("Define un usuario antes de exportar.", "err"); return; }
+        setStatus("Preparando XLSX…", "muted");
+
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const end = new Date(start); end.setDate(end.getDate() + 1);
+        const startISO = start.toISOString(); const endISO = end.toISOString();
+
+        const res = await fetch(EXPORT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user: currentUser, start_iso: startISO, end_iso: endISO }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload.ok) { const msg = payload.detail || payload.error || res.statusText; setStatus(`No se pudo exportar: ${msg}`, "err"); return; }
+
+        const trows = payload.rows || [];
+        if (trows.length === 0) { setStatus("No hay trackings hoy para exportar.", "warn"); return; }
+
+        const rowsX = trows.map((r) => ({
+          WAREHOUSE: "",
+          TRACKING: String(r.tracking_corrected ?? ""),
+          CLIENTE: "",
+          PIEZAS: "1",
+          PESO: r.weight_lbs == null ? "" : String(r.weight_lbs),
+        }));
+
+        const headers = ["WAREHOUSE", "TRACKING", "CLIENTE", "PIEZAS", "PESO"];
+        const ws = XLSX.utils.json_to_sheet(rowsX, { header: headers });
+
+        const range = XLSX.utils.decode_range(ws["!ref"]);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+            const cell = ws[cellRef]; if (!cell) continue; cell.t = "s"; if (typeof cell.v !== "string") cell.v = String(cell.v ?? "");
+          }
+        }
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Hoja1");
+
+        const pad = (n) => String(n).padStart(2, "0");
+        const fname = `corte_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${(currentUser || "user").replace(/[^A-Za-z0-9._-]/g, "-")}.xlsx`;
+        XLSX.writeFile(wb, fname);
+
+        setStatus(`XLSX creado (${rowsX.length} filas, todo texto).`, "ok");
+      }
+
+      ui.paste.addEventListener("input", () => { clearTimeout(window.__debounce); window.__debounce = setTimeout(parsePasted, 200); });
+      ui.btnClear.onclick = () => {
+        ui.paste.value = ""; rows = []; saveLocked = false;
+        /* NUEVO: limpiar cache ML al limpiar */
+        mlCache.clear();
+        render(); ui.btnSave.disabled = true; ui.btnSave.textContent = "Guardar 0 filas"; setStatus("Listo para guardar.", "muted"); setBatch("");
+      };
+      ui.btnSave.onclick = saveAll;
+      ui.btnExport.onclick = exportXlsxTodayForUser;
+
+      (function bootWhenReady(){ const start = () => { currentUser = (window.__userEmail || "").trim() || null; refreshUI(); initAccountSelector(); };
+        if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", start); } else { start(); }
+      })();
+    </script>
+  </body>
+</html>
