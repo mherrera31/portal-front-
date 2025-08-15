@@ -325,14 +325,14 @@
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  
-<link rel="stylesheet" href="portal.css">
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="guard.js"></script>
 
-<style>:root{--psc-bg:#F2F2F7}</style>
-</head>
+    <link rel="stylesheet" href="portal.css">
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="guard.js"></script>
+
+    <style>:root{--psc-bg:#F2F2F7}</style>
+  </head>
   <body>
     <noscript>
       <div style="margin:16px;padding:12px;border:1px solid #e5e5ea;border-radius:12px">
@@ -340,20 +340,24 @@
       </div>
     </noscript>
 
-    <!-- MODO PÚBLICO: ahora toma usuario global; no forzar PUBLIC -->
+    <!-- MODO PÚBLICO: toma usuario global solo si es email válido -->
     <script>
       (function () {
         try {
-          var g = (window.PSC && window.PSC.user && window.PSC.user.email) || window.PSC_USER || null;
-          if (g) {
-            localStorage.setItem("psc_user", g);
+          const g1 = (window.PSC && window.PSC.user && window.PSC.user.email);
+          const g2 = (typeof window.PSC_USER === "string") ? window.PSC_USER : null;
+          const cand = (typeof g1 === "string" && g1.trim()) ? g1.trim() : (g2 && g2.trim()) || null;
+          const ok = (typeof cand === "string") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cand);
+          if (ok) {
+            localStorage.setItem("psc_user", cand);
           } else {
-            console.error("PSC: No hay usuario global disponible (window.PSC.user.email o window.PSC_USER).");
+            console.warn("PSC: usuario global no disponible o inválido");
           }
         } catch (e) { console.error("PSC: error leyendo usuario global", e); }
       })();
     </script>
-<div class="wrap">
+
+    <div class="wrap">
       <div class="card" id="loginCard">
         <!-- OCULTO en modo público -->
         <h2 style="margin: 0 0 8px">Admin - PSC</h2>
@@ -420,8 +424,8 @@
         <h3 style="margin: 0 0 8px">Vista previa</h3>
         <div class="small muted">
           Corrección (preview): elimina <code>]c1,+c1,]</code> (insensible a
-          mayúsc./minúsc.); elimina <code>|</code>; reemplaza cada
-          <code>\/</code> por un espacio; se conservan <b>guiones (-)</b>. No se
+          mayúsc./minúsc.); elimina <code>|</code>; reemplaza <code>\/</code> o
+          <code>/</code> por un espacio; se conservan <b>guiones (-)</b>. No se
           aplica ninguna otra transformación. Marcará de color
           <span style="color: var(--err); font-weight: 600">rojo</span> los
           trackings duplicados y de
@@ -480,6 +484,21 @@
         try {
           localStorage.removeItem(k);
         } catch {}
+      }
+    </script>
+
+    <!-- Helpers de validación y resolución de usuario -->
+    <script>
+      function isValidEmail(u) {
+        return typeof u === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.trim());
+      }
+      function resolveUser() {
+        const cands = [];
+        try { cands.push((window.PSC && window.PSC.user && window.PSC.user.email) || null); } catch {}
+        try { cands.push(typeof window.PSC_USER === "string" ? window.PSC_USER : null); } catch {}
+        try { cands.push(storageGet("psc_user")); } catch {}
+        const u = cands.find(x => typeof x === "string" && x.trim().length) || null;
+        return u ? u.trim() : null;
       }
     </script>
 
@@ -624,17 +643,15 @@
           .filter(Boolean);
       }
 
-      // >>> FIX 1: función sin errores y manteniendo tu lógica
+      /* FIX 1: función sin errores y manteniendo tu lógica */
       function correctPreview(code) {
         let s = code ?? "";
         s = s.replace(/\]c1/gi, "");   // quitar ]c1
         s = s.replace(/\+c1/gi, "");   // quitar +c1
         s = s.replace(/\]/g, "");      // quitar ]
         s = s.replace(/\|/g, "");      // quitar |
-        // Si la fuente trae el par '\/', usa la regex con backslash:
         s = s.replace(/\\\//g, " ");   // reemplazar '\/' por espacio
-        // Y por robustez, si viene un '/' suelto también se reemplaza:
-        s = s.replace(/\//g, " ");     // reemplazar '/' por espacio
+        s = s.replace(/\//g, " ");     // reemplazar '/' por espacio (por robustez)
         return s;
       }
 
@@ -670,15 +687,9 @@
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td class="small muted">${i + 1}</td>
-            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${
-              r.original || ""
-            }</td>
-            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${
-              r.corrected || ""
-            }</td>
-            <td class="mono">${
-              Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""
-            }</td>
+            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.original || ""}</td>
+            <td class="mono ${r.dup ? "dup" : ""} ${isMl ? "ml" : ""}">${r.corrected || ""}</td>
+            <td class="mono">${Number.isFinite(r.weight) ? r.weight.toFixed(2) : ""}</td>
             <td class="mono">${r.estado}</td>
             <td class="mono">${currentAccount}</td>
           `;
@@ -740,22 +751,22 @@
 
       function refreshUI() {
         // MODO PÚBLICO: siempre mostrar app
-        currentUser = storageGet("psc_user");
+        currentUser = resolveUser();
         document.body.classList.add("ready");
         hide(ui.loginCard);
         show(ui.appCard);
         show(ui.previewCard);
-        if (ui.whoami) ui.whoami.textContent = currentUser ? `Conectado: ${currentUser}` : "Conectado: (sin usuario)";
+        if (ui.whoami) ui.whoami.textContent = isValidEmail(currentUser) ? `Conectado: ${currentUser}` : "Conectado: (sin usuario)";
       }
 
-      // Manejadores login (quedan inofensivos al estar ocultos)
+      // Manejadores login (inofensivos al estar ocultos)
       ui.btnEnter.onclick = () => {
         const u = ui.username?.value?.trim();
         currentUser = u || currentUser;
-        if (currentUser) storageSet("psc_user", currentUser);
+        if (isValidEmail(currentUser)) storageSet("psc_user", currentUser);
         if (ui.loginMsg) {
-          ui.loginMsg.textContent = "OK";
-          ui.loginMsg.className = "status ok";
+          ui.loginMsg.textContent = isValidEmail(currentUser) ? "OK" : "Ingrese un email válido";
+          ui.loginMsg.className = "status " + (isValidEmail(currentUser) ? "ok" : "err");
         }
         refreshUI();
       };
@@ -771,9 +782,10 @@
       };
 
       async function startUpload(expectedRows) {
-        if (!currentUser) {
-          setStatus("No hay usuario de sesión. Verifique inicio de sesión global.", "err");
-          throw new Error("missing_user");
+        currentUser = resolveUser(); // refrescar por si cambió
+        if (!isValidEmail(currentUser)) {
+          setStatus("Usuario inválido o ausente. Verifique sesión global (window.PSC.user.email o PSC_USER).", "err");
+          throw new Error("invalid_user");
         }
         const res = await fetch(START_URL, {
           method: "POST",
@@ -803,10 +815,11 @@
 
       async function saveAll() {
         if (rows.length === 0) return;
-        if (!currentUser) {
-          setStatus("No hay usuario de sesión. Verifique inicio de sesión global.", "err");
+        if (!isValidEmail(resolveUser())) {
+          setStatus("Usuario inválido o ausente. Verifique sesión global.", "err");
           return;
         }
+        currentUser = resolveUser();
 
         saveLocked = true;
         ui.btnSave.disabled = true;
@@ -878,8 +891,9 @@
       }
 
       async function exportXlsxTodayForUser() {
-        if (!currentUser) {
-          setStatus("No hay usuario de sesión. Verifique inicio de sesión global.", "err");
+        currentUser = resolveUser();
+        if (!isValidEmail(currentUser)) {
+          setStatus("Usuario inválido o ausente. Verifique sesión global.", "err");
           return;
         }
         setStatus("Preparando XLSX…", "muted");
@@ -972,19 +986,16 @@
       ui.btnSave.onclick = saveAll;
       ui.btnExport.onclick = exportXlsxTodayForUser;
 
-      // >>> FIX 2: fallback de arranque para no quedar en blanco
+      /* FIX 2: fallback de arranque para no quedar en blanco */
       (function bootWhenReady() {
         const start = () => {
           try {
-            // Tomar usuario de sesión global si existe
-            try {
-              var g =
-                (window.PSC && window.PSC.user && window.PSC.user.email) ||
-                window.PSC_USER ||
-                null;
-              if (g) storageSet("psc_user", g);
-            } catch {}
-            currentUser = storageGet("psc_user");
+            currentUser = resolveUser();
+            if (isValidEmail(currentUser)) {
+              storageSet("psc_user", currentUser);
+            } else {
+              console.warn("PSC: usuario inválido o ausente -> revisa guard.js / window.PSC_USER");
+            }
             refreshUI();
             initAccountSelector();
           } catch (e) {
@@ -1009,8 +1020,9 @@
         }
       })();
     </script>
-  
-<script src="portal.js"></script>
-</body>
+
+    <script src="portal.js"></script>
+  </body>
 </html>
+
 
