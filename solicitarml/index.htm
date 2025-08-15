@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Solicitud ML — PSC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📦</text></svg>"
+    />
+    <style>
+      :root {
+        --bg: #ffffff;
+        --fg: #111114;
+        --muted: #6c6d75;
+        --border: #e5e5ea;
+        --card: #ffffff;
+        --shadow: 0 6px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+        --blue: #007aff;
+        --blue-press: #0062d6;
+        --warn: #b26c00;
+        --ok: #00a34a;
+        --err: #d70015;
+        --radius: 16px;
+        --font: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+          "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 32px;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 700px;
+        display: grid;
+        gap: 18px;
+      }
+      .title {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 0;
+        text-align: center;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin: 0;
+        text-align: center;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 24px 20px;
+      }
+      .row {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .field {
+        flex: 1;
+        min-width: 220px;
+      }
+      .label {
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      input[type="text"] {
+        width: 100%;
+        height: 48px;
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--fg);
+        font-size: 16px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .btn {
+        height: 48px;
+        padding: 0 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--fg);
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.04s, box-shadow 0.2s, border-color 0.2s;
+      }
+      .btn:hover {
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.primary {
+        background: var(--blue);
+        border-color: transparent;
+        color: #fff;
+      }
+      .btn.primary:hover {
+        box-shadow: 0 6px 16px rgba(0, 122, 255, 0.25);
+      }
+      .btn.primary:active {
+        background: var(--blue-press);
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .status.ok {
+        color: var(--ok);
+      }
+      .status.err {
+        color: var(--err);
+      }
+      .status.warn {
+        color: var(--warn);
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 18px;
+        }
+        .title {
+          font-size: 24px;
+        }
+      }
+      .psc-back-main {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        border: 1px solid var(--border);
+        background: #ffffff;
+        color: #111827;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      }
+      .psc-back-main:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+        border-color: #d1d5db;
+      }
+      .psc-back-main:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.35),
+          0 12px 32px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+
+    <!-- Tu estilo/guards globales -->
+    <link rel="stylesheet" href="portal.css" />
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="guard.js"></script>
+  </head>
+  <body>
+    <a class="psc-back-main" href="/" aria-label="Volver al portal">
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+      <span>Volver</span>
+    </a>
+
+    <main class="wrap">
+      <section class="card">
+        <h1 class="title">Solicitar ML PSC</h1>
+        <p class="subtitle">
+          Ingresa los datos y presiona <strong>Solicitar</strong>.
+        </p>
+
+        <form id="form" novalidate style="margin-top: 16px">
+          <div class="row">
+            <div class="field">
+              <label class="label" for="tracking">Tracking *</label>
+              <input
+                id="tracking"
+                name="tracking"
+                type="text"
+                inputmode="latin"
+                autocomplete="off"
+                required
+                minlength="5"
+                placeholder="Ej. 1Z999AA10123456784"
+              />
+              <div class="hint">
+                Mínimo 5 caracteres. Se usará como original y corregido.
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="casillero">N.º de casillero *</label>
+              <input
+                id="casillero"
+                name="casillero"
+                type="text"
+                autocomplete="off"
+                required
+                placeholder="Ej. 1234"
+              />
+            </div>
+            <div class="field">
+              <label class="label" for="nombre">Nombre *</label>
+              <input
+                id="nombre"
+                name="nombre"
+                type="text"
+                autocomplete="name"
+                required
+                placeholder="Ej. Juan Pérez"
+              />
+            </div>
+          </div>
+
+          <div class="actions" style="margin-top: 16px">
+            <div id="status" class="status">Listo.</div>
+            <button id="btnSubmit" type="submit" class="btn primary">
+              Solicitar
+            </button>
+            <button id="btnClear" type="button" class="btn">Limpiar</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      // ==== ENDPOINTS ====
+      const PUT_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
+      const CHECK_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml"; // opcional
+
+      // ==== UI ====
+      const ui = {
+        form: document.getElementById("form"),
+        tracking: document.getElementById("tracking"),
+        casillero: document.getElementById("casillero"),
+        nombre: document.getElementById("nombre"),
+        btnSubmit: document.getElementById("btnSubmit"),
+        btnClear: document.getElementById("btnClear"),
+        status: document.getElementById("status"),
+      };
+
+      const setStatus = (msg, type = "") => {
+        ui.status.textContent = msg;
+        ui.status.className = "status " + (type || "");
+      };
+
+      const trimv = (s) => (s || "").trim();
+
+      // ==== OPTIONAL: check-ml (ignora silenciosamente si no existe) ====
+      async function checkDup(tracking) {
+        try {
+          const res = await fetch(CHECK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tracking }),
+          });
+          if (!res.ok) return { ok: false, exists: false };
+          const data = await res.json().catch(() => ({}));
+          // Se asume { ok:true, exists:boolean }
+          return { ok: true, exists: !!data.exists };
+        } catch {
+          return { ok: false, exists: false };
+        }
+      }
+
+      // ==== SUBMIT ====
+      ui.form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const tracking = trimv(ui.tracking.value);
+        const casillero = trimv(ui.casillero.value);
+        const nombre = trimv(ui.nombre.value);
+
+        // Validación estricta
+        if (!tracking || tracking.length < 5) {
+          setStatus("Tracking inválido (mínimo 5).", "warn");
+          ui.tracking.focus();
+          return;
+        }
+        if (!casillero) {
+          setStatus("N.º de casillero es requerido.", "warn");
+          ui.casillero.focus();
+          return;
+        }
+        if (!nombre) {
+          setStatus("Nombre es requerido.", "warn");
+          ui.nombre.focus();
+          return;
+        }
+
+        ui.btnSubmit.disabled = true;
+        setStatus("Validando…", "warn");
+
+        // 1) Antiduplicado (si existe la función)
+        const dup = await checkDup(tracking);
+        if (dup.ok && dup.exists) {
+          setStatus("Ya existe una solicitud para este tracking (ML).", "warn");
+          ui.btnSubmit.disabled = false;
+          return;
+        }
+
+        // 2) Enviar a put-tracking
+        setStatus("Solicitando…", "warn");
+        try {
+          const payload = {
+            tracking_original: tracking,
+            tracking_corrected: tracking, // espejo del original
+            status: "ML",
+            ML: true,
+            num_casillero: casillero,
+            name: nombre,
+          };
+
+          const res = await fetch(PUT_URL, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const txt = await res.text().catch(() => "");
+          let json = {};
+          try {
+            json = JSON.parse(txt || "{}");
+          } catch {}
+
+          if (!res.ok || json?.ok !== true) {
+            const msg =
+              json?.error ||
+              json?.detail ||
+              res.statusText ||
+              `HTTP ${res.status}`;
+            throw new Error(msg);
+          }
+
+          setStatus("Solicitado ✔️", "ok");
+          // Limpia
+          ui.form.reset();
+        } catch (err) {
+          setStatus("Error: " + (err?.message || err), "err");
+        } finally {
+          ui.btnSubmit.disabled = false;
+        }
+      });
+
+      ui.btnClear.addEventListener("click", () => {
+        ui.form.reset();
+        setStatus("Listo.");
+      });
+    </script>
+
+    <script src="portal.js"></script>
+  </body>
+</html>
