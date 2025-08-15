@@ -120,7 +120,37 @@
         background: #fee2e2;
         border-color: #fca5a5;
       }
-      
+
+      /* === BOTÓN VOLVER (fixed, no afecta el layout) === */
+      .psc-back-main {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        color: #111827;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      }
+      .psc-back-main:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+        border-color: #d1d5db;
+      }
+      .psc-back-main:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.35),
+          0 12px 32px rgba(0, 0, 0, 0.2);
+      }
     </style>
 
     <!-- Impresión: SOLO vista previa + logo arriba derecha (tamaño controlado) -->
@@ -167,10 +197,25 @@
         table {
           page-break-inside: avoid;
         }
+
+        /* Oculta el botón Volver en impresión */
+        .psc-back-main {
+          display: none !important;
+        }
       }
     </style>
   </head>
   <body>
+
+    <!-- Botón Volver (no afecta el contenido) -->
+    <a href="/" class="psc-back-main" aria-label="Volver al inicio">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+      Volver
+    </a>
+
     <div class="container">
       <div class="logo-top">
         <img
