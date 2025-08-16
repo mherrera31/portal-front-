@@ -391,7 +391,7 @@
   setStatus("Solicitando archivo al servidor…","warn");
   ui.btnExport.disabled = true;
   try {
-    const res = await fetch("https://<tu-ref>.functions.supabase.co/export_today", {
+    const res = await fetch("https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export_today", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
