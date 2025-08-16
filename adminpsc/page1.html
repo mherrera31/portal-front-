@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Admin - PSC (Export)</title>
+  <title>Admin - PSC</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link
     rel="icon"
@@ -13,7 +13,8 @@
       --bg:#ffffff; --card:#ffffff; --fg:#1c1c1e; --muted:#6e6e73;
       --accent:#0b5cff; --border:#e5e5ea; --ok:#2ecc71; --err:#e5484d;
       --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-      --header-z: 999999; --header-offset: 192px;
+      --header-z: 999999;            /* header al frente */
+      --header-offset: 192px;        /* fallback, portal.js lo ajusta */
     }
     *{ box-sizing:border-box }
     body{
@@ -27,7 +28,16 @@
       background:var(--card); border:1px solid var(--border);
       border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.06);
     }
-    .muted{ color:var(--muted) } .small{ font-size:12px }
+    .muted{ color:var(--muted) } .mono{ font-family:ui-monospace,Menlo,monospace } .small{ font-size:12px }
+    textarea{
+      width:100%; min-height:240px; background:#fff; color:var(--fg);
+      border:1px solid var(--border); border-radius:12px; padding:12px; font-family:ui-monospace,Menlo,monospace;
+    }
+    table{ width:100%; border-collapse:separate; border-spacing:0 6px }
+    th,td{ padding:10px 12px; text-align:left }
+    th{ color:#3a3a3c; font-weight:600; border-bottom:1px solid var(--border) }
+    tr{ background:#fff; border:1px solid var(--border) }
+    tbody tr:hover{ background:#f7f7f8 }
     .btn{
       background:#fff; border:1px solid var(--border); color:#111;
       padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600;
@@ -36,36 +46,59 @@
     .btn:hover{ box-shadow:0 6px 18px rgba(0,0,0,.06); transform:translateY(-1px) }
     .btn.primary{ background:var(--accent); color:#fff; border-color:transparent; box-shadow:0 6px 18px rgba(0,0,0,.1) }
     .btn.primary:hover{ transform:translateY(-1px); box-shadow:0 10px 26px rgba(0,0,0,.16) }
+    .row-end{ display:flex; gap:8px; justify-content:space-between; margin-top:12px; align-items:center }
+    .dup{ color:var(--err); font-weight:600 }
+    .ml{ color:#f6c744; font-weight:600 }
     .status{ font-size:13px } .status.ok{ color:var(--ok) } .status.err{ color:var(--err) } .status.warn{ color:#f6c744 }
-
-    /* Header fijo al frente (si usas portal.js) */
-    .psc-header{
-      position: fixed !important; top: 0; left: 0; right: 0;
-      z-index: var(--header-z) !important; background: #fff;
-      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    .app-bar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+    .app-right{ display:flex; gap:10px; align-items:center }
+    .seg{
+      display:inline-flex; align-items:center; gap:4px; padding:2px;
+      border:1px solid var(--border); border-radius:12px; background:#fff
     }
+    .seg label{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; cursor:pointer; user-select:none; font-size:12px }
+    .seg input{ display:none }
+    .seg input:checked+span{ background:var(--accent); color:#fff; font-weight:700; padding:2px 8px; border-radius:6px }
+    @media(max-width:640px){ .brand-logo-sm{ width:44px } }
 
-    /* ========= TOAST ========= */
+    /* ========= TOAST (confirmación) ========= */
     .toast{
       position: fixed;
       top: calc(8px + var(--header-offset));
       left: 50%;
       transform: translateX(-50%) translateY(-12px);
       background: #111; color: #fff;
-      padding: 12px 16px; border-radius: 12px;
+      padding: 12px 16px;
+      border-radius: 12px;
       box-shadow: 0 14px 30px rgba(0,0,0,.18);
       z-index: calc(var(--header-z) + 1);
       font-weight: 700; letter-spacing: .2px;
       opacity: 0; pointer-events: none;
       transition: opacity .18s ease, transform .18s ease;
-      max-width: 92vw; text-align: center;
+      max-width: 92vw;
+      text-align: center;
     }
     .toast.success{ background: #00a34a; }
     .toast.error{ background: #d70015; }
-    .toast.show{ opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .toast.show{
+      opacity: 1; pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Header fijo al frente (si usas portal.js) */
+    .psc-header{
+      position: fixed !important;
+      top: 0; left: 0; right: 0;
+      z-index: var(--header-z) !important;
+      background: #fff;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    }
   </style>
 
-  <!-- Portal / header opcional -->
+  <!-- XLSX para otras funciones locales que ya tienes -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Portal / header -->
   <link rel="stylesheet" href="portal.css">
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -76,93 +109,405 @@
   <div id="saveToast" class="toast" role="status" aria-live="polite"></div>
 
   <div class="wrap">
-    <div class="card">
-      <h2 style="margin:0 0 12px">Exportar corte</h2>
-      <p class="small muted" style="margin:0 0 12px">
-        Genera <code>cargar_corte.xlsx</code> desde la función <b>export_today</b> (servidor).
-      </p>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-        <button class="btn primary" id="btnExport">Exportar XLSX</button>
-        <span id="statusMsg" class="status muted">Listo.</span>
+    <!-- Barra superior y área de pegado -->
+    <div class="card" id="appCard">
+      <div class="app-bar">
+        <h2 style="margin:0">Ingrese Facturas de GEL</h2>
+        <div class="app-right">
+          <div class="seg" title="Cuenta">
+            <label><input type="radio" name="account" value="PSC"/><span>PSC</span></label>
+            <label><input type="radio" name="account" value="C10PA"/><span>C10PA</span></label>
+          </div>
+          <div class="small muted" id="whoami"></div>
+          <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="PSC" class="brand-logo-sm" loading="lazy" style="width:56px;height:auto;opacity:.95"/>
+        </div>
       </div>
-      <div class="small muted" style="margin-top:8px">
-        Formato: columnas <b>WAREHOUSE</b>, <b>TRACKING</b>, <b>CLIENTE</b>, <b>PIEZAS</b>, <b>PESO</b> (todo texto). PIEZAS = 1.
+      <textarea id="paste" placeholder="Pega aqui sin encabezado. Maximo 500 filas."></textarea>
+    </div>
+
+    <!-- Vista previa y acciones -->
+    <div class="card" id="previewCard">
+      <h3 style="margin:0 0 8px">Vista previa</h3>
+      <div class="small muted">
+        Corrección: quita <code>]c1</code>, <code>+c1</code>, <code>|</code>; reemplaza <code>\/</code> o <code>/</code> por espacio; conserva guiones <b>(-)</b>.
+        Duplicados en <span style="color:var(--err);font-weight:600">rojo</span>, ML en <span style="color:#f6c744;font-weight:600">naranja</span>.
+      </div>
+
+      <div id="previewWrap" style="margin-top:12px;overflow:auto">
+        <table id="preview">
+          <thead>
+            <tr><th>#</th><th>Original</th><th>Corregido (preview)</th><th>Peso</th><th>Estado</th><th>Cuenta</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="empty" class="muted small">No hay datos aún.</div>
+      </div>
+
+      <div class="row-end">
+        <div>
+          <div id="statusMsg" class="status muted">Listo para guardar.</div>
+          <div id="batchMsg" class="small muted"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn" id="btnClear">Limpiar</button>
+          <button class="btn" id="btnExport">Exportar XLSX</button>
+          <button class="btn primary" id="btnSave" disabled>Guardar 0 filas</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
   "use strict";
-  // ==== CONFIG ====
-  const EXPORT_TODAY_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export_today"; // tu Edge
+  /* === constantes existentes === */
+  const FUNCTION_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
+  const START_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/start-upload";
+  const EXPORT_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today"; // (se deja intacta por compatibilidad)
+  const CHECK_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
 
-  // ==== UI ====
+  const CODE_COL = 2; const WEIGHT_COL = 6; const DEFAULT_WEIGHT = 0.0;
+  const DEFAULT_STATUS = "Centro de Dist. PSC"; const MAX_ROWS = 500;
+
   const ui = {
+    whoami: document.getElementById("whoami"),
+    paste: document.getElementById("paste"),
+    btnSave: document.getElementById("btnSave"),
+    btnClear: document.getElementById("btnClear"),
     btnExport: document.getElementById("btnExport"),
+    previewBody: document.querySelector("#preview tbody"),
+    empty: document.getElementById("empty"),
     status: document.getElementById("statusMsg"),
+    batchMsg: document.getElementById("batchMsg"),
     toast: document.getElementById("saveToast"),
   };
 
-  // ==== Helpers ====
-  function setStatus(msg, kind=""){ ui.status.textContent = msg; ui.status.className = "status " + (kind || "muted"); }
+  let rows = []; let currentUser = null; let saveLocked = false;
+  const ACCOUNT_DEFAULT = "PSC"; let currentAccount = storageGet("psc_account") || ACCOUNT_DEFAULT;
+  const mlCache = new Map();
+
+  function storageGet(k){ try { return localStorage.getItem(k); } catch { return null; } }
+  function storageSet(k,v){ try { localStorage.setItem(k,v); } catch {} }
+  function isValidEmail(u){ return typeof u==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.trim()); }
+  function setStatus(msg, type=""){ ui.status.textContent = msg; ui.status.className = "status " + (type || "muted"); }
+  function setBatch(msg){ ui.batchMsg.textContent = msg || ""; }
+
+  (function seedUserFromURL(){ try { const q = new URL(location.href).searchParams.get("user"); if (q && isValidEmail(q)) localStorage.setItem("psc_user", q.trim()); } catch {} })();
+  (function loadGlobalUser(){ try { const g1 = (window.PSC && window.PSC.user && window.PSC.user.email); const g2 = (typeof window.PSC_USER === "string") ? window.PSC_USER : null; const cand = (typeof g1 === "string" && g1.trim()) ? g1.trim() : (g2 && g2.trim()) || null; if (isValidEmail(cand)) localStorage.setItem("psc_user", cand); } catch (e) { console.error("PSC: error leyendo usuario global", e); } })();
+  function resolveUser(){ const cands = []; try { cands.push((window.PSC && window.PSC.user && window.PSC.user.email) || null); } catch {} try { cands.push(typeof window.PSC_USER === "string" ? window.PSC_USER : null); } catch {} try { cands.push(storageGet("psc_user")); } catch {} const u = cands.find(x => typeof x === "string" && x.trim().length) || null; return u ? u.trim() : null; }
+  function startUserWatcher() { let tries = 0; const maxTries = 20; const timer = setInterval(() => { tries++; try { const g1 = (window.PSC && window.PSC.user && window.PSC.user.email); const g2 = (typeof window.PSC_USER === "string") ? window.PSC_USER : null; const cand = (typeof g1 === "string" && g1.trim()) ? g1.trim() : (g2 && g2.trim()) || null; if (cand && isValidEmail(cand)) { localStorage.setItem("psc_user", cand); currentUser = cand; if (ui.whoami) ui.whoami.textContent = `Conectado: ${currentUser}`; clearInterval(timer); } } catch {} if (tries >= maxTries) clearInterval(timer); }, 500); }
+
+  function splitLine(line){ if (line.includes("\t")) return line.split("\t").map(c=>c.trim()); if (line.includes(",")) return line.split(",").map(c=>c.trim()); return line.split(/\s{2,}/).map(c=>c.trim()).filter(Boolean); }
+  function correctPreview(code){ let s = code ?? ""; s = s.replace(/\]c1/gi, ""); s = s.replace(/\+c1/gi, ""); s = s.replace(/\]/g,  ""); s = s.replace(/\|/g,  ""); s = s.replace(/\\\//g, " "); s = s.replace(/\//g,  " "); return s; }
+  function markDuplicates(){ const counts = new Map(); rows.forEach(r => counts.set(r.corrected, (counts.get(r.corrected)||0)+1)); rows.forEach(r => r.dup = (counts.get(r.corrected)||0) > 1); }
+
+  function render(){
+    ui.previewBody.innerHTML = "";
+    if (rows.length === 0){
+      ui.empty.style.display = "block";
+      ui.btnSave.disabled = true;
+      ui.btnSave.textContent = "Guardar 0 filas";
+      setStatus("Listo para guardar.","muted");
+      setBatch("");
+      return;
+    }
+    ui.empty.style.display = "none";
+
+    rows.forEach((r,i)=>{
+      const keyCorr = String(r.corrected||"").trim().toLowerCase();
+      const keyOrig = String(r.original||"").trim().toLowerCase();
+      const isMl = mlCache.get(keyCorr)===true || mlCache.get(keyOrig)===true;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="small muted">${i+1}</td>
+        <td class="mono ${r.dup?"dup":""} ${isMl?"ml":""}">${r.original||""}</td>
+        <td class="mono ${r.dup?"dup":""} ${isMl?"ml":""}">${r.corrected||""}</td>
+        <td class="mono">${Number.isFinite(r.weight)? r.weight.toFixed(2): ""}</td>
+        <td class="mono">${r.status}</td>
+        <td class="mono">${currentAccount}</td>`;
+      ui.previewBody.appendChild(tr);
+    });
+
+    ui.btnSave.disabled = saveLocked;
+    ui.btnSave.textContent = `Guardar ${rows.length} filas`;
+    setStatus("Listo para guardar.","muted");
+  }
+
+  async function refreshMlMarks(){
+    try {
+      const uniq = new Set();
+      for (const r of rows){
+        if (r.original)  uniq.add(r.original.trim().toLowerCase());
+        if (r.corrected) uniq.add(r.corrected.trim().toLowerCase());
+      }
+      const list = Array.from(uniq);
+      if (list.length===0) return;
+
+      const ctrl = new AbortController();
+      const t = setTimeout(()=>ctrl.abort(), 8000);
+      const res = await fetch(CHECK_URL, {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ trackings: list }), signal: ctrl.signal
+      }).catch(()=>null);
+      clearTimeout(t);
+      if (!res || !res.ok) return;
+
+      const payload = await res.json().catch(()=> ({}));
+      if (!payload || payload.ok!==true || !Array.isArray(payload.items)) return;
+
+      for (const it of payload.items){
+        const key = String(it.tracking||"").trim().toLowerCase();
+        const isMl = Boolean(it.ml || it.ML === "true" || it.status === "ML");
+        if (key) mlCache.set(key, isMl);
+      }
+      render();
+    } catch {}
+  }
+
+  function parsePasted(){
+    const text = ui.paste.value.trim();
+    rows = [];
+    if (!text){ render(); return; }
+
+    let lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+    if (lines.length > MAX_ROWS){
+      lines = lines.slice(0, MAX_ROWS);
+      setStatus(`Se pegaron más de ${MAX_ROWS} filas: se tomaron las primeras ${MAX_ROWS}.`,"warn");
+    }
+
+    const codeIdx0 = Math.max(1, CODE_COL) - 1;
+    const weightIdx0 = Math.max(1, WEIGHT_COL) - 1;
+
+    for (const line of lines){
+      const cells = splitLine(line);
+      if (!cells.length) continue;
+
+      const original = (cells[codeIdx0] ?? "").trim();
+      let weight = (cells[weightIdx0] ?? "").toString().replace(",", ".").trim();
+      const w = parseFloat(weight);
+      const weightNum = Number.isFinite(w) ? w : DEFAULT_WEIGHT;
+
+      if (!original) continue;
+
+      const corrected = correctPreview(original);
+      rows.push({ original, corrected, weight: weightNum, status: DEFAULT_STATUS, dup: false });
+    }
+    markDuplicates();
+    render();
+    refreshMlMarks();
+  }
+
+  function refreshUI(){
+    currentUser = resolveUser();
+    if (ui.whoami) ui.whoami.textContent = isValidEmail(currentUser) ? `Conectado: ${currentUser}` : "Conectado: (sin usuario)";
+  }
+
+  /* ===== TOAST helpers ===== */
   let toastTimer = null;
   function showToast(msg, type='success', ms=3000){
     const el = ui.toast; if (!el) return;
-    el.textContent = msg; el.className = 'toast ' + (type || '');
-    void el.offsetWidth; el.classList.add('show');
-    clearTimeout(toastTimer); toastTimer = setTimeout(()=> el.classList.remove('show'), ms);
+    el.textContent = msg;
+    el.className = 'toast ' + (type || '');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove('show'), ms);
   }
 
-  // ==== Export desde la Edge ====
-  async function exportFromEdge(){
-    ui.btnExport.disabled = true;
-    setStatus("Solicitando archivo al servidor…", "warn");
+  async function startUpload(expectedRows){
+    currentUser = resolveUser();
+    if (!isValidEmail(currentUser)){
+      setStatus("Usuario inválido o ausente. Defina PSC.user.email, PSC_USER o use ?user=…","err");
+      throw new Error("invalid_user");
+    }
+    const res = await fetch(START_URL, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ expected_rows: expectedRows, user: currentUser, account: currentAccount, cuenta: currentAccount }),
+    });
+    const txt = await res.text().catch(()=> "");
+    let payload = {};
+    try { payload = JSON.parse(txt || "{}"); } catch {}
+    if (!res.ok){
+      const msg = payload.detail || payload.error || res.statusText || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return payload.batch_id;
+  }
+
+  async function saveAll(){
+    if (rows.length === 0) return;
+    if (!isValidEmail(resolveUser())){
+      setStatus("Usuario inválido o ausente. Verifique sesión global.","err"); return;
+    }
+    currentUser = resolveUser();
+    saveLocked = true; ui.btnSave.disabled = true;
+    setStatus("Creando lote…","muted"); setBatch("");
     try {
-      const res = await fetch(EXPORT_TODAY_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}) // no necesita payload
+      const batchId = await startUpload(rows.length);
+      setBatch(`Lote: ${batchId}`);
+      setStatus(`Guardando… (lote ${batchId})`,"muted");
+      let okCount = 0;
+      for (let i=0;i<rows.length;i++){
+        const r = rows[i];
+        const res = await fetch(FUNCTION_URL, {
+          method:"PUT", headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({
+            tracking_original: r.original,
+            tracking_corrected: r.corrected,
+            weight_lbs: r.weight,
+            status: r.status,
+            batch_id: batchId,
+            account: currentAccount, cuenta: currentAccount,
+            user: currentUser,
+          })
+        });
+        if (!res.ok){
+          const txt = await res.text().catch(()=> "");
+          let msg = "Error inesperado";
+          try {
+            const j = JSON.parse(txt || "{}");
+            msg = j.error || j.detail || j.message || JSON.stringify(j);
+          } catch { msg = txt || res.statusText || `HTTP ${res.status}`; }
+          setStatus(`Error en fila ${i+1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,"err");
+          return;
+        }
+        okCount++;
+      }
+      setStatus(`Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`,"ok");
+      ui.btnSave.textContent = `Guardado ${okCount}/${rows.length}`;
+      showToast(`Guardado exitoso: ${okCount} de ${rows.length}`, "success", 3200);
+      mlCache.clear();
+      render();
+    } catch(e){
+      setStatus(`No se pudo guardar: ${e && e.message ? e.message : e}`,"err");
+      showToast(`Error al guardar.`, 'error', 3500);
+    } finally {
+      saveLocked = false;
+      ui.btnSave.disabled = (rows.length === 0);
+    }
+  }
+
+  /* ========= AQUÍ EL ÚNICO CAMBIO: export desde la Edge export_today ========= */
+  async function exportXlsxTodayForUser(){
+    // Mantiene el mismo botón y firma; solo cambia la implementación interna
+    setStatus("Solicitando archivo al servidor…","warn");
+    ui.btnExport.disabled = true;
+    try {
+      // Llama a tu función Edge que ya marca exported=true ANTES de enviar el archivo
+      const url = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export_today"; // <- nuevo endpoint
+      const res = await fetch(url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({}) // no requiere payload
       });
 
-      if (!res.ok) {
-        let err = "Error al exportar";
-        try { const j = await res.json(); err = j?.error || err; } catch {}
-        throw new Error(err);
+      if (!res.ok){
+        let msg = "Error al exportar";
+        try { const j = await res.json(); msg = j?.error || msg; } catch {}
+        throw new Error(msg);
       }
 
-      // Conteo exportado desde header
+      // Lee el conteo desde el header que devuelve la Edge
       const countHeader = res.headers.get("x-exported-count") || res.headers.get("X-Exported-Count");
       const count = countHeader ? Number(countHeader) : NaN;
 
-      // Descarga el XLSX
+      // Descarga el archivo
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = "cargar_corte.xlsx";
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
+      a.href = URL.createObjectURL(blob);
+      a.download = "cargar_corte.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
 
-      if (!Number.isNaN(count)) {
-        setStatus(`Archivo generado. Exportadas ${count} fila(s).`, "ok");
+      if (!Number.isNaN(count)){
+        setStatus(`Archivo generado. Exportadas ${count} fila(s).`,"ok");
         showToast(`Exportadas ${count} fila(s)`, "success", 3600);
       } else {
-        setStatus(`Archivo generado.`, "ok");
-        showToast(`Exportación completada`, "success", 3000);
+        setStatus(`Archivo generado.`,"ok");
+        showToast(`Exportación completada`, "success", 3200);
       }
-    } catch (e) {
+    } catch(e){
       setStatus(`Error: ${e?.message || e}`, "err");
-      showToast("Error en exportación", "error", 3500);
+      showToast(`Error en exportación`, "error", 3600);
     } finally {
       ui.btnExport.disabled = false;
     }
   }
+  /* ========= FIN DEL CAMBIO ========= */
 
-  // Wire
-  ui.btnExport.addEventListener("click", exportFromEdge);
+  function wireAccountRadios(){
+    const radios = document.querySelectorAll('input[name="account"]');
+    let matched = false;
+    radios.forEach((r)=>{
+      if (r.value === currentAccount){ r.checked = true; matched = true; }
+      r.addEventListener("change", ()=>{
+        if (r.checked){
+          currentAccount = r.value; storageSet("psc_account", currentAccount); render();
+        }
+      });
+    });
+    if (!matched){
+      currentAccount = ACCOUNT_DEFAULT; storageSet("psc_account", currentAccount);
+      const def = document.querySelector('input[name="account"][value="'+ACCOUNT_DEFAULT+'"]');
+      if (def){ def.checked = true; }
+    }
+  }
+
+  function wireUI(){
+    let debounceId = 0;
+    ui.paste.addEventListener("input", ()=>{
+      clearTimeout(debounceId);
+      debounceId = setTimeout(parsePasted, 200);
+    });
+    ui.btnClear.addEventListener("click", ()=>{
+      ui.paste.value = ""; rows = []; saveLocked = false; mlCache.clear();
+      render(); ui.btnSave.disabled = true; ui.btnSave.textContent = "Guardar 0 filas";
+      setStatus("Listo para guardar.","muted"); setBatch("");
+    });
+    ui.btnSave.addEventListener("click", saveAll);
+    ui.btnExport.addEventListener("click", exportXlsxTodayForUser); // <- ya estaba, se mantiene
+  }
+
+  (function boot(){
+    try {
+      wireAccountRadios();
+      wireUI();
+      currentUser = resolveUser();
+      if (isValidEmail(currentUser)) storageSet("psc_user", currentUser);
+      refreshUI();
+      startUserWatcher();
+    } catch(e){
+      console.error("PSC boot error:", e);
+      setStatus("Error al iniciar: " + (e && e.message ? e.message : e), "err");
+    }
+  })();
+  </script>
+
+  <!-- Bridge de usuario (no cambia diseño) -->
+  <script>
+  (function(){
+    try {
+      const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
+      const url = new URL(location.href);
+      const qUser = url.searchParams.get('user');
+      let email = null;
+      if (isEmail(qUser)) email = qUser;
+      const pscEmail = (window.PSC && window.PSC.user && window.PSC.user.email) || null;
+      if (!email && isEmail(pscEmail)) email = pscEmail;
+      const ls = localStorage.getItem('psc_user_email') || localStorage.getItem('email') || localStorage.getItem('psc_user');
+      if (!email && isEmail(ls)) email = ls;
+      if (email) {
+        try { localStorage.setItem('psc_user', email); } catch {}
+        window.PSC = window.PSC || {}; window.PSC.user = { email };
+      }
+    } catch(e){ /* noop */ }
+  })();
   </script>
 
   <script src="portal.js"></script>
 </body>
 </html>
+
 
 
