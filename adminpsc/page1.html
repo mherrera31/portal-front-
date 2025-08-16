@@ -73,10 +73,8 @@
   <link rel="stylesheet" href="portal (1).css">
   <script src="portal (2).js"></script></script>
 
-<!-- Header z-index fix to ensure portal header is above any background -->
 <style id="psc-header-zfix">
-  .psc-header{ position: sticky; top: 0; z-index: 2147483647; background: #fff; }
-  .psc-header { isolation: isolate; }
+  .psc-header{ position: sticky; top: 0; z-index: 2147483647; background:#fff; isolation:isolate; }
 </style>
 
 </head>
@@ -579,8 +577,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  try {
+  var tries = 0;
+  function mark(){
+    tries++;
     var nav = document.querySelector('.psc-nav');
+    if (!nav && tries < 20) return setTimeout(mark, 100);
     if (!nav) return;
     var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
     var here = links.find(function(a){
@@ -589,7 +590,8 @@ document.addEventListener('DOMContentLoaded', function(){
       return /page1\s*\(2\)\.html$/i.test(href) || /page1\.html$/i.test(href) || /SUBIR\s*CORTE/i.test(txt);
     });
     if (here) here.setAttribute('aria-current','page');
-  } catch(e){}
+  }
+  mark();
 });
 </script>
 
