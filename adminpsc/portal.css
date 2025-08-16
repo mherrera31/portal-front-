@@ -1,174 +1,81 @@
+/* portal.css — estilos utilitarios y prioridad del header del portal */
+
+/* ===== Variables por defecto ===== */
 :root{
-  --psc-accent: #0A84FF; /* Azul iOS */
-  --psc-text: #111111;
-  --psc-muted: #6e6e73;
-  --psc-border: #e5e5ea;
-  --psc-bg: #ffffff;
-  --psc-header-h: 64px;
-  --psc-safe-top: env(safe-area-inset-top, 0px);
+  /* Offset que empuja el contenido debajo del header del portal.
+     portal.js actualizará este valor dinámicamente según la altura real */
+  --header-offset: 192px;     /* ~2" por defecto */
+  --header-z: 99999;          /* prioridad del header por encima del contenido */
 }
 
-/* Global spacing to respect 1" before content plus header height */
-html, body {
-  scroll-behavior: smooth;
-}
-body {
-  padding-top: calc(var(--psc-safe-top) + var(--psc-header-h) + 96px);
-  margin: 0;
-  color: var(--psc-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: var(--psc-bg);
+/* Empuja el contenido para no quedar debajo del header */
+body{
+  padding-top: calc(32px + var(--header-offset));
 }
 
-/* Fixed translucent Apple-style header */
-.psc-header {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: var(--psc-header-h);
-  background: rgba(255,255,255,0.85);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  display: flex;
-  align-items: center;
-  z-index: 2147483647;
+/* ===== Header al frente ===== */
+.portal-header-front{
+  position: relative !important;
+  z-index: var(--header-z) !important;
+  pointer-events: auto !important;
 }
 
-.psc-header__inner {
-  width: 100%;
-  max-width: 960px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-}
-
-/* Brand */
-.psc-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.psc-brand img {
-  height: 28px;
-  width: auto;
-  display: block;
-  border-radius: 6px;
-}
-.psc-brand__title {
-  font-size: 16px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Nav */
-.psc-nav {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 18px;
-}
-.psc-nav a {
-  text-decoration: none;
-  color: var(--psc-text);
-  padding: 8px 10px;
-  border-radius: 10px;
-  line-height: 1;
-  font-size: 14px;
-}
-.psc-nav a[aria-current="page"] {
-  color: var(--psc-accent);
-  border-bottom: 2px solid var(--psc-accent);
-}
-
-/* Right side (session + logout) */
-.psc-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.psc-session {
-  font-size: 12px;
-  color: var(--psc-muted);
-  max-width: 180px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.psc-logout {
-  appearance: none;
-  border: 1px solid var(--psc-border);
-  background: #fff;
-  padding: 8px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.psc-logout:hover {
-  border-color: var(--psc-accent);
-}
-
-/* Mobile */
-.psc-burger {
-  display: none;
-  border: 1px solid var(--psc-border);
-  background: #fff;
-  height: 36px; width: 36px;
-  border-radius: 10px;
-  align-items: center;
-  justify-content: center;
-}
-.psc-burger span {
-  display: block;
-  width: 16px; height: 2px;
-  background: var(--psc-text);
+/* También intenta cubrir nombres comunes si no puedes añadir la clase */
+:where(header, .header, #header, .site-header, .app-header, .navbar, .topbar){
   position: relative;
-}
-.psc-burger span::before, .psc-burger span::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  width: 16px; height: 2px;
-  background: var(--psc-text);
-}
-.psc-burger span::before { top: -5px; }
-.psc-burger span::after { top: 5px; }
-
-@media (max-width: 768px) {
-  .psc-header__inner {
-    grid-template-columns: auto auto 1fr;
-  }
-  .psc-burger {
-    display: inline-flex;
-  }
-  .psc-nav {
-    position: fixed;
-    top: var(--psc-header-h);
-    left: 0; right: 0;
-    background: rgba(255,255,255,0.95);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0,0,0,0.06);
-    padding: 12px 16px;
-    display: none;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 2147483647;
-  }
-  .psc-nav.is-open { display: flex; }
-  .psc-right { justify-content: flex-end; }
+  z-index: var(--header-z);
+  background: #fff;
 }
 
-/* Optional: center common main wrappers if present, without changing DOM logic */
-main, .wrap, .container, .content, .page, .root, #app {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 960px;
-  padding-left: 16px;
-  padding-right: 16px;
+/* Asegura que el contenido de aplicaciones quede por debajo */
+:where(main, .wrap, .card){
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Header PSC construido por portal.js (sticky + sombra) ===== */
+.psc-header{
+  position: sticky;
+  top: 0;
+  z-index: var(--header-z);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+}
+.psc-header__inner{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; }
+.psc-brand{ display:flex; align-items:center; gap:10px; text-decoration:none; color:#111; font-weight:700 }
+.psc-brand img{ width:40px; height:auto }
+.psc-nav{ display:flex; gap:14px; }
+.psc-nav a{ text-decoration:none; color:#111; font-weight:600; opacity:.9 }
+.psc-nav a[aria-current="page"]{ opacity:1; text-decoration:underline }
+.psc-burger{ display:none; background:#fff; border:1px solid #e5e5ea; border-radius:10px; width:40px; height:36px; cursor:pointer }
+.psc-right{ display:flex; gap:10px; align-items:center }
+.psc-session{ font-size:12px; color:#555 }
+.psc-logout{ background:#fff; border:1px solid #e5e5ea; border-radius:10px; padding:8px 10px; cursor:pointer; font-weight:600 }
+.psc-logout:hover{ box-shadow:0 6px 18px rgba(0,0,0,.06) }
+
+/* Navegación responsive */
+@media (max-width: 800px){
+  .psc-burger{ display:inline-flex; align-items:center; justify-content:center }
+  .psc-nav{ display:none; position:absolute; left:0; right:0; top:100%; background:#fff; padding:10px 14px; border-bottom:1px solid #e5e5ea; }
+  .psc-nav.is-open{ display:flex; flex-direction:column; }
+}
+
+/* ===== Utilidades que faltaban en algunos HTML ===== */
+.small{ font-size: 12px; line-height: 1.2; }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+.muted{ color: #6c6d75; }
+.hidden{ display: none !important; }
+
+/* Accesibilidad en focus */
+:focus-visible{
+  outline: 3px solid rgba(0,122,255,.35);
+  outline-offset: 2px;
+}
+
+/* Tablas responsivas */
+.table-scroll{ overflow:auto; -webkit-overflow-scrolling: touch; }
+
+/* Pequeño refinamiento en móviles */
+@media (max-width: 640px){
+  body{ padding-top: calc(18px + var(--header-offset)); }
 }
