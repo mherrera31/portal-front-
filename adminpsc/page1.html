@@ -13,12 +13,14 @@
       --bg:#ffffff; --card:#ffffff; --fg:#1c1c1e; --muted:#6e6e73;
       --accent:#0b5cff; --border:#e5e5ea; --ok:#2ecc71; --err:#e5484d;
       --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      --header-z: 999999;            /* ya lo usábamos para el header */
+      --header-offset: 110px;        /* fallback: portal.js lo ajusta */
     }
     *{ box-sizing:border-box }
     body{
       margin:0; background:var(--bg); color:var(--fg); font-family:var(--font);
       display:flex; justify-content:center; align-items:flex-start;
-      padding:clamp(24px,3vw,40px); padding-top:clamp(48px,8vh,96px);
+      padding:clamp(24px,3vw,40px); padding-top:calc(clamp(48px,8vh,96px) + var(--header-offset));
       -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
     }
     .wrap{ width:100%; max-width:980px; display:grid; gap:16px }
@@ -58,31 +60,45 @@
     .seg input{ display:none }
     .seg input:checked+span{ background:var(--accent); color:#fff; font-weight:700; padding:2px 8px; border-radius:6px }
     @media(max-width:640px){ .brand-logo-sm{ width:44px } }
+
+    /* ========= TOAST (confirmación de guardado) ========= */
+    .toast{
+      position: fixed;
+      top: calc(8px + var(--header-offset));
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px);
+      background: #111; color: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 14px 30px rgba(0,0,0,.18);
+      z-index: calc(var(--header-z) + 1);
+      font-weight: 700; letter-spacing: .2px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+      max-width: 92vw;
+      text-align: center;
+    }
+    .toast.success{ background: #00a34a; }
+    .toast.error{ background: #d70015; }
+    .toast.show{
+      opacity: 1; pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    .hidden{ display: none !important; }
+    /* ================================================ */
   </style>
 
   <!-- XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- OPCIONAL: sembrar user global ANTES de config/guard -->
-  <!-- <script>window.PSC_USER = "admin@psccargas.com";</script> -->
-
-  <!-- Tu config/guard (deben exponer PSC.user.email o PSC_USER si hay sesión) -->
+  <!-- Portal / header -->
   <link rel="stylesheet" href="portal.css">
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="guard.js"></script>
 
-  <!-- === Offset base (portal.js lo actualizará dinámicamente) === -->
+  <!-- Header fijo al frente (ya lo teníamos activo en esta página) -->
   <style>
-    :root{ --header-offset: 192px; } /* por si el portal no está montado aún */
-    body{ padding-top: calc(clamp(48px, 8vh, 96px) + var(--header-offset)); }
-  </style>
-
-  <!-- === FORZAR HEADER AL FRENTE (FIX) - solo estético, no toca lógica === -->
-  <style>
-    :root{ --header-z: 999999; } /* prioridad máxima y segura */
-
-    /* El header inyectado por portal.js queda fijo al tope */
     .psc-header{
       position: fixed !important;
       top: 0; left: 0; right: 0;
@@ -90,21 +106,12 @@
       background: #fff;
       box-shadow: 0 6px 18px rgba(0,0,0,.06);
     }
-
-    /* Empuja el contenido para que no lo tape el header */
-    body{
-      padding-top: calc(32px + var(--header-offset)) !important;
-    }
-
-    /* Asegura que el contenido nunca le pase por encima */
-    .wrap, main, .card{
-      position: relative;
-      z-index: 1;
-    }
   </style>
-  <!-- ============================================================ -->
 </head>
 <body>
+  <!-- TOAST: contenedor del aviso -->
+  <div id="saveToast" class="toast hidden" role="status" aria-live="polite"></div>
+
   <div class="wrap">
     <!-- Barra superior y área de pegado -->
     <div class="card" id="appCard">
@@ -156,7 +163,7 @@
 
   <script>
   "use strict";
-  /* === (todo el JS original se mantiene sin cambios) === */
+  /* === (todo el JS original se mantiene sin cambios de negocio) === */
   const FUNCTION_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
   const START_URL    = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/start-upload";
   const EXPORT_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today";
@@ -189,8 +196,84 @@
   async function refreshMlMarks(){ try { const uniq = new Set(); for (const r of rows){ if (r.original)  uniq.add(r.original.trim().toLowerCase()); if (r.corrected) uniq.add(r.corrected.trim().toLowerCase()); } const list = Array.from(uniq); if (list.length===0) return; const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 8000); const res = await fetch(CHECK_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ trackings: list }), signal: ctrl.signal }).catch(()=>null); clearTimeout(t); if (!res || !res.ok) return; const payload = await res.json().catch(()=> ({})); if (!payload || payload.ok!==true || !Array.isArray(payload.items)) return; for (const it of payload.items){ const key = String(it.tracking||"").trim().toLowerCase(); const isMl = Boolean(it.ml || it.ML === "true" || it.status === "ML"); if (key) mlCache.set(key, isMl); } render(); } catch {} }
   function parsePasted(){ const text = ui.paste.value.trim(); rows = []; if (!text){ render(); return; } let lines = text.split(/\r?\n/).filter(l=>l.trim().length); if (lines.length > MAX_ROWS){ lines = lines.slice(0, MAX_ROWS); setStatus(`Se pegaron más de ${MAX_ROWS} filas: se tomaron las primeras ${MAX_ROWS}.`,"warn"); } const codeIdx0 = Math.max(1, CODE_COL) - 1; const weightIdx0 = Math.max(1, WEIGHT_COL) - 1; for (const line of lines){ const cells = splitLine(line); if (!cells.length) continue; const original = (cells[codeIdx0] ?? "").trim(); let weight = (cells[weightIdx0] ?? "").toString().replace(",", ".").trim(); const w = parseFloat(weight); const weightNum = Number.isFinite(w) ? w : DEFAULT_WEIGHT; if (!original) continue; const corrected = correctPreview(original); rows.push({ original, corrected, weight: weightNum, status: DEFAULT_STATUS, dup: false }); } markDuplicates(); render(); refreshMlMarks(); }
   function refreshUI(){ currentUser = resolveUser(); if (ui.whoami) ui.whoami.textContent = isValidEmail(currentUser) ? `Conectado: ${currentUser}` : "Conectado: (sin usuario)"; }
+
+  /* ===== TOAST helpers ===== */
+  const toastEl = document.getElementById('saveToast');
+  let toastTimer = null;
+  function showToast(msg, type='success', ms=3000){
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.className = 'toast ' + (type || '');
+    // forzar reflow para que la animación se aplique siempre
+    void toastEl.offsetWidth;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, ms);
+  }
+  function hideToast(){
+    if (!toastEl) return;
+    toastEl.classList.remove('show');
+  }
+  /* ========================= */
+
   async function startUpload(expectedRows){ currentUser = resolveUser(); if (!isValidEmail(currentUser)){ setStatus("Usuario inválido o ausente. Defina PSC.user.email, PSC_USER o use ?user=…","err"); throw new Error("invalid_user"); } const res = await fetch(START_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ expected_rows: expectedRows, user: currentUser, account: currentAccount, cuenta: currentAccount }), }); const txt = await res.text().catch(()=> ""); let payload = {}; try { payload = JSON.parse(txt || "{}"); } catch {} if (!res.ok){ const msg = payload.detail || payload.error || res.statusText || `HTTP ${res.status}`; throw new Error(msg); } return payload.batch_id; }
-  async function saveAll(){ if (rows.length === 0) return; if (!isValidEmail(resolveUser())){ setStatus("Usuario inválido o ausente. Verifique sesión global.","err"); return; } currentUser = resolveUser(); saveLocked = true; ui.btnSave.disabled = true; setStatus("Creando lote…","muted"); setBatch(""); try { const batchId = await startUpload(rows.length); setBatch(`Lote: ${batchId}`); setStatus(`Guardando… (lote ${batchId})`,"muted"); let okCount = 0; for (let i=0;i<rows.length;i++){ const r = rows[i]; const res = await fetch(FUNCTION_URL, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ tracking_original: r.original, tracking_corrected: r.corrected, weight_lbs: r.weight, status: r.status, batch_id: batchId, account: currentAccount, cuenta: currentAccount, user: currentUser, }) }); if (!res.ok){ const txt = await res.text().catch(()=> ""); let msg = "Error inesperado"; try { const j = JSON.parse(txt || "{}"); msg = j.error || j.detail || j.message || JSON.stringify(j); } catch { msg = txt || res.statusText || `HTTP ${res.status}`; } setStatus(`Error en fila ${i+1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,"err"); return; } okCount++; } setStatus(`Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`,"ok"); ui.btnSave.textContent = `Guardado ${okCount}/${rows.length}`; mlCache.clear(); render(); } catch(e){ setStatus(`No se pudo guardar: ${e && e.message ? e.message : e}`,"err"); } finally { saveLocked = false; ui.btnSave.disabled = (rows.length === 0); } }
+
+  async function saveAll(){
+    if (rows.length === 0) return;
+    if (!isValidEmail(resolveUser())){ setStatus("Usuario inválido o ausente. Verifique sesión global.","err"); return; }
+    currentUser = resolveUser();
+    saveLocked = true; ui.btnSave.disabled = true;
+    setStatus("Creando lote…","muted"); setBatch("");
+    try {
+      const batchId = await startUpload(rows.length);
+      setBatch(`Lote: ${batchId}`);
+      setStatus(`Guardando… (lote ${batchId})`,"muted");
+      let okCount = 0;                      /* <-- usamos este contador para el toast */
+      for (let i=0;i<rows.length;i++){
+        const r = rows[i];
+        const res = await fetch(FUNCTION_URL, {
+          method:"PUT",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({
+            tracking_original: r.original,
+            tracking_corrected: r.corrected,
+            weight_lbs: r.weight,
+            status: r.status,
+            batch_id: batchId,
+            account: currentAccount, cuenta: currentAccount,
+            user: currentUser,
+          })
+        });
+        if (!res.ok){
+          const txt = await res.text().catch(()=> "");
+          let msg = "Error inesperado";
+          try {
+            const j = JSON.parse(txt || "{}");
+            msg = j.error || j.detail || j.message || JSON.stringify(j);
+          } catch { msg = txt || res.statusText || `HTTP ${res.status}`; }
+          setStatus(`Error en fila ${i+1} (${r.original}): ${msg}. Guardados ${okCount}/${rows.length} (lote ${batchId}).`,"err");
+          return;
+        }
+        okCount++;
+      }
+      setStatus(`Guardado ✔️ ${okCount}/${rows.length} (lote ${batchId})`,"ok");
+      ui.btnSave.textContent = `Guardado ${okCount}/${rows.length}`;
+
+      // TOAST de confirmación (éxito X de Y)
+      showToast(`Guardado exitoso: ${okCount} de ${rows.length}`, 'success', 3200);
+
+      mlCache.clear();
+      render();
+    } catch(e){
+      setStatus(`No se pudo guardar: ${e && e.message ? e.message : e}`,"err");
+      // opcional: toast de error
+      showToast(`Error al guardar. Revisa el estado.`, 'error', 3500);
+    } finally {
+      saveLocked = false;
+      ui.btnSave.disabled = (rows.length === 0);
+    }
+  }
+
   async function exportXlsxTodayForUser(){ currentUser = resolveUser(); if (!isValidEmail(currentUser)){ setStatus("Usuario inválido o ausente. Verifique sesión global.","err"); return; } setStatus("Preparando XLSX…","muted"); const res = await fetch(EXPORT_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ user: currentUser }) }); const payload = await res.json().catch(()=> ({})); if (!res.ok || !payload.ok){ const msg = payload.detail || payload.error || res.statusText; setStatus(`No se pudo exportar: ${msg}`,"err"); return; } const trows = payload.rows || []; if (trows.length === 0){ setStatus(payload.message || "No hay trackings pendientes para exportar.","warn"); return; } const rowsX = trows.map(r => ({ WAREHOUSE: "", TRACKING: String(r.tracking_corrected ?? ""), CLIENTE: "", PIEZAS: "1", PESO: r.weight_lbs == null ? "" : String(r.weight_lbs), })); const headers = ["WAREHOUSE","TRACKING","CLIENTE","PIEZAS","PESO"]; const ws = XLSX.utils.json_to_sheet(rowsX, { header: headers }); const range = XLSX.utils.decode_range(ws["!ref"]); for (let R=range.s.r; R<=range.e.r; ++R){ for (let C=range.s.c; C<=range.e.c; ++C){ const cellRef = XLSX.utils.encode_cell({ r:R, c:C }); const cell = ws[cellRef]; if (!cell) continue; cell.t = "s"; if (typeof cell.v !== "string") cell.v = String(cell.v ?? ""); } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Hoja1"); const now = new Date(), pad = (n)=> String(n).padStart(2,"0"); const fname = `corte_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${(currentUser||"user").replace(/[^A-Za-z0-9._-]/g,"-")}.xlsx`; XLSX.writeFile(wb, fname); setStatus(`XLSX creado (${rowsX.length} filas, todo texto).`,"ok"); }
   function wireAccountRadios(){ const radios = document.querySelectorAll('input[name="account"]'); let matched = false; radios.forEach((r)=>{ if (r.value === currentAccount){ r.checked = true; matched = true; } r.addEventListener("change", ()=>{ if (r.checked){ currentAccount = r.value; storageSet("psc_account", currentAccount); render(); } }); }); if (!matched){ currentAccount = ACCOUNT_DEFAULT; storageSet("psc_account", currentAccount); const def = document.querySelector('input[name="account"][value="'+ACCOUNT_DEFAULT+'"]'); if (def){ def.checked = true; } } }
   function wireUI(){ let debounceId = 0; ui.paste.addEventListener("input", ()=>{ clearTimeout(debounceId); debounceId = setTimeout(parsePasted, 200); }); ui.btnClear.addEventListener("click", ()=>{ ui.paste.value = ""; rows = []; saveLocked = false; mlCache.clear(); render(); ui.btnSave.disabled = true; ui.btnSave.textContent = "Guardar 0 filas"; setStatus("Listo para guardar.","muted"); setBatch(""); }); ui.btnSave.addEventListener("click", saveAll); ui.btnExport.addEventListener("click", exportXlsxTodayForUser); }
@@ -221,4 +304,5 @@
   <script src="portal.js"></script>
 </body>
 </html>
+
 
