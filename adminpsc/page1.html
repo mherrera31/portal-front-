@@ -69,63 +69,11 @@
   <!-- Tu config/guard (deben exponer PSC.user.email o PSC_USER si hay sesión) -->
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="guard.js"></script>
+  <script src="portal_2_FIXED.js"></script></script>
+<script src="guard.js"></script>
   <link rel="stylesheet" href="portal (1).css">
 </head>
-\1
-
-<header class="psc-header">
-  <div class="psc-header__inner">
-    <a class="psc-brand" href="https://psccargas.com" aria-label="Ir a psccargas.com">
-      <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="PSC Cargas" referrerpolicy="no-referrer" />
-      <span class="psc-brand__title">PSC Cargas</span>
-    </a>
-    <button class="psc-burger" type="button" aria-label="Abrir menú"><span></span></button>
-    <nav class="psc-nav" aria-label="Navegación principal">
-      <a href="landing.html">HOME</a>
-      <a href="page1.html" aria-current="page">SUBIR CORTE</a>
-      <a href="MLadmin.html">MAL IDENTIFICADOS</a>
-      <a href="search-v2.html">SEARCH & ML</a>
-    </nav>
-    <div class="psc-right">
-      <span class="psc-session" id="pscSession">Sesión: —</span>
-      <button class="psc-logout" type="button" id="pscLogout">Logout</button>
-    </div>
-  </div>
-</header>
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-  // burger toggle
-  const burger = document.querySelector('.psc-burger');
-  const nav = document.querySelector('.psc-nav');
-  if (burger && nav) {
-    burger.addEventListener('click', function(){ nav.classList.toggle('is-open'); });
-  }
-  // fill session
-  try {
-    const sesEl = document.getElementById('pscSession');
-    const email = (window.PSC && window.PSC.user && window.PSC.user.email)
-      || localStorage.getItem('psc_user_email') || localStorage.getItem('email') || localStorage.getItem('psc_user');
-    if (sesEl && email) sesEl.textContent = 'Sesión: ' + email;
-  } catch(e){}
-  // logout (best-effort)
-  const btn = document.getElementById('pscLogout');
-  if (btn) btn.addEventListener('click', async function(){
-    try {
-      if (window.supabase && window.supabase.auth && window.supabase.auth.signOut) {
-        await window.supabase.auth.signOut();
-      }
-    } catch(e){}
-    try {
-      localStorage.removeItem('psc_user_email');
-      localStorage.removeItem('email');
-      localStorage.removeItem('psc_user');
-    } catch(e){}
-    location.reload();
-  });
-});
-</script>
-
+<body>
   <div class="wrap">
     <!-- Barra superior y área de pegado -->
     <div class="card" id="appCard">
@@ -621,6 +569,24 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   })();
   </script>
+
+<!-- Marca la pestaña SUBIR CORTE como activa -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    var nav = document.querySelector('.psc-nav');
+    if (!nav) return;
+    var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
+    var link = links.find(function(a){
+      var href = (a.getAttribute('href') || '').toLowerCase();
+      var txt  = (a.textContent || '').toUpperCase().trim();
+      return /page1(\.html)?$/i.test(href) || txt === 'SUBIR CORTE';
+    });
+    if (link) link.setAttribute('aria-current','page');
+  } catch(e){}
+});
+</script>
+
 </body>
 </html>
 
