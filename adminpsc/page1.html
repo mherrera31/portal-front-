@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -391,7 +391,7 @@
   setStatus("Solicitando archivo al servidor…","warn");
   ui.btnExport.disabled = true;
   try {
-    const res = await fetch("https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export_today", {
+    const res = await fetch("https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export-today", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
