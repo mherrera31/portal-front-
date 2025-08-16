@@ -9,34 +9,19 @@
       { name: "SEARCH & ML", href: "search-v2.html" }
     ];
 
-    var path = (location.pathname || "").toLowerCase();
-    
-function isActive(href) {
-  try {
-    var curr = (location.pathname || "").toLowerCase();
-    // normalize current path (strip trailing slashes)
-    if (curr.endsWith("/")) curr = curr.slice(0, -1);
-
-    // get base name without extension from target href
-    var base = href.toLowerCase().split("/").pop();
-    var stem = base.replace(/\.html?$/,""); // e.g., "mladmin", "page1", "search-v2"
-
-    // consider common deployed variants:
-    //   stem.html
-    //   stem-portal.html
-    //   stem-portal-vX.html
-    //   stem-portal-vX-anything.html
-    //   custom slugs that still contain the stem (e.g., /mal-identificados/)
-    if (curr.includes(stem)) return true;
-
-    // default root -> page1.html
-    if (curr === "" || curr === "/") {
-      return stem.includes("page1");
+    function isActive(href) {
+      try {
+        var curr = (location.pathname || "").toLowerCase();
+        if (curr.endsWith("/")) curr = curr.slice(0, -1);
+        var base = href.toLowerCase().split("/").pop();
+        var stem = base.replace(/\.html?$/, "");
+        if (curr.includes(stem)) return true;
+        if (curr === "" || curr === "/") return stem.includes("page1");
+      } catch (_) {}
+      return false;
     }
-  } catch (_) {}
-  return false;
-}
-// Build header
+
+    // Build header
     var header = document.createElement("header");
     header.className = "psc-header";
     header.innerHTML = [
@@ -54,23 +39,33 @@ function isActive(href) {
       '</div>'
     ].join("");
 
-    // Insert header at top
-    document.addEventListener("DOMContentLoaded", function () {
-      document.body.prepend(header);
-    // Keep header present if the page rewrites body
-    try {
-      var __psc_observer = new MutationObserver(function(){
-        if (!document.querySelector('.psc-header')) {
-          document.body.prepend(header);
+    function applyHeaderOffset() {
+      try {
+        var h = header.getBoundingClientRect().height;
+        if (h > 0) {
+          document.documentElement.style.setProperty('--header-offset', Math.ceil(h) + 'px');
         }
-      });
-      __psc_observer.observe(document.body, { childList: true, subtree: False });
-    } catch(_) {}
+      } catch (_) {}
+    }
 
+    document.addEventListener("DOMContentLoaded", function () {
+      // Inserta el header al inicio del body
+      document.body.prepend(header);
+
+      // Observa reescrituras del DOM (arreglado subtree:false)
+      try {
+        var __psc_observer = new MutationObserver(function(){
+          if (!document.querySelector('.psc-header')) {
+            document.body.prepend(header);
+            applyHeaderOffset();
+          }
+        });
+        __psc_observer.observe(document.body, { childList: true, subtree: false }); // <-- fix
+      } catch(_) {}
+
+      // Construye el menú
       var nav = header.querySelector(".psc-nav");
       var burger = header.querySelector(".psc-burger");
-
-      // Build nav items
       pages.forEach(function (p) {
         var a = document.createElement("a");
         a.href = p.href;
@@ -79,43 +74,46 @@ function isActive(href) {
         nav.appendChild(a);
       });
 
-      // Burger toggle
+      // Burger toggle (CSS maneja la visibilidad)
       burger.addEventListener("click", function () {
         nav.classList.toggle("is-open");
       });
 
-      // Fill session email if Supabase is present (best-effort, non-blocking)
+      // Sesión (best-effort)
       var sesEl = header.querySelector("#pscSession");
       (async function fillSession(){
         try {
           if (window.supabase && window.supabase.auth && window.supabase.auth.getUser) {
-            var { data, error } = await window.supabase.auth.getUser();
-            if (!error && data && data.user && data.user.email) {
+            var res = await window.supabase.auth.getUser();
+            var data = res && res.data;
+            if (data && data.user && data.user.email) {
               sesEl.textContent = "Sesión: " + data.user.email;
             }
           } else if (window.localStorage) {
-            // fallback: custom key if your app stores email
-            var maybe = localStorage.getItem("psc_user_email") || localStorage.getItem("email");
+            var maybe = localStorage.getItem("psc_user_email") || localStorage.getItem("email") || localStorage.getItem("psc_user");
             if (maybe) sesEl.textContent = "Sesión: " + maybe;
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
       })();
 
-      // Logout button (aesthetic; only clears common local keys if Supabase not present)
+      // Logout (solo estético, preserva tu lógica de auth)
       document.getElementById("pscLogout").addEventListener("click", async function () {
         try {
           if (window.supabase && window.supabase.auth && window.supabase.auth.signOut) {
             await window.supabase.auth.signOut();
           } else {
-            // clear some common keys without touching business logic
             try { localStorage.removeItem("psc_user_email"); } catch(e) {}
             try { localStorage.removeItem("email"); } catch(e) {}
+            try { localStorage.removeItem("psc_user"); } catch(e) {}
           }
         } finally {
-          // Redirect to login when available
           window.location.href = "login.html";
         }
       });
+
+      // Calibración inicial y en resize
+      applyHeaderOffset();
+      window.addEventListener('resize', applyHeaderOffset, { passive: true });
     });
   } catch (e) {
     console.error("PSC Portal header error:", e);
