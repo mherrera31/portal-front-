@@ -2,98 +2,142 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>Solicitudes ML</title>
+    <title>Solicitud ML — PSC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📦</text></svg>"
+    />
     <style>
       :root {
-        --bg: #f5f6f8;
+        --bg: #ffffff;
+        --fg: #111114;
+        --muted: #6c6d75;
+        --border: #e5e5ea;
         --card: #ffffff;
-        --fg: #0a0a0a;
-        --muted: #6b7280;
-        --accent: #111111;
-        --border: #e5e7eb;
-        --ok: #16a34a;
-        --err: #ef4444;
-        --warn: #f59e0b;
-        --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-          Roboto, Helvetica, Arial, sans-serif;
+        --shadow: 0 6px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+        --blue: #007aff;
+        --blue-press: #0062d6;
+        --warn: #b26c00;
+        --ok: #00a34a;
+        --err: #d70015;
+        --radius: 16px;
+        --font: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+          "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       }
       * {
         box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
       }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--fg);
         font-family: var(--font);
-        min-height: 100dvh;
-        display: grid;
-        place-items: center;
-        padding: 24px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 32px;
       }
       .wrap {
         width: 100%;
-        max-width: 1060px;
+        max-width: 700px;
         display: grid;
         gap: 18px;
+      }
+      .title {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 0;
+        text-align: center;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin: 0;
+        text-align: center;
       }
       .card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 24px 20px;
       }
-      h1 {
-        margin: 4px 0 6px;
-        text-align: center;
-        font-weight: 800;
-        letter-spacing: 0.2px;
-      }
-      h2 {
-        margin: 0 0 8px;
-        text-align: center;
-        font-weight: 700;
-      }
-      .actions {
+      .row {
         display: flex;
-        gap: 10px;
-        align-items: center;
-        justify-content: center;
-        margin-top: 8px;
+        gap: 14px;
         flex-wrap: wrap;
       }
-      .btn {
-        border: 0;
-        border-radius: 12px;
-        padding: 10px 16px;
-        font-weight: 700;
-        cursor: pointer;
-        background: #eef0f3;
-        color: #111;
+      .field {
+        flex: 1;
+        min-width: 220px;
+      }
+      .label {
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      input[type="text"] {
+        width: 100%;
+        height: 48px;
+        padding: 0 12px;
         border: 1px solid var(--border);
-        transition: transform 0.04s ease, box-shadow 0.2s ease;
+        border-radius: 12px;
+        background: #fff;
+        color: var(--fg);
+        font-size: 16px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .btn {
+        height: 48px;
+        padding: 0 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--fg);
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.04s, box-shadow 0.2s, border-color 0.2s;
       }
       .btn:hover {
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
       }
       .btn:active {
         transform: translateY(1px);
       }
-      .btn.primary {
-        background: var(--accent);
-        color: #fff;
-        border-color: #000;
-      }
-      .btn:disabled {
-        opacity: 0.6;
+      .btn[disabled] {
+        opacity: 0.5;
         cursor: not-allowed;
+      }
+      .btn.primary {
+        background: var(--blue);
+        border-color: transparent;
+        color: #fff;
+      }
+      .btn.primary:hover {
+        box-shadow: 0 6px 16px rgba(0, 122, 255, 0.25);
+      }
+      .btn.primary:active {
+        background: var(--blue-press);
       }
       .status {
         font-size: 13px;
-        text-align: center;
         color: var(--muted);
-        white-space: pre-wrap;
       }
       .status.ok {
         color: var(--ok);
@@ -104,390 +148,259 @@
       .status.warn {
         color: var(--warn);
       }
-
-      .table-wrap {
-        overflow: auto;
-        margin-top: 10px;
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-end;
       }
-      table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 8px;
+      @media (max-width: 640px) {
+        body {
+          padding: 18px;
+        }
+        .title {
+          font-size: 24px;
+        }
       }
-      th,
-      td {
+      .psc-back-main {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         padding: 10px 12px;
-        text-align: left;
-      }
-      th {
-        color: #61656d;
-        font-weight: 700;
-        border-bottom: 1px solid var(--border);
-      }
-      tr {
-        background: #fafafa;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
         border: 1px solid var(--border);
+        background: #ffffff;
+        color: #111827;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
       }
-      tbody tr:hover {
-        background: #f0f1f3;
+      .psc-back-main:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+        border-color: #d1d5db;
       }
-      .mono {
-        font-family: ui-monospace, Menlo, monospace;
-      }
-
-      input[type="text"] {
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: #fff;
-        color: #111;
-        min-width: 180px;
-      }
-      .pill {
-        padding: 2px 10px;
-        border-radius: 9999px;
-        font-size: 12px;
-        border: 1px solid var(--border);
-      }
-      .pill.ok {
-        background: #e9f9ef;
-        color: #106d37;
-        border-color: #bfe9cd;
-      }
-      .pill.warn {
-        background: #fff6e3;
-        color: #8a6110;
-        border-color: #ecd59a;
-      }
-
-      .hidden {
-        display: none;
+      .psc-back-main:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.35),
+          0 12px 32px rgba(0, 0, 0, 0.2);
       }
     </style>
-  
-<link rel="stylesheet" href="portal.css">
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="guard.js"></script>
 
-<style>:root{--psc-bg:#F2F2F7}</style>
-</head>
+    <!-- Tu estilo/guards globales -->
+    <link rel="stylesheet" href="portal.css" />
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="guard.js"></script>
+  </head>
   <body>
-    <div class="wrap">
-      <h1>Solicitudes ML</h1>
+    <a class="psc-back-main" href="/" aria-label="Volver al portal">
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+      <span>Volver</span>
+    </a>
 
-      <!-- PASO 1 -->
-      <div class="card" id="step1">
-        <h2>ML pendientes (más nuevo primero)</h2>
-        <div class="actions">
-          <button id="btnLoad" class="btn primary">Consultar</button>
-          <button id="btnSelectAll" class="btn">Seleccionar todo</button>
-          <button id="btnNext" class="btn" disabled>Continuar ▶</button>
-        </div>
-        <div id="s1Status" class="status"></div>
+    <main class="wrap">
+      <section class="card">
+        <h1 class="title">Solicitar ML PSC</h1>
+        <p class="subtitle">
+          Ingresa los datos y presiona <strong>Solicitar</strong>.
+        </p>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 44px">
-                  <input type="checkbox" id="chkAll" />
-                </th>
-                <th style="width: 80px">ID</th>
-                <th>Tracking</th>
-                <th>N.º Casillero</th>
-                <th style="width: 160px">Estado</th>
-                <th style="width: 170px">Fecha (created_at)</th>
-                <th style="width: 70px">ML</th>
-              </tr>
-            </thead>
-            <tbody id="tbody1"></tbody>
-          </table>
-          <div id="empty1" class="status" style="margin-top: 8px">
-            Sin datos.
+        <form id="form" novalidate style="margin-top: 16px">
+          <div class="row">
+            <div class="field">
+              <label class="label" for="tracking">Tracking *</label>
+              <input
+                id="tracking"
+                name="tracking"
+                type="text"
+                inputmode="latin"
+                autocomplete="off"
+                required
+                minlength="5"
+                placeholder="Ej. 1Z999AA10123456784"
+              />
+              <div class="hint">
+                Mínimo 5 caracteres. Se usará como original y corregido.
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="casillero">N.º de casillero *</label>
+              <input
+                id="casillero"
+                name="casillero"
+                type="text"
+                autocomplete="off"
+                required
+                placeholder="Ej. 1234"
+              />
+            </div>
+            <div class="field">
+              <label class="label" for="nombre">Nombre *</label>
+              <input
+                id="nombre"
+                name="nombre"
+                type="text"
+                autocomplete="name"
+                required
+                placeholder="Ej. Juan Pérez"
+              />
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- PASO 2 -->
-      <div class="card hidden" id="step2">
-        <h2>Registrar ML → Saco/CB + Express</h2>
-        <div class="actions">
-          <button id="btnBack" class="btn">◀ Volver</button>
-          <button id="btnApply" class="btn primary" disabled>
-            Aplicar cambios
-          </button>
-        </div>
-        <div id="s2Status" class="status"></div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 80px">ID</th>
-                <th>Tracking</th>
-                <th>N.º Casillero</th>
-                <th style="width: 220px">Saco/CB (registro_ml)</th>
-                <th style="width: 100px">Express</th>
-                <th style="width: 140px">Pre-estado</th>
-              </tr>
-            </thead>
-            <tbody id="tbody2"></tbody>
-          </table>
-          <div id="empty2" class="status" style="margin-top: 8px">
-            Nada seleccionado.
+          <div class="actions" style="margin-top: 16px">
+            <div id="status" class="status">Listo.</div>
+            <button id="btnSubmit" type="submit" class="btn primary">
+              Solicitar
+            </button>
+            <button id="btnClear" type="button" class="btn">Limpiar</button>
           </div>
-        </div>
-      </div>
-    </div>
+        </form>
+      </section>
+    </main>
 
     <script>
-      // ENDPOINTS
-      const LIST_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/list-ml";
-      const UPDATE_URL =
-        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/update-ml";
+      // ==== ENDPOINTS ====
+      const PUT_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
+      const CHECK_URL =
+        "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml"; // opcional
 
-      // UI refs
-      const s1 = {
-        card: document.getElementById("step1"),
-        tbody: document.getElementById("tbody1"),
-        empty: document.getElementById("empty1"),
-        btnLoad: document.getElementById("btnLoad"),
-        btnSelectAll: document.getElementById("btnSelectAll"),
-        btnNext: document.getElementById("btnNext"),
-        chkAll: document.getElementById("chkAll"),
-        status: document.getElementById("s1Status"),
-      };
-      const s2 = {
-        card: document.getElementById("step2"),
-        tbody: document.getElementById("tbody2"),
-        empty: document.getElementById("empty2"),
-        btnBack: document.getElementById("btnBack"),
-        btnApply: document.getElementById("btnApply"),
-        status: document.getElementById("s2Status"),
+      // ==== UI ====
+      const ui = {
+        form: document.getElementById("form"),
+        tracking: document.getElementById("tracking"),
+        casillero: document.getElementById("casillero"),
+        nombre: document.getElementById("nombre"),
+        btnSubmit: document.getElementById("btnSubmit"),
+        btnClear: document.getElementById("btnClear"),
+        status: document.getElementById("status"),
       };
 
-      // Estado
-      let rows = []; // [{id(UUID), tracking, num_casillero, status, created_at}]
-      let selectedIds = new Set(); // Set<string UUID>
+      const setStatus = (msg, type = "") => {
+        ui.status.textContent = msg;
+        ui.status.className = "status " + (type || "");
+      };
 
-      function setS1(msg, kind = "") {
-        s1.status.textContent = msg || "";
-        s1.status.className = "status " + (kind || "");
-      }
-      function setS2(msg, kind = "") {
-        s2.status.textContent = msg || "";
-        s2.status.className = "status " + (kind || "");
-      }
+      const trimv = (s) => (s || "").trim();
 
-      // Paso 1: render
-      function renderStep1() {
-        s1.tbody.innerHTML = "";
-        selectedIds.clear();
-        s1.chkAll.checked = false;
-        s1.btnNext.disabled = true;
-
-        if (!rows.length) {
-          s1.empty.style.display = "block";
-          return;
-        }
-        s1.empty.style.display = "none";
-
-        for (const r of rows) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td><input type="checkbox" data-id="${String(r.id)}"></td>
-            <td class="mono">${String(r.id).slice(0, 8)}…</td>
-            <td class="mono">${r.tracking || ""}</td>
-            <td class="mono">${r.num_casillero || ""}</td>
-            <td class="mono">${r.status || ""}</td>
-            <td class="mono">${r.created_at || ""}</td>
-            <td><span class="pill ok">true</span></td>
-          `;
-          s1.tbody.appendChild(tr);
-        }
-
-        s1.tbody.querySelectorAll('input[type="checkbox"]').forEach((chk) => {
-          chk.addEventListener("change", () => {
-            const id = chk.getAttribute("data-id");
-            if (!id) return;
-            if (chk.checked) selectedIds.add(id);
-            else selectedIds.delete(id);
-            s1.btnNext.disabled = selectedIds.size === 0;
-          });
-        });
-      }
-
-      // Paso 2: solo seleccionados
-      function renderStep2() {
-        s2.tbody.innerHTML = "";
-        s2.btnApply.disabled = true;
-
-        const list = rows.filter((r) => selectedIds.has(String(r.id)));
-        if (!list.length) {
-          s2.empty.style.display = "block";
-          return;
-        }
-        s2.empty.style.display = "none";
-
-        for (const r of list) {
-          const tr = document.createElement("tr");
-          tr.dataset.id = String(r.id);
-          tr.innerHTML = `
-            <td class="mono">${String(r.id).slice(0, 8)}…</td>
-            <td class="mono">${r.tracking || ""}</td>
-            <td class="mono">${r.num_casillero || ""}</td>
-            <td><input type="text" placeholder="Ej: CB123 o SACO45" class="inp-reg" /></td>
-            <td style="text-align:center"><input type="checkbox" class="inp-exp" /></td>
-            <td class="mono"><span class="pill warn">se actualizará</span></td>
-          `;
-          s2.tbody.appendChild(tr);
-        }
-
-        const checkReady = () => {
-          let ready = true;
-          s2.tbody.querySelectorAll(".inp-reg").forEach((inp) => {
-            if (!inp.value.trim()) ready = false; // Express es opcional
-          });
-          s2.btnApply.disabled = !ready;
-        };
-        s2.tbody
-          .querySelectorAll(".inp-reg")
-          .forEach((inp) => inp.addEventListener("input", checkReady));
-        checkReady();
-      }
-
-      function resetStep1UI(message = "Listo para consultar.") {
-        rows = [];
-        selectedIds = new Set();
-        s1.tbody.innerHTML = "";
-        s1.empty.style.display = "block";
-        s1.chkAll.checked = false;
-        s1.btnNext.disabled = true;
-        setS1(message, "ok");
-      }
-
-      async function loadList() {
-        setS1("Consultando…", "warn");
-        s1.btnLoad.disabled = true;
+      // ==== OPTIONAL: check-ml (ignora silenciosamente si no existe) ====
+      async function checkDup(tracking) {
         try {
-          const res = await fetch(LIST_URL, {
+          const res = await fetch(CHECK_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tracking }),
           });
+          if (!res.ok) return { ok: false, exists: false };
+          const data = await res.json().catch(() => ({}));
+          // Se asume { ok:true, exists:boolean }
+          return { ok: true, exists: !!data.exists };
+        } catch {
+          return { ok: false, exists: false };
+        }
+      }
+
+      // ==== SUBMIT ====
+      ui.form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const tracking = trimv(ui.tracking.value);
+        const casillero = trimv(ui.casillero.value);
+        const nombre = trimv(ui.nombre.value);
+
+        // Validación estricta
+        if (!tracking || tracking.length < 5) {
+          setStatus("Tracking inválido (mínimo 5).", "warn");
+          ui.tracking.focus();
+          return;
+        }
+        if (!casillero) {
+          setStatus("N.º de casillero es requerido.", "warn");
+          ui.casillero.focus();
+          return;
+        }
+        if (!nombre) {
+          setStatus("Nombre es requerido.", "warn");
+          ui.nombre.focus();
+          return;
+        }
+
+        ui.btnSubmit.disabled = true;
+        setStatus("Validando…", "warn");
+
+        // 1) Antiduplicado (si existe la función)
+        const dup = await checkDup(tracking);
+        if (dup.ok && dup.exists) {
+          setStatus("Ya existe una solicitud para este tracking (ML).", "warn");
+          ui.btnSubmit.disabled = false;
+          return;
+        }
+
+        // 2) Enviar a put-tracking
+        setStatus("Solicitando…", "warn");
+        try {
+          const payload = {
+            tracking_original: tracking,
+            tracking_corrected: tracking, // espejo del original
+            status: "ML",
+            ML: true,
+            num_casillero: casillero,
+            name: nombre,
+          };
+
+          const res = await fetch(PUT_URL, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
           const txt = await res.text().catch(() => "");
-          let payload = {};
+          let json = {};
           try {
-            payload = JSON.parse(txt || "{}");
+            json = JSON.parse(txt || "{}");
           } catch {}
-          if (!res.ok || payload?.ok !== true) {
+
+          if (!res.ok || json?.ok !== true) {
             const msg =
-              payload?.error ||
-              payload?.detail ||
+              json?.error ||
+              json?.detail ||
               res.statusText ||
               `HTTP ${res.status}`;
-            throw new Error(msg + (txt ? `\n\nRespuesta: ${txt}` : ""));
+            throw new Error(msg);
           }
-          rows = Array.isArray(payload.rows) ? payload.rows : [];
-          setS1(`Cargados ${rows.length} registros.`, "ok");
-          renderStep1();
-        } catch (e) {
-          setS1(`Error: ${e?.message || e}`, "err");
+
+          setStatus("Solicitado ✔️", "ok");
+          // Limpia
+          ui.form.reset();
+        } catch (err) {
+          setStatus("Error: " + (err?.message || err), "err");
         } finally {
-          s1.btnLoad.disabled = false;
-        }
-      }
-
-      // Navegación
-      s1.btnNext.addEventListener("click", () => {
-        s1.card.classList.add("hidden");
-        s2.card.classList.remove("hidden");
-        setS2("", "");
-        renderStep2();
-      });
-      s2.btnBack.addEventListener("click", () => {
-        s2.card.classList.add("hidden");
-        s1.card.classList.remove("hidden");
-        setS1("", "");
-      });
-
-      // Select all
-      s1.chkAll.addEventListener("change", () => {
-        const ch = s1.chkAll.checked;
-        selectedIds.clear();
-        s1.tbody.querySelectorAll('input[type="checkbox"]').forEach((x) => {
-          const id = x.getAttribute("data-id");
-          x.checked = ch;
-          if (ch && id) selectedIds.add(id);
-        });
-        s1.btnNext.disabled = selectedIds.size === 0;
-      });
-      s1.btnSelectAll.addEventListener("click", () => {
-        s1.chkAll.checked = true;
-        s1.chkAll.dispatchEvent(new Event("change"));
-      });
-
-      // Aplicar cambios
-      s2.btnApply.addEventListener("click", async () => {
-        const items = [];
-        s2.tbody.querySelectorAll("tr").forEach((tr) => {
-          const id = tr.dataset.id || ""; // UUID string
-          const reg = tr.querySelector(".inp-reg")?.value.trim() || "";
-          const exp = tr.querySelector(".inp-exp")?.checked || false;
-          if (id && reg) items.push({ id, registro_ml: reg, express: exp });
-        });
-        if (items.length === 0) {
-          setS2("Completa los campos.", "warn");
-          return;
-        }
-
-        setS2("Aplicando cambios…", "warn");
-        s2.btnApply.disabled = true;
-
-        try {
-          const res = await fetch(UPDATE_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items }),
-          });
-          const txt = await res.text().catch(() => "");
-          let payload = {};
-          try {
-            payload = JSON.parse(txt || "{}");
-          } catch {}
-
-          if (!res.ok || payload?.ok !== true) {
-            const msg =
-              payload?.error ||
-              payload?.detail ||
-              res.statusText ||
-              `HTTP ${res.status}`;
-            setS2(`Error: ${msg}\n\nRespuesta: ${txt}`, "err");
-            s2.btnApply.disabled = false;
-            return;
-          }
-
-          const upd = Number(payload.updated || 0);
-          setS2(`Actualizados ${upd} registro(s).`, "ok");
-
-          // Volver a Paso 1 limpio
-          s2.card.classList.add("hidden");
-          s1.card.classList.remove("hidden");
-          resetStep1UI("Cambios aplicados. Listo para consultar.");
-        } catch (e) {
-          setS2(`Error: ${e?.message || e}`, "err");
-          s2.btnApply.disabled = false;
+          ui.btnSubmit.disabled = false;
         }
       });
 
-      // Consultar
-      document.getElementById("btnLoad").addEventListener("click", loadList);
-
-      // Estado inicial
-      resetStep1UI();
+      ui.btnClear.addEventListener("click", () => {
+        ui.form.reset();
+        setStatus("Listo.");
+      });
     </script>
-  
-<script src="portal.js"></script>
-</body>
+
+    <script src="portal.js"></script>
+  </body>
 </html>
