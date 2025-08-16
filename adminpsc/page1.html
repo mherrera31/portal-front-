@@ -69,7 +69,9 @@
   <!-- Tu config/guard (deben exponer PSC.user.email o PSC_USER si hay sesión) -->
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="guard.js"></script>
+  <script src="portal (2).js"></script>
+<script src="guard.js"></script>
+  <link rel="stylesheet" href="portal (1).css">
 </head>
 <body>
   <div class="wrap">
@@ -568,35 +570,28 @@
   })();
   </script>
 
-<!-- Fase E: bridge de usuario (no cambia diseño) -->
+<!-- Marca la página actual en el header (SUBIR CORTE) -->
 <script>
-(function(){
+document.addEventListener('DOMContentLoaded', function(){
   try {
-    const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
-    const url = new URL(location.href);
-    const qUser = url.searchParams.get('user');
-
-    let email = null;
-    if (isEmail(qUser)) email = qUser;
-
-    // PSC.user.email (si tu login lo setea)
-    const pscEmail = (window.PSC && window.PSC.user && window.PSC.user.email) || null;
-    if (!email && isEmail(pscEmail)) email = pscEmail;
-
-    // localStorage seeds comunes
-    const ls = localStorage.getItem('psc_user_email') || localStorage.getItem('email') || localStorage.getItem('psc_user');
-    if (!email && isEmail(ls)) email = ls;
-
-    // Si logramos un email válido, sincronizamos con lo que este HTML espera
-    if (email) {
-      try { localStorage.setItem('psc_user', email); } catch {}
-      window.PSC = window.PSC || {}; window.PSC.user = { email };
-    }
-  } catch(e){ /* noop */ }
-})();
+    var nav = document.querySelector('.psc-nav');
+    if (!nav) return;
+    var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
+    // Busca por href que contenga page1 o por el texto "SUBIR CORTE"
+    var link = links.find(function(a){
+      var href = (a.getAttribute('href') || '').toLowerCase();
+      var txt  = (a.textContent || '').toUpperCase().trim();
+      return /page1(\.html)?$/i.test(href) || txt === 'SUBIR CORTE';
+    });
+    if (link) link.setAttribute('aria-current','page');
+  } catch(e){ console.warn('active marker error', e); }
+});
 </script>
 
 </body>
 </html>
+
+
+
 
 
