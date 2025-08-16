@@ -69,9 +69,9 @@
   <!-- Tu config/guard (deben exponer PSC.user.email o PSC_USER si hay sesión) -->
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="portal_2_FIXED.js"></script></script>
-<script src="guard.js"></script>
+  <script src="guard.js"></script>
   <link rel="stylesheet" href="portal (1).css">
+  <script src="portal (2).js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -570,20 +570,58 @@
   })();
   </script>
 
-<!-- Marca la pestaña SUBIR CORTE como activa -->
+<!-- Fallback: asegura que el header del portal exista y marque SUBIR CORTE -->
 <script>
 document.addEventListener('DOMContentLoaded', function(){
   try {
-    var nav = document.querySelector('.psc-nav');
-    if (!nav) return;
-    var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
-    var link = links.find(function(a){
-      var href = (a.getAttribute('href') || '').toLowerCase();
-      var txt  = (a.textContent || '').toUpperCase().trim();
-      return /page1(\.html)?$/i.test(href) || txt === 'SUBIR CORTE';
-    });
-    if (link) link.setAttribute('aria-current','page');
-  } catch(e){}
+    function ensureHeader(){
+      if (document.querySelector('.psc-header')) return; // ya existe (inyectado por portal js)
+      var header = document.createElement('header');
+      header.className = 'psc-header';
+      header.innerHTML = [
+        '<div class="psc-header__inner">',
+          '<a class="psc-brand" href="landing.html">',
+            '<span class="psc-brand__text">PSC Cargas</span>',
+          '</a>',
+          '<nav class="psc-nav">',
+            '<a href="landing.html">HOME</a>',
+            '<a href="page1 (2).html" aria-current="page">SUBIR CORTE</a>',
+            '<a href="MLadmin.html">MAL IDENTIFICADOS</a>',
+            '<a href="ML SL PSC.html">SEARCH &amp; ML</a>',
+          '</nav>',
+          '<div class="psc-actions">',
+            '<span id="psc-session-label" class="psc-session">Sesión: &hellip;</span>',
+            '<button id="psc-logout" class="psc-logout">Logout</button>',
+          '</div>',
+        '</div>'
+      ].join('');
+      document.body.insertBefore(header, document.body.firstChild);
+
+      // Pintar email de sesión si existe
+      var email = null;
+      try {
+        email = (window.PSC && window.PSC.user && window.PSC.user.email)
+             || localStorage.getItem('psc_user_email')
+             || localStorage.getItem('email')
+             || localStorage.getItem('psc_user');
+      } catch(_) {}
+      if (email) {
+        var lab = document.getElementById('psc-session-label');
+        if (lab) lab.textContent = 'Sesión: ' + email;
+      }
+
+      // Logout best-effort
+      var btn = document.getElementById('psc-logout');
+      if (btn) btn.addEventListener('click', function(){
+        try { localStorage.removeItem('psc_user'); localStorage.removeItem('psc_user_email'); localStorage.removeItem('email'); } catch(_){}
+        try { if (window.supabase && supabase.auth) supabase.auth.signOut(); } catch(_){}
+        location.href = 'landing.html';
+      });
+    }
+
+    // Espera breve a que portal (2).js inyecte; si no, usa fallback
+    setTimeout(ensureHeader, 150);
+  } catch(e){ console.warn('header fallback error', e); }
 });
 </script>
 
