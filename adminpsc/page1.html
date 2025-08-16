@@ -567,6 +567,35 @@
     }
   })();
   </script>
+
+<!-- Fase E: bridge de usuario (no cambia diseño) -->
+<script>
+(function(){
+  try {
+    const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
+    const url = new URL(location.href);
+    const qUser = url.searchParams.get('user');
+
+    let email = null;
+    if (isEmail(qUser)) email = qUser;
+
+    // PSC.user.email (si tu login lo setea)
+    const pscEmail = (window.PSC && window.PSC.user && window.PSC.user.email) || null;
+    if (!email && isEmail(pscEmail)) email = pscEmail;
+
+    // localStorage seeds comunes
+    const ls = localStorage.getItem('psc_user_email') || localStorage.getItem('email') || localStorage.getItem('psc_user');
+    if (!email && isEmail(ls)) email = ls;
+
+    // Si logramos un email válido, sincronizamos con lo que este HTML espera
+    if (email) {
+      try { localStorage.setItem('psc_user', email); } catch {}
+      window.PSC = window.PSC || {}; window.PSC.user = { email };
+    }
+  } catch(e){ /* noop */ }
+})();
+</script>
+
 </body>
 </html>
 
