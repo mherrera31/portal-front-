@@ -388,52 +388,48 @@
 
   /* ========= AQUÍ EL ÚNICO CAMBIO: export desde la Edge export_today ========= */
   async function exportXlsxTodayForUser(){
-    // Mantiene el mismo botón y firma; solo cambia la implementación interna
-    setStatus("Solicitando archivo al servidor…","warn");
-    ui.btnExport.disabled = true;
-    try {
-      // Llama a tu función Edge que ya marca exported=true ANTES de enviar el archivo
-      const url = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/export_today"; // <- nuevo endpoint
-      const res = await fetch(url, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({}) // no requiere payload
-      });
+  setStatus("Solicitando archivo al servidor…","warn");
+  ui.btnExport.disabled = true;
+  try {
+    const res = await fetch("https://<tu-ref>.functions.supabase.co/export_today", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
 
-      if (!res.ok){
-        let msg = "Error al exportar";
-        try { const j = await res.json(); msg = j?.error || msg; } catch {}
-        throw new Error(msg);
-      }
-
-      // Lee el conteo desde el header que devuelve la Edge
-      const countHeader = res.headers.get("x-exported-count") || res.headers.get("X-Exported-Count");
-      const count = countHeader ? Number(countHeader) : NaN;
-
-      // Descarga el archivo
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "cargar_corte.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(a.href);
-
-      if (!Number.isNaN(count)){
-        setStatus(`Archivo generado. Exportadas ${count} fila(s).`,"ok");
-        showToast(`Exportadas ${count} fila(s)`, "success", 3600);
-      } else {
-        setStatus(`Archivo generado.`,"ok");
-        showToast(`Exportación completada`, "success", 3200);
-      }
-    } catch(e){
-      setStatus(`Error: ${e?.message || e}`, "err");
-      showToast(`Error en exportación`, "error", 3600);
-    } finally {
-      ui.btnExport.disabled = false;
+    if (!res.ok){
+      let msg = "Error al exportar";
+      try { const j = await res.json(); msg = j?.error || msg; } catch {}
+      throw new Error(msg);
     }
+
+    // 👇 LEE EL HEADER QUE ENVÍA LA EDGE
+    const countHeader = res.headers.get("x-exported-count") || res.headers.get("X-Exported-Count");
+    const count = countHeader ? Number(countHeader) : NaN;
+
+    // Descarga el archivo
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cargar_corte.xlsx";
+    document.body.appendChild(a);
+    a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+
+    // 👇 MUESTRA EL CONTEO
+    if (!Number.isNaN(count)) {
+      setStatus(`Archivo generado. Exportadas ${count} fila(s).`, "ok");
+      if (typeof showToast === "function") showToast(`Exportadas ${count} fila(s)`, "success", 3600);
+    } else {
+      setStatus(`Archivo generado.`, "ok");
+    }
+  } catch (e){
+    setStatus(`Error: ${e?.message || e}`, "err");
+    if (typeof showToast === "function") showToast("Error en exportación", "error", 3600);
+  } finally {
+    ui.btnExport.disabled = false;
   }
+}
   /* ========= FIN DEL CAMBIO ========= */
 
   function wireAccountRadios(){
