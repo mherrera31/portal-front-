@@ -67,34 +67,42 @@
   <!-- <script>window.PSC_USER = "admin@psccargas.com";</script> -->
 
   <!-- Tu config/guard (deben exponer PSC.user.email o PSC_USER si hay sesión) -->
+  <link rel="stylesheet" href="portal.css">
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="guard.js"></script>
 
-  <!-- === SOLO ESTÉTICO: Offset para mostrar el header del portal === -->
+  <!-- === Offset base (portal.js lo actualizará dinámicamente) === -->
   <style>
-    :root{ --header-offset: 192px; } /* ajusta aquí si tu header es más alto/bajo */
-    body{ padding-top: calc(clamp(48px, 8vh, 96px) + var(--header-offset)) !important; }
+    :root{ --header-offset: 192px; } /* por si el portal no está montado aún */
+    body{ padding-top: calc(clamp(48px, 8vh, 96px) + var(--header-offset)); }
   </style>
 
-  <!-- === HEADER AL FRENTE (z-index alto para el header del portal) === -->
+  <!-- === FORZAR HEADER AL FRENTE (FIX) - solo estético, no toca lógica === -->
   <style>
-    :root{ --header-z: 99999; }
+    :root{ --header-z: 999999; } /* prioridad máxima y segura */
 
-    /* Intenta cubrir los nombres más comunes de headers del portal */
-    :where(header, .header, #header, .site-header, .app-header, .navbar, .topbar){
-      position: relative !important;
+    /* El header inyectado por portal.js queda fijo al tope */
+    .psc-header{
+      position: fixed !important;
+      top: 0; left: 0; right: 0;
       z-index: var(--header-z) !important;
-      pointer-events: auto !important;
+      background: #fff;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
     }
 
-    /* Asegura que el contenido de esta página quede por debajo del header */
-    :where(body, main, .wrap, .card){
+    /* Empuja el contenido para que no lo tape el header */
+    body{
+      padding-top: calc(32px + var(--header-offset)) !important;
+    }
+
+    /* Asegura que el contenido nunca le pase por encima */
+    .wrap, main, .card{
       position: relative;
       z-index: 1;
     }
   </style>
-  <!-- =============================================================== -->
+  <!-- ============================================================ -->
 </head>
 <body>
   <div class="wrap">
@@ -210,5 +218,7 @@
   })();
   </script>
 
+  <script src="portal.js"></script>
 </body>
 </html>
+
