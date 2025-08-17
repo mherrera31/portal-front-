@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico Supabase (schema cierre)</title>
+<script src="https://esm.sh/@supabase/supabase-js@2"></script>
+<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;padding:16px}input,button{font:inherit;padding:8px 10px;margin:4px;border:1px solid #ddd;border-radius:8px}pre{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:8px;padding:12px}</style>
+</head>
+<body>
+<h2>Diagnóstico Supabase</h2>
+<p>
+  URL <input id="url" size="40" placeholder="https://xxxxx.supabase.co">
+  KEY <input id="key" size="60" placeholder="anon key">
+  <button id="init">Inicializar</button>
+</p>
+<p>
+  Email <input id="email" value="test@test.com">
+  Pass <input id="pass" type="password" value="test">
+  <button id="login">Login</button>
+  <button id="probe">Probar SELECT cierre.sucursales</button>
+  <button id="insert">Insertar Sucursal 2</button>
+</p>
+<pre id="out"></pre>
+<script>
+  const $=id=>document.getElementById(id); let supabase=null;
+  const log = (x)=>{ $("out").textContent += (typeof x==="string"?x:JSON.stringify(x,null,2))+"\n"; };
+  $("init").onclick = ()=>{
+    supabase = window.supabase.createClient($("url").value.trim(), $("key").value.trim(), { db:{schema:"cierre"} });
+    log("Cliente inicializado con schema=cierre");
+  };
+  $("login").onclick = async ()=>{
+    if(!supabase) return log("Inicializa primero");
+    const {data,error} = await supabase.auth.signInWithPassword({email:$("email").value.trim(), password:$("pass").value});
+    log({data,error});
+  };
+  $("probe").onclick = async ()=>{
+    if(!supabase) return log("Inicializa primero");
+    const {data,error} = await supabase.from("sucursales").select("*").order("created_at",{ascending:true});
+    log({data,error});
+  };
+  $("insert").onclick = async ()=>{
+    if(!supabase) return log("Inicializa primero");
+    const {data,error} = await supabase.from("sucursales").insert({nombre:"Sucursal 2"});
+    log({data,error});
+  };
+</script>
+</body>
+</html>
