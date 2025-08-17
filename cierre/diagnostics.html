@@ -1,10 +1,22 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Diagnóstico Supabase (cierre)</title>
-<!-- UMD CDN estable -->
+
+<!-- ✅ CSP que permite scripts inline y el CDN de Supabase -->
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self' https: data: blob:;
+           script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://esm.sh;
+           connect-src 'self' https://*.supabase.co https://*.supabase.in https://cdn.jsdelivr.net https://esm.sh;
+           img-src 'self' data: https:;
+           style-src 'self' 'unsafe-inline' https:;
+           frame-ancestors 'self';">
+
+<!-- Supabase UMD desde CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.js"></script>
+
 <style>
   body{font-family:system-ui,Segoe UI,Roboto,Arial;padding:16px;background:#f7f7f8}
   input,button{font:inherit;padding:10px;border:1px solid #e5e7eb;border-radius:10px;margin:4px 6px}
@@ -31,10 +43,10 @@
 
 <script>
   const $ = (id)=>document.getElementById(id);
-  const log = (x)=>{$("out").textContent += (typeof x==="string"?x:JSON.stringify(x,null,2))+"\n";}
+  const log = (x)=>{ $("out").textContent += (typeof x==="string"?x:JSON.stringify(x,null,2)) + "\n"; };
   let client = null;
 
-  // Comprueba que la librería cargó
+  // Verifica que cargó supabase-js
   if (window.supabase && typeof supabase.createClient === "function") {
     log("✅ supabase-js cargado");
   } else {
@@ -65,7 +77,6 @@
     if(!client){ alert("Inicializa primero"); return; }
     const { data, error } = await client.auth.getUser();
     log({ step:"getUser", data, error });
-    if(error) alert(error.message);
   };
 
   $("select").onclick = async ()=>{
@@ -75,4 +86,13 @@
     if(error) alert("SELECT error: " + error.message);
   };
 
-  $("insert").onclick = asyn
+  $("insert").onclick = async ()=>{
+    if(!client){ alert("Inicializa primero"); return; }
+    const { data, error } = await client.from("sucursales").insert({ nombre: "Sucursal 2" });
+    log({ step:"insert sucursal 2", data, error });
+    if(error) alert("INSERT error: " + error.message);
+    else alert("INSERT OK");
+  };
+</script>
+</body>
+</html>
