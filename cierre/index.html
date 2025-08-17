@@ -1,214 +1,141 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PSC Cierre — Config Rápida</title>
-  <style>
-    :root {
-      --bg:#f7f7f8; --card:#fff; --fg:#0b0b0c; --muted:#6b7280; --border:#e5e7eb; --ok:#16a34a; --err:#ef4444;
-      --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    }
-    *{box-sizing:border-box} body{margin:0;font-family:var(--font);background:var(--bg);color:var(--fg)}
-    .wrap{max-width:1024px;margin:0 auto;padding:24px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.06);padding:20px;margin-bottom:16px}
-    h1{font-size:24px;margin:0 0 8px} h2{font-size:18px;margin:0 0 8px} p{margin:6px 0 12px;color:var(--muted)}
-    input,button,select{font:inherit} input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
-    button{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#111;color:#fff;cursor:pointer}
-    button.ghost{background:#fff;color:#111}
-    .row{display:flex;gap:12px;flex-wrap:wrap} .col{flex:1 1 260px}
-    .list{border-top:1px dashed var(--border);margin-top:12px}
-    .item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border)}
-    .tag{display:inline-flex;padding:2px 8px;border-radius:999px;border:1px solid var(--border);font-size:12px;color:#111;background:#fff}
-    .hint{font-size:12px;color:var(--muted)}
-    .hidden{display:none}
-  </style>
-  <script src="https://esm.sh/@supabase/supabase-js@2"></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSC Cierre — Config básica</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f7f7f8;color:#111}
+  .wrap{max-width:1024px;margin:0 auto;padding:20px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.05)}
+  h1{font-size:22px;margin:0 0 8px}h2{font-size:18px;margin:0 0 8px}.row{display:flex;gap:10px;flex-wrap:wrap}
+  input,button,select{font:inherit}input,select{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+  button{padding:10px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#111;color:#fff;cursor:pointer}
+  button.ghost{background:#fff;color:#111}
+  .list{border-top:1px dashed #e5e7eb;margin-top:8px}
+  .item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #e5e7eb}
+  .tag{display:inline-flex;padding:2px 8px;border-radius:999px;border:1px solid #e5e7eb;font-size:12px;background:#fff}
+  .hint{font-size:12px;color:#6b7280}.hidden{display:none}
+</style>
+<script src="https://esm.sh/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="wrap">
-    <h1>PSC Cierre — Config Rápida</h1>
-    <p class="hint">Panel mínimo: sucursales, sistemas y usuarios. Para alojar en <code>/cierre</code>.</p>
+<div class="wrap">
+  <h1>PSC Cierre — Config básica</h1>
 
-    <div id="auth" class="card">
-      <h2>Acceso</h2>
-      <div class="row">
-        <div class="col"><label>Email<br/><input id="email" type="email" value="test@test.com"/></label></div>
-        <div class="col"><label>Contraseña<br/><input id="password" type="password" value="test"/></label></div>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button id="btnLogin">Entrar</button>
-        <button id="btnLogout" class="ghost">Salir</button>
-        <span id="who" class="hint"></span>
-      </div>
-      <p class="hint">Primera vez: usa <strong>bootstrap</strong> para crear Sucursal 1, Sistema 1 y el usuario test@test.com / test si no existen.</p>
+  <div class="card">
+    <h2>Acceso</h2>
+    <div class="row">
+      <div style="flex:1 1 280px"><input id="email" type="email" value="test@test.com"></div>
+      <div style="flex:1 1 200px"><input id="password" type="password" value="test"></div>
+      <div><button id="btnLogin">Entrar</button></div>
+      <div><button class="ghost" id="btnLogout">Salir</button></div>
     </div>
-
-    <div id="admin" class="hidden">
-      <div class="card">
-        <h2>Bootstrap</h2>
-        <div class="row">
-          <button id="btnBootstrap">Ejecutar bootstrap</button>
-          <span id="bootMsg" class="hint"></span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Sucursales</h2>
-        <div class="row">
-          <div class="col"><input id="sucursalNombre" placeholder="Nueva sucursal (ej. Sucursal 1)"/></div>
-          <div><button id="btnAddSucursal">Añadir</button></div>
-        </div>
-        <div id="sucursales" class="list"></div>
-      </div>
-
-      <div class="card">
-        <h2>Sistemas</h2>
-        <div class="row">
-          <div class="col"><input id="sistemaNombre" placeholder="Nuevo sistema (ej. Sistema 1)"/></div>
-          <div><button id="btnAddSistema">Añadir</button></div>
-        </div>
-        <div id="sistemas" class="list"></div>
-      </div>
-
-      <div class="card">
-        <h2>Usuarios</h2>
-        <div class="row">
-          <div class="col"><input id="newEmail" type="email" placeholder="email del usuario"/></div>
-          <div class="col"><input id="newPass" type="password" placeholder="password"/></div>
-          <div class="col">
-            <select id="newRole">
-              <option value="user">user</option>
-              <option value="admin">admin</option>
-            </select>
-          </div>
-          <div><button id="btnAddUser">Crear usuario</button></div>
-        </div>
-        <div id="usuarios" class="list"></div>
-        <p class="hint">La creación de usuarios usa la función <code>create_user</code> (solo admin).</p>
-      </div>
-    </div>
+    <p class="hint" id="who"></p>
   </div>
 
+  <div id="admin" class="hidden">
+    <div class="card">
+      <h2>Sucursales</h2>
+      <div class="row">
+        <div style="flex:1 1 280px"><input id="sucursalNombre" placeholder="Nueva sucursal (ej. Sucursal 1)"></div>
+        <div><button id="btnAddSucursal">Añadir</button></div>
+      </div>
+      <div id="sucursales" class="list"></div>
+    </div>
+
+    <div class="card">
+      <h2>Sistemas</h2>
+      <div class="row">
+        <div style="flex:1 1 280px"><input id="sistemaNombre" placeholder="Nuevo sistema (ej. Sistema 1)"></div>
+        <div><button id="btnAddSistema">Añadir</button></div>
+      </div>
+      <div id="sistemas" class="list"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-  const SUPABASE_URL = "https://YOUR-PROJECT-ref.supabase.co";
-  const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+  // <<<<<< PON TUS CLAVES REALES AQUÍ >>>>>
+  const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
+  // <<<<<< FIN CONFIG >>>>>
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {   db: { schema: 'cierre' } });
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { db: { schema: 'cierre' } });
+
   const $ = (id)=>document.getElementById(id);
-  const authCard = $("auth");
-  const adminArea = $("admin");
-  const who = $("who");
+  const who = $("who"); const adminArea = $("admin");
 
-  async function refresh() {
+  async function refresh(){
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      authCard.classList.remove("hidden");
-      adminArea.classList.add("hidden");
-      who.textContent = "";
-      return;
-    }
-    who.textContent = `Conectado como ${user.email}`;
-    authCard.classList.remove("hidden");
+    if(!user){ who.textContent="No conectado"; adminArea.classList.add("hidden"); return; }
+    who.textContent = "Conectado: " + user.email;
     adminArea.classList.remove("hidden");
-    try {
-      await runBootstrap();
-      await loadLists();
-    } catch (e) { console.error(e); }
+    await loadLists();
   }
 
-  async function runBootstrap() {
-    $("bootMsg").textContent = "Ejecutando...";
-    const { data, error } = await supabase.functions.invoke("bootstrap");
-    $("bootMsg").textContent = error ? ("Error: " + (error.message||error)) : "OK";
-  }
-
-  async function loadLists() {
-    const { data: suc } = await supabase.from("sucursales").select("*").order("created_at",{ascending:true});
-    const sc = $("sucursales"); sc.innerHTML = "";
-    (suc||[]).forEach(r => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `<div><strong>${r.nombre}</strong></div>
-                       <div><button class="ghost" data-id="${r.id}" data-type="sucursal-del">Eliminar</button></div>`;
-      sc.appendChild(div);
-    });
-
-    const { data: sis } = await supabase.from("sistemas").select("*").order("created_at",{ascending:true});
-    const si = $("sistemas"); si.innerHTML = "";
-    (sis||[]).forEach(r => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `<div><strong>${r.nombre}</strong></div>
-                       <div><button class="ghost" data-id="${r.id}" data-type="sistema-del">Eliminar</button></div>`;
-      si.appendChild(div);
-    });
-
-    const { data: users } = await supabase.from("profiles").select("email,role,created_at").order("created_at",{ascending:true});
-    const uu = $("usuarios"); uu.innerHTML = "";
-    (users||[]).forEach(r => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `<div><strong>${r.email}</strong> <span class="tag">${r.role}</span></div>`;
-      uu.appendChild(div);
-    });
-  }
-
-  $("btnLogin").onclick = async () => {
-    const email = $("email").value.trim();
-    const password = $("password").value;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { alert(error.message); return; }
+  $("btnLogin").onclick = async ()=>{
+    const { error } = await supabase.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
+    if(error){ alert(error.message); return; }
     await refresh();
   };
-  $("btnLogout").onclick = async () => { await supabase.auth.signOut(); await refresh(); };
-  $("btnBootstrap").onclick = async () => { await runBootstrap(); await loadLists(); };
+  $("btnLogout").onclick = async ()=>{ await supabase.auth.signOut(); await refresh(); };
 
-  $("btnAddSucursal").onclick = async () => {
-    const nombre = $("sucursalNombre").value.trim();
-    if (!nombre) return alert("Ingresa un nombre");
-    const { error } = await supabase.from("sucursales").insert({ nombre });
-    if (error) return alert(error.message);
-    $("sucursalNombre").value = "";
-    await loadLists();
-  };
+  async function loadLists(){
+    // Sucursales
+    const sc = $("sucursales"); sc.innerHTML="";
+    let r1 = await supabase.from("sucursales").select("*").order("created_at",{ascending:true});
+    if(r1.error){ sc.innerHTML = '<div class="hint">Error: '+r1.error.message+'</div>'; } else {
+      (r1.data||[]).forEach(r=>{
+        const d=document.createElement("div"); d.className="item";
+        d.innerHTML=`<div><strong>${r.nombre}</strong></div>
+                     <div><button class="ghost" data-id="${r.id}" data-type="sucursal-del">Eliminar</button></div>`;
+        sc.appendChild(d);
+      });
+    }
+    // Sistemas
+    const si = $("sistemas"); si.innerHTML="";
+    let r2 = await supabase.from("sistemas").select("*").order("created_at",{ascending:true});
+    if(r2.error){ si.innerHTML = '<div class="hint">Error: '+r2.error.message+'</div>'; } else {
+      (r2.data||[]).forEach(r=>{
+        const d=document.createElement("div"); d.className="item";
+        d.innerHTML=`<div><strong>${r.nombre}</strong></div>
+                     <div><button class="ghost" data-id="${r.id}" data-type="sistema-del">Eliminar</button></div>`;
+        si.appendChild(d);
+      });
+    }
+  }
 
-  $("btnAddSistema").onclick = async () => {
-    const nombre = $("sistemaNombre").value.trim();
-    if (!nombre) return alert("Ingresa un nombre");
-    const { error } = await supabase.from("sistemas").insert({ nombre });
-    if (error) return alert(error.message);
-    $("sistemaNombre").value = "";
-    await loadLists();
-  };
-
-  document.addEventListener("click", async (e) => {
-    const t = e.target;
-    if (!(t instanceof HTMLElement)) return;
-    const type = t.getAttribute("data-type");
-    const id = t.getAttribute("data-id");
-    if (type === "sucursal-del" && id) {
-      if (!confirm("¿Eliminar sucursal?")) return;
+  document.addEventListener("click", async (ev)=>{
+    const t = ev.target; if(!(t instanceof HTMLElement)) return;
+    const typ = t.getAttribute("data-type"); const id = t.getAttribute("data-id");
+    if(typ==="sucursal-del" && id){
+      if(!confirm("¿Eliminar sucursal?")) return;
       const { error } = await supabase.from("sucursales").delete().eq("id", id);
-      if (error) return alert(error.message);
+      if(error) return alert(error.message);
       await loadLists();
     }
-    if (type === "sistema-del" && id) {
-      if (!confirm("¿Eliminar sistema?")) return;
+    if(typ==="sistema-del" && id){
+      if(!confirm("¿Eliminar sistema?")) return;
       const { error } = await supabase.from("sistemas").delete().eq("id", id);
-      if (error) return alert(error.message);
+      if(error) return alert(error.message);
       await loadLists();
     }
   });
 
-  $("btnAddUser").onclick = async () => {
-    const email = $("newEmail").value.trim();
-    const password = $("newPass").value;
-    const role = $("newRole").value;
-    if (!email || !password) return alert("Email y password requeridos");
-    const { data, error } = await supabase.functions.invoke("create_user", { body: { email, password, role } });
-    if (error) return alert(error.message || error);
-    $("newEmail").value = ""; $("newPass").value = "";
+  $("btnAddSucursal").onclick = async ()=>{
+    const nombre = $("sucursalNombre").value.trim();
+    if(!nombre) return alert("Ingresa un nombre");
+    const { error } = await supabase.from("sucursales").insert({ nombre });
+    if(error) return alert(error.message);
+    $("sucursalNombre").value="";
+    await loadLists();
+  };
+  $("btnAddSistema").onclick = async ()=>{
+    const nombre = $("sistemaNombre").value.trim();
+    if(!nombre) return alert("Ingresa un nombre");
+    const { error } = await supabase.from("sistemas").insert({ nombre });
+    if(error) return alert(error.message);
+    $("sistemaNombre").value="";
     await loadLists();
   };
 
