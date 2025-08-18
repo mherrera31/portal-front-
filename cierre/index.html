@@ -92,6 +92,8 @@ S.supa = supabase.createClient(CFG.url, CFG.anon, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl:false },
   global: { headers: { apikey: CFG.anon } }
 });
+  S.supa.rest = S.supa.rest.withHeaders({ apikey: CFG.anon });
+S.supa.storage = S.supa.storage.from ? S.supa.storage : S.supa.storage; // no hace daño
 window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
 
 /* RPC helpers */
