@@ -88,12 +88,18 @@ function toast(msg,type=''){ console.log(msg); const d=el(`<div class="card" sty
 
 /* ============= Supabase: un solo createClient + schema + apikey ============= */
 S.supa = supabase.createClient(CFG.url, CFG.anon, {
-  db: { schema: 'cierre' },
+  db:   { schema: 'cierre' },
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl:false },
-  global: { headers: { apikey: CFG.anon } }
+  global: {
+    headers: {
+      apikey: CFG.anon,
+      'Accept-Profile': 'cierre',
+      'Content-Profile': 'cierre'
+    }
+  }
 });
-  S.supa.rest = S.supa.rest.withHeaders({ apikey: CFG.anon });
-S.supa.storage = S.supa.storage.from ? S.supa.storage : S.supa.storage; // no hace daño
+
+ 
 window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
 
 /* RPC helpers */
