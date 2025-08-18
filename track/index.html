@@ -36,7 +36,7 @@
     /* Header */
     .head{
       display:grid;
-      grid-template-columns:minmax(360px,1fr) 260px;
+      grid-template-columns:minmax(360px,1fr) 320px;
       gap:16px;
       align-items:start;
       padding:18px;
@@ -71,9 +71,26 @@
 
     /* Resumen (columna derecha) */
     .qsum{display:grid;grid-template-columns:1fr;gap:6px;align-content:start;text-align:right}
-    .qrow{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:14px}
-    .qrow span{color:var(--muted);min-width:90px}
+    .qrow{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;font-size:14px}
+    .qrow span{color:var(--muted);min-width:100px;padding-top:2px}
     .qrow b{font-weight:700}
+
+    /* Chips alternos */
+    .alts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .altChip{
+      display:inline-flex;align-items:center;gap:6px;
+      background:#fff;border:1px solid var(--line);
+      border-radius:999px;padding:6px 10px;font-size:12px;
+      box-shadow:0 1px 3px rgba(0,0,0,.04)
+    }
+    .altChip code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:12px}
+    .altChip button{
+      border:none;background:#111;color:#fff;border-radius:999px;
+      padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer
+    }
+    @media (max-width:900px){
+      .alts{justify-content:flex-start}
+    }
 
     /* Estado */
     .state{display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px dashed var(--line)}
@@ -133,13 +150,17 @@
             <input id="trk" type="text" placeholder="Ej. 1Z48537W0441418748" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" />
             <button id="go">BUSCAR</button>
           </div>
-          <div class="help">Seguimiento de en vivo de tus paquetes.</div>
+          <div class="help">Seguimiento en vivo de tus paquetes.</div>
         </div>
         <div class="qsum">
           <div class="qrow"><span>Tracking:</span><b id="qsTracking">—</b></div>
           <div class="qrow"><span>Status:</span><b id="qsStatus">—</b></div>
           <div class="qrow"><span>Courier:</span><b id="qsCourier">—</b></div>
           <div class="qrow"><span>Peso:</span><b id="qsPeso">—</b></div>
+          <div class="qrow">
+            <span>Alterno(s):</span>
+            <div id="qsAlt" class="alts">—</div>
+          </div>
         </div>
       </div>
 
@@ -182,6 +203,7 @@
     const qsStatus = $('#qsStatus');
     const qsCourier = $('#qsCourier');
     const qsPeso = $('#qsPeso');
+    const qsAlt = $('#qsAlt');
     const toggleMoreBtn = $('#toggleMore');
 
     try{ const last = localStorage.getItem('psc_last_tracking'); if(last) trk.value = last; }catch{}
@@ -210,35 +232,28 @@
       }catch{ return 'pn' }
     }
 
+    // === ACTUALIZADO: mostrar status de DB en los eventos PSC antes de "Peso(Aprox.)"
     function transformDesc(src, ev, resp){
-    let d = String(ev.description||'');
+      let d = String(ev.description||'');
 
-    if (src === 'fz') {
-      const low = d.toLowerCase().trim();
-      if (low === 'miami') d = 'Doral - Miami';
-      if (low === 'panama' || low === 'panamá') d = 'Aduanas - Panama City';
+      if(src==='fz'){
+        const low = d.toLowerCase().trim();
+        if(low==='miami') d='Doral - Miami';
+        if(low==='panama' || low==='panamá') d='Aduanas - Panama City';
+        return d;
+      }
+      if(src==='psc'){
+        const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
+        const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
+
+        // Status de la DB (top-level o nested)
+        const dbStatus = (resp?.db_status ?? resp?.sources?.db?.selected?.status ?? '').toString().trim();
+        const label = dbStatus || 'Centro de Dist. PSC'; // fallback si no viniera
+        d = `${label} - Peso(Aprox.)` + (lbs ? ` ${lbs} lbs` : '');
+        return d;
+      }
       return d;
     }
-
-    if (src === 'psc') {
-      // Peso desde la descripción o, si no, desde resp.weight_lbs
-      const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
-      const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
-
-      // Status de la DB (prioriza top-level db_status; fallback al nested de sources)
-      const dbStatus = (
-        resp?.db_status ??
-        resp?.sources?.db?.selected?.status ??
-        ''
-      ).toString().trim();
-
-      const label = dbStatus || 'Centro de Dist. PSC'; // fallback por si no viniera
-      d = `${label} - Peso(Aprox.)` + (lbs ? ` ${lbs} lbs` : '');
-      return d;
-    }
-
-    return d;
-  }
 
     function computeOrderedList(r){
       const all = Array.isArray(r.events) ? r.events : [];
@@ -251,20 +266,54 @@
       return [...groups.psc, ...groups.fz, ...groups.pn];
     }
 
-    // ===== CAMBIO: prioriza status desde DB =====
+    function getAltList(r){
+      const a1 = Array.isArray(r.alt_trackings) ? r.alt_trackings : [];
+      const a2 = (r.sources && r.sources.postal_ninja && Array.isArray(r.sources.postal_ninja.alt_trackings))
+                  ? r.sources.postal_ninja.alt_trackings : [];
+      const all = [...a1, ...a2].map(v=>String(v||'').trim()).filter(Boolean);
+      // dedupe case-insensitive y excluir el tracking principal
+      const primary = String(r.tracking||'').toUpperCase();
+      const seen = new Set();
+      const out = [];
+      for(const x of all){
+        const key = x.toUpperCase();
+        if(!key || key===primary || seen.has(key)) continue;
+        seen.add(key); out.push(x);
+      }
+      return out;
+    }
+
+    function renderAltTrackings(r){
+      const alts = getAltList(r);
+      if(!alts.length){ qsAlt.textContent='—'; return; }
+      qsAlt.innerHTML='';
+      // mostrar hasta 6 alternos
+      alts.slice(0,6).forEach(code=>{
+        const chip = document.createElement('div');
+        chip.className = 'altChip';
+        chip.innerHTML = `<code>${esc(code)}</code><button type="button" data-code="${esc(code)}">Buscar</button>`;
+        chip.querySelector('button')?.addEventListener('click', (e)=>{
+          const c = (e.currentTarget as HTMLButtonElement).dataset.code || '';
+          if(c){ trk.value = c; doSearch(); }
+        });
+        qsAlt.appendChild(chip);
+      });
+      if(alts.length>6){
+        const more = document.createElement('div');
+        more.className = 'altChip';
+        more.textContent = `+${alts.length-6} más`;
+        qsAlt.appendChild(more);
+      }
+    }
+
+    // ===== CAMBIO: prioriza status desde DB en el resumen =====
     function renderTopSummary(r){
-      // Tracking arriba a la derecha
       qsTracking.textContent = r.tracking || '—';
 
-      // 1) Preferir status de la tabla public.trackings:
-      //    - top-level: r.db_status (si la edge lo envía)
-      //    - fallback: r.sources.db.selected.status (ya disponible en tu edge actual)
       const dbStatus = (r.db_status ?? (r.sources && r.sources.db && r.sources.db.selected && r.sources.db.selected.status) ?? null);
-
       if (dbStatus && String(dbStatus).trim().length > 0) {
-        qsStatus.textContent = String(dbStatus).trim();   // ← usa el de DB
+        qsStatus.textContent = String(dbStatus).trim();
       } else {
-        // 2) Si no hay DB status, usamos la lógica anterior
         const list = computeOrderedList(r);
         const chosen = list[0];
         if (chosen){
@@ -285,9 +334,11 @@
         }
       }
 
-      // Otros campos
       qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
       qsPeso.textContent    = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
+
+      // Alternos
+      renderAltTrackings(r);
     }
 
     function renderTimeline(r){
@@ -346,4 +397,5 @@
   </script>
 </body>
 </html>
+
 
