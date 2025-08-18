@@ -79,7 +79,19 @@
     .menu a.active{background:#10b9811a;border-color:#34d399;font-weight:700}
     /* Overlay de errores para no quedar en blanco */
     #errbox{position:fixed;left:16px;right:16px;bottom:16px;z-index:99999;background:#fff1f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:10px 12px;box-shadow:0 8px 24px rgba(15,23,42,.12);display:none;white-space:pre-wrap}
-  </style>
+  
+/* === Apertura (bonito) === */
+.apertura-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.apertura-total-badge{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--card);box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.apertura-total-badge strong{font-size:1.1rem}
+table.apertura{width:100%;border-collapse:separate;border-spacing:0 8px}
+table.apertura th, table.apertura td{background:#fff;border:1px solid var(--border)}
+table.apertura th{color:#4b5563;font-weight:600}
+table.apertura tr td:first-child, table.apertura tr th:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-right-radius:10px;border-bottom-right-radius:10px}
+.apSub{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.apertura-actions{display:flex;justify-content:flex-end;margin-top:12px}
+</style>
 </head>
 <body>
   <div class="wrap"><div id="app"></div></div>
@@ -386,37 +398,74 @@
   /* ========================= APERTURA — Saldo inicial ========================= */
   async function renderApertura(){
     const v = getContainer('mod-apertura'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Saldo inicial (Apertura)</h2>';
+    // Encabezado con total grande
+    v.innerHTML = `<div class="apertura-head">
+        <h2>Saldo inicial (Apertura)</h2>
+        <div class="apertura-total-badge"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
+      </div>
+      <table class="apertura"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
+      <tbody id="apRows"></tbody>
+      <tfoot><tr><td colspan="2" style="text-align:right;font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>
+      </table>
+      <div class="apertura-actions"><button class="btn primary" id="btnApSave" disabled>Guardar</button></div>`;
+
     await ensureJornada();
     await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{});
     await ensureCatalogos();
 
+    // Cargar detalle (cantidades previas si existen)
     let detalle = [];
     try{ detalle = await rpc('ui_apertura_get_items') || []; }catch{}
-
-    const tbl = el(`<div class="row"><div class="col">
-      <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="apRows"></tbody></table>
-      <div class="row"><button class="btn primary" id="btnApSave">Guardar</button></div>
-    </div></div>`);
-    v.appendChild(tbl);
+    const cantidades = Object.fromEntries(detalle.map(x=>[x.denominacion_id, Number(x.cantidad||0)]));
 
     const body = $('#apRows');
-    S.denoms.forEach(d=>{
-      const qty = (detalle.find(x=>x.denominacion_id===d.id)?.cantidad) || 0;
-      body.appendChild(el(`<tr>
-        <td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td>
-        <td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td>
+    body.innerHTML = '';
+
+    // Construir filas (orden por valor asc)
+    S.denoms.sort((a,b)=>a.valor-b.valor).forEach(d=>{
+      const qty = cantidades[d.id] || 0;
+      const label = (d.tipo==='moneda' ? '¢ ' : '$ ') + d.valor;
+      body.appendChild(el(`<tr data-id="${d.id}" data-valor="${d.valor}">
+        <td>${label}</td>
+        <td><input type="number" step="1" min="0" value="${qty}" style="width:120px"></td>
+        <td class="apSub">$0.00</td>
       </tr>`));
     });
 
+    // Recalcular subtotales/total
+    const fmt = (n)=> Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'});
+    function recalc(){
+      let total = 0;
+      $$('#apRows tr').forEach(tr=>{
+        const valor = Number(tr.dataset.valor||0);
+        const qty   = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+        const sub   = valor * qty;
+        tr.querySelector('.apSub').textContent = fmt(sub);
+        total += sub;
+      });
+      $('#apTotal').textContent = fmt(total);
+      $('#apTotalFoot').textContent = fmt(total);
+      // habilitar guardar si hay jornada y alguna edición (o siempre que haya jornada)
+      const hasJ = !!(window.APP && APP.jornada_id);
+      $('#btnApSave').disabled = !hasJ;
+    }
+    recalc();
+
+    // Eventos
+    $('#apRows').addEventListener('input', e=>{
+      if(e.target.tagName==='INPUT') recalc();
+    });
+
     $('#btnApSave').onclick = async ()=>{
-      const items = $$('#apRows input').map(i=>({ denominacion_id: i.dataset.denom, cantidad: parseInt(i.value||'0',10)||0 }));
-      await rpc('apertura_save_counts', { p_items: items }).catch(e=>toast('apertura_save: '+e.message,'err'));
+      const items = $$('#apRows tr').map(tr=>{
+        const id = tr.dataset.id, qty = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+        return { denominacion_id:id, cantidad: qty };
+      });
+      await rpc('apertura_save_counts', { p_items: items }).catch(e=>toast('apertura_save: '+friendlyError(e),'err'));
       toast('Apertura guardada');
     };
   }
-
-  /* ========================= INGRESOS — Totales del día ========================= */
+/* ========================= INGRESOS — Totales del día ========================= */
   async function renderIngresos(){
     const v = getContainer('mod-ingresos'); if (!requireJornadaOrExplain(v)) return;
     v.innerHTML = '<h2>Ingresos — Totales del día</h2>';
@@ -830,5 +879,8 @@
   </script>
 </body>
 </html>
+
+
+
 
 
