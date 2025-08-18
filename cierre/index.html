@@ -77,6 +77,14 @@
   </div>
 
 <script>
+
+  S.supa = supabase.createClient(CFG.url, CFG.anon, {
+  db:   { schema: 'cierre' },               // << usamos el schema cierre
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  // Forzamos apikey en todas las peticiones por si acaso
+  global: { headers: { apikey: CFG.anon } }
+});
+  
 /* ====================== CONFIG (solo config.js) ====================== */
 if (!window.PSC_CONFIG) {
   document.addEventListener('DOMContentLoaded', ()=>{
