@@ -132,19 +132,41 @@ function toast(msg, type=''){
 }
 
 /* RPC wrapper con reintento tras refresh */
-async function rpc(name, params){
-  let res = await S.supa.rpc(name, params);
-  if (res.error) {
-    // PostgREST usa 404 cuando la ruta RPC no existe/visible
-    if (res.error.message?.includes('404') || res.error.code === 'PGRST116') {
-      toast(`RPC no encontrado: ${name}. Expón el schema 'cierre' y da EXECUTE.`, 'err');
-    }
-    // reintento por sesión
-    try { await S.supa.auth.refreshSession(); } catch {}
-    res = await S.supa.rpc(name, params);
-    if (res.error) throw res.error;
+async function rpcRaw(name, params){
+  const { data: { session } } = await S.supa.auth.getSession();
+  const res = await fetch(`${CFG.url}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      'apikey': CFG.anon,
+      'Authorization': `Bearer ${session?.access_token ?? CFG.anon}`,
+      'Content-Type': 'application/json',
+      'Accept-Profile': 'cierre',
+      'Content-Profile': 'cierre'
+    },
+    body: JSON.stringify(params||{})
+  });
+  if(!res.ok){
+    const txt = await res.text();
+    throw new Error(txt || res.statusText);
   }
-  return res.data;
+  return res.json();
+}
+
+async function rpc(name, params){
+  // 1º: vía supabase-js
+  let { data, error } = await S.supa.rpc(name, params);
+  if (!error) return data;
+
+  // Si el server dice que falta apikey, hacemos fallback crudo
+  if (String(error.message||'').includes('No API key')) {
+    return rpcRaw(name, params);
+  }
+
+  // Refresh y reintenta
+  try { await S.supa.auth.refreshSession(); } catch {}
+  ({ data, error } = await S.supa.rpc(name, params));
+  if (error) throw error;
+  return data;
 }
 window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
 
