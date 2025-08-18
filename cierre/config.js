@@ -1,4 +1,3 @@
-<script>
 // config.js
 window.PSC_CONFIG = {
   // opcional si pones url:
@@ -12,4 +11,4 @@ window.PSC_CONFIG = {
   // Logo (puedes cambiarlo)
   logo: "https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp"
 };
-</script>
+
