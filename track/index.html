@@ -220,7 +220,7 @@
       if(src==='psc'){
         const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
         const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
-        d = 'Centro de Dist. PSC - Peso(Aprox.)' + (lbs?` ${lbs} lbs`:'');
+        d = 'Centro de Dist PSC - Peso(Aprox.)' + (lbs?` ${lbs} lbs`:'');
       }
       return d;
     }
@@ -236,26 +236,45 @@
       return [...groups.psc, ...groups.fz, ...groups.pn];
     }
 
-    function renderTopSummary(r){
-      qsTracking.textContent = r.tracking || '—';
+    <script>
+  function renderTopSummary(r){
+    // Tracking arriba a la derecha
+    qsTracking.textContent = r.tracking || '—';
+
+    // 1) Preferir el 'status' que venga del backend (DB: public.trackings)
+    //    Incluyo varios alias por si tu función lo envía con otro nombre.
+    const dbStatus =
+      (r.status ?? r.db_status ?? (r.db && r.db.status) ?? '').toString().trim();
+
+    if (dbStatus) {
+      qsStatus.textContent = dbStatus;   // ← muestra el status de la tabla
+    } else {
+      // 2) Si no vino 'status' desde el backend, usar el fallback anterior
       const list = computeOrderedList(r);
       const chosen = list[0];
-      if(chosen){
+      if (chosen){
         const src = eventSource(chosen, r);
-        let label='';
-        if(src==='psc') label='Centro de Dist. PSC';
-        else if(src==='fz'){
+        let label = '';
+        if (src === 'psc') {
+          label = 'Centro de Dist. PSC';
+        } else if (src === 'fz') {
           const td = transformDesc(src, chosen, r);
           label = /Aduanas - Panama City/i.test(td) ? 'Aduanas' : td;
         } else {
-          const d = String(chosen.description||'');
+          const d = String(chosen.description || '');
           label = /delivered/i.test(d) ? 'Delivered' : 'In transit';
         }
         qsStatus.textContent = label || '—';
-      } else { qsStatus.textContent = '—'; }
-      qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
-      qsPeso.textContent = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
+      } else {
+        qsStatus.textContent = '—';
+      }
     }
+
+    // Resto del resumen
+    qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
+    qsPeso.textContent    = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
+  }
+</script>
 
     function renderTimeline(r){
       eventsEl.innerHTML='';
