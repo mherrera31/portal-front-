@@ -54,6 +54,43 @@
   </div>
 </div>
 
+  <!-- ==== MÉTODOS DE PAGO ==== -->
+<div class="card">
+  <h2>Métodos de pago</h2>
+  <div class="row">
+    <div style="flex:1 1 280px">
+      <input id="mpNombre" placeholder="Nuevo método (ej. Efectivo)">
+    </div>
+    <div style="width:140px">
+      <input id="mpOrden" type="number" min="1" value="100" placeholder="Orden">
+    </div>
+    <div><button id="btnAddMP">Añadir</button></div>
+  </div>
+  <div id="metodosPago" class="list"></div>
+</div>
+
+<!-- ==== DENOMINACIONES ==== -->
+<div class="card">
+  <h2>Denominaciones</h2>
+  <div class="row">
+    <div style="width:160px">
+      <input id="denValor" type="number" step="0.01" min="0.01" placeholder="Valor (ej. 0.25)">
+    </div>
+    <div style="width:160px">
+      <select id="denTipo">
+        <option value="moneda">moneda</option>
+        <option value="billete">billete</option>
+      </select>
+    </div>
+    <div style="width:140px">
+      <input id="denOrden" type="number" min="1" value="100" placeholder="Orden">
+    </div>
+    <div><button id="btnAddDen">Añadir</button></div>
+  </div>
+  <div id="denominaciones" class="list"></div>
+</div>
+
+
 <script>
   // <<<<<< PON TUS CLAVES REALES AQUÍ >>>>>
   const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
