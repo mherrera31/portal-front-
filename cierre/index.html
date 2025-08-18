@@ -173,17 +173,28 @@ function renderLogin(){
 }
 
 async function afterLogin(){
-  try{
-    const isAdm = await rpc('is_admin');
-    S.isAdmin = !!(Array.isArray(isAdm)? (isAdm[0]??isAdm) : isAdm);
-  }catch(e){ console.warn(e); S.isAdmin=false; }
-  try{
-    const suc = await rpc('my_sucursal_id');
-    S.sucursalId = Array.isArray(suc)? (suc[0]?.my_sucursal_id||suc[0]) : (suc?.my_sucursal_id||suc);
-  }catch(e){ toast('No hay sucursal en profiles', 'err'); }
+  try {
+    // Lee el perfil desde la tabla (sin RPC)
+    const { data: prof, error } = await S.supa
+      .from('profiles')
+      .select('role,sucursal_id')
+      .eq('id', S.user.id)
+      .single();
+
+    if (error) throw error;
+
+    S.isAdmin    = (prof?.role === 'admin');
+    S.sucursalId = prof?.sucursal_id || null;
+  } catch (e) {
+    console.warn(e);
+    toast('No hay perfil o sucursal asignada', 'err');
+    S.isAdmin = false;
+    S.sucursalId = null;
+  }
+
   renderPortal();
 }
-
+  
 function topBar(){
   const u = S.user?.email || S.user?.id;
   return el(`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
