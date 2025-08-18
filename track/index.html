@@ -33,7 +33,7 @@
     .back svg{width:16px;height:16px}
     .back:active{transform:translateY(1px)}
 
-    /* Header: SIEMPRE grid; sin absolute para evitar solapes en iOS */
+    /* Header */
     .head{
       display:grid;
       grid-template-columns:minmax(360px,1fr) 260px;
@@ -236,45 +236,44 @@
       return [...groups.psc, ...groups.fz, ...groups.pn];
     }
 
-    <script>
-  function renderTopSummary(r){
-    // Tracking arriba a la derecha
-    qsTracking.textContent = r.tracking || '—';
+    // ===== CAMBIO: prioriza status desde DB =====
+    function renderTopSummary(r){
+      // Tracking arriba a la derecha
+      qsTracking.textContent = r.tracking || '—';
 
-    // 1) Preferir el 'status' que venga del backend (DB: public.trackings)
-    //    Incluyo varios alias por si tu función lo envía con otro nombre.
-    const dbStatus =
-      (r.status ?? r.db_status ?? (r.db && r.db.status) ?? '').toString().trim();
+      // 1) Preferir status de la tabla public.trackings:
+      //    - top-level: r.db_status (si la edge lo envía)
+      //    - fallback: r.sources.db.selected.status (ya disponible en tu edge actual)
+      const dbStatus = (r.db_status ?? (r.sources && r.sources.db && r.sources.db.selected && r.sources.db.selected.status) ?? null);
 
-    if (dbStatus) {
-      qsStatus.textContent = dbStatus;   // ← muestra el status de la tabla
-    } else {
-      // 2) Si no vino 'status' desde el backend, usar el fallback anterior
-      const list = computeOrderedList(r);
-      const chosen = list[0];
-      if (chosen){
-        const src = eventSource(chosen, r);
-        let label = '';
-        if (src === 'psc') {
-          label = 'Centro de Dist. PSC';
-        } else if (src === 'fz') {
-          const td = transformDesc(src, chosen, r);
-          label = /Aduanas - Panama City/i.test(td) ? 'Aduanas' : td;
-        } else {
-          const d = String(chosen.description || '');
-          label = /delivered/i.test(d) ? 'Delivered' : 'In transit';
-        }
-        qsStatus.textContent = label || '—';
+      if (dbStatus && String(dbStatus).trim().length > 0) {
+        qsStatus.textContent = String(dbStatus).trim();   // ← usa el de DB
       } else {
-        qsStatus.textContent = '—';
+        // 2) Si no hay DB status, usamos la lógica anterior
+        const list = computeOrderedList(r);
+        const chosen = list[0];
+        if (chosen){
+          const src = eventSource(chosen, r);
+          let label='';
+          if(src==='psc') {
+            label='Centro de Dist. PSC';
+          } else if(src==='fz'){
+            const td = transformDesc(src, chosen, r);
+            label = /Aduanas - Panama City/i.test(td) ? 'Aduanas' : td;
+          } else {
+            const d = String(chosen.description||'');
+            label = /delivered/i.test(d) ? 'Delivered' : 'In transit';
+          }
+          qsStatus.textContent = label || '—';
+        } else {
+          qsStatus.textContent = '—';
+        }
       }
-    }
 
-    // Resto del resumen
-    qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
-    qsPeso.textContent    = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
-  }
-</script>
+      // Otros campos
+      qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
+      qsPeso.textContent    = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
+    }
 
     function renderTimeline(r){
       eventsEl.innerHTML='';
