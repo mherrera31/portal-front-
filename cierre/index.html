@@ -49,14 +49,15 @@
 </head>
 <body>
   <div class="wrap"><div id="app"></div></div>
-  <div id="errbox"></div>
-
+ <div id="errbox"></div>
+  
 <script>
-/* ===== Overlay de errores para no quedar en blanco ===== */
-(function(){
+
+  (function(){
   const box = document.getElementById('errbox');
   function show(msg){ box.textContent = msg; box.style.display='block'; }
-  window.addEventListener('error', e => show(String(e.error?.stack || e.message || e))));
+  // 👇 corregido: había un paréntesis de más al final
+  window.addEventListener('error',  e => show(String(e.error?.stack || e.message || e)));
   window.addEventListener('unhandledrejection', e => show('Promise rejection: ' + (e.reason?.message || e.reason)));
 })();
 
