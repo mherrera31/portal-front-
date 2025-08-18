@@ -118,20 +118,27 @@ const S = {
   precheck: [],
   deposito: null,
 };
-
 const el = (html) => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
 const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
 const $  = (sel,root=document)=>root.querySelector(sel);
 const fmt = (n)=> (n==null||isNaN(n))? '0.00' : Number(n).toFixed(2);
 function getContainer(fallbackId){ return document.getElementById('content') || document.getElementById(fallbackId); }
-
 function toast(msg, type=''){
   console.log(msg);
   const div = el(`<div class="card" style="position:fixed;right:16px;bottom:16px;z-index:9999;border-color:${type==='err'?'#fecaca':'var(--border)'}">${msg}</div>`);
   document.body.appendChild(div); setTimeout(()=>div.remove(), 2400);
 }
 
-/* RPC wrapper con reintento tras refresh */
+/* ============================ SUPABASE CLIENT ============================ */
+/* ÚNICO createClient (después de CFG/S) y forzamos schema y apikey */
+S.supa = supabase.createClient(CFG.url, CFG.anon, {
+  db:   { schema: 'cierre' },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  global: { headers: { apikey: CFG.anon } } // por si algún fetch cae fuera de supabase-js
+});
+window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
+
+/* =================== RPC wrapper con fallback y refresh =================== */
 async function rpcRaw(name, params){
   const { data: { session } } = await S.supa.auth.getSession();
   const res = await fetch(`${CFG.url}/rest/v1/rpc/${name}`, {
@@ -145,41 +152,25 @@ async function rpcRaw(name, params){
     },
     body: JSON.stringify(params||{})
   });
-  if(!res.ok){
-    const txt = await res.text();
-    throw new Error(txt || res.statusText);
-  }
+  if(!res.ok){ throw new Error(await res.text() || res.statusText); }
   return res.json();
 }
-
 async function rpc(name, params){
-  // 1º: vía supabase-js
   let { data, error } = await S.supa.rpc(name, params);
   if (!error) return data;
-
-  // Si el server dice que falta apikey, hacemos fallback crudo
-  if (String(error.message||'').includes('No API key')) {
-    return rpcRaw(name, params);
-  }
-
-  // Refresh y reintenta
+  if (String(error.message||'').includes('No API key')) return rpcRaw(name, params);
   try { await S.supa.auth.refreshSession(); } catch {}
   ({ data, error } = await S.supa.rpc(name, params));
   if (error) throw error;
   return data;
 }
-window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
 
 /* =============================== INIT =============================== */
 document.addEventListener('DOMContentLoaded', async () => {
-  S.supa = supabase.createClient(CFG.url, CFG.anon, {
-  db: { schema: 'cierre' },
-  auth: { persistSession: true }
-});
   const { data: { session } } = await S.supa.auth.getSession();
   if(session){ S.user = session.user; await afterLogin(); } else { renderLogin(); }
   S.supa.auth.onAuthStateChange(async (evt, sess) => {
-    if(sess && sess.user){ S.user=sess.user; await afterLogin(); } else { S.user=null; renderLogin(); }
+    if(sess?.user){ S.user=sess.user; await afterLogin(); } else { S.user=null; renderLogin(); }
   });
 });
 
@@ -213,6 +204,7 @@ function renderLogin(){
 
 async function afterLogin(){
   try {
+    // lee perfil por REST (evita depender de RPC al inicio)
     const { data: prof, error } = await S.supa
       .from('profiles')
       .select('role,sucursal_id')
@@ -229,7 +221,6 @@ async function afterLogin(){
   }
   renderPortal();
 }
-  
 function topBar(){
   const u = S.user?.email || S.user?.id;
   return el(`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
