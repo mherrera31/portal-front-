@@ -191,15 +191,12 @@ function renderLogin(){
 
 async function afterLogin(){
   try {
-    // Lee el perfil desde la tabla (sin RPC)
     const { data: prof, error } = await S.supa
       .from('profiles')
       .select('role,sucursal_id')
       .eq('id', S.user.id)
       .single();
-
     if (error) throw error;
-
     S.isAdmin    = (prof?.role === 'admin');
     S.sucursalId = prof?.sucursal_id || null;
   } catch (e) {
@@ -208,7 +205,6 @@ async function afterLogin(){
     S.isAdmin = false;
     S.sucursalId = null;
   }
-
   renderPortal();
 }
   
