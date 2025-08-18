@@ -142,7 +142,10 @@ window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
 
 /* =============================== INIT =============================== */
 document.addEventListener('DOMContentLoaded', async () => {
-  S.supa = supabase.createClient(CFG.url, CFG.anon, { auth: { persistSession: true } });
+  S.supa = supabase.createClient(CFG.url, CFG.anon, {
+  db: { schema: 'cierre' },
+  auth: { persistSession: true }
+});
   const { data: { session } } = await S.supa.auth.getSession();
   if(session){ S.user = session.user; await afterLogin(); } else { renderLogin(); }
   S.supa.auth.onAuthStateChange(async (evt, sess) => {
