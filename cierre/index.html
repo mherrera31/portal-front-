@@ -398,7 +398,7 @@ table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-ri
   /* ========================= APERTURA — Saldo inicial ========================= */
   async function renderApertura(){
     const v = getContainer('mod-apertura'); if (!requireJornadaOrExplain(v)) return;
-    // Encabezado con total grande
+    // UI
     v.innerHTML = `<div class="apertura-head">
         <h2>Saldo inicial (Apertura)</h2>
         <div class="apertura-total-badge"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
@@ -411,28 +411,43 @@ table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-ri
 
     await ensureJornada();
     await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{});
-    await ensureCatalogos();
 
-    // Cargar detalle (cantidades previas si existen)
+    // Denominaciones/Detalle
+    await ensureCatalogos();
+    if(!S.denoms || !S.denoms.length){
+      try{ const { data:den } = await S.supa.from('denominaciones').select('id, valor, tipo, nombre'); S.denoms = den||[]; }catch(e){ console.warn('denoms fallback', e); }
+    }
+
     let detalle = [];
     try{ detalle = await rpc('ui_apertura_get_items') || []; }catch{}
-    const cantidades = Object.fromEntries(detalle.map(x=>[x.denominacion_id, Number(x.cantidad||0)]));
 
-    const body = $('#apRows');
-    body.innerHTML = '';
+    // Build items with valor/label/cantidad
+    const denById = Object.fromEntries((S.denoms||[]).map(d=>[String(d.id), d]));
+    let items = [];
 
-    // Construir filas (orden por valor asc)
-    S.denoms.sort((a,b)=>a.valor-b.valor).forEach(d=>{
-      const qty = cantidades[d.id] || 0;
-      const label = (d.tipo==='moneda' ? '¢ ' : '$ ') + d.valor;
-      body.appendChild(el(`<tr data-id="${d.id}" data-valor="${d.valor}">
-        <td>${label}</td>
-        <td><input type="number" step="1" min="0" value="${qty}" style="width:120px"></td>
+    if(Array.isArray(detalle) && detalle.length){
+      items = detalle.map(d => {
+        const id = String(d.denominacion_id ?? d.id);
+        const base = denById[id] || {};
+        const valor = Number(d.valor ?? d.denominacion_valor ?? base.valor ?? 0);
+        const tipo  = d.tipo ?? base.tipo;
+        const label = d.label ?? d.nombre ?? (valor ? ((tipo==='moneda'?'¢ ':'$ ') + valor) : (base.nombre || String(valor)));
+        return { id, valor, label, cantidad: Number(d.cantidad||0) };
+      });
+    } else {
+      items = (S.denoms||[]).map(d=>({ id:String(d.id), valor:Number(d.valor), label:(d.tipo==='moneda'?'¢ ':'$ ')+d.valor, cantidad:0 }));
+    }
+
+    // Render rows
+    const body = $('#apRows'); body.innerHTML='';
+    items.sort((a,b)=>a.valor-b.valor).forEach(it=>{
+      body.appendChild(el(`<tr data-id="${it.id}" data-valor="${it.valor}">
+        <td>${it.label}</td>
+        <td><input type="number" step="1" min="0" value="${it.cantidad||0}" style="width:120px"></td>
         <td class="apSub">$0.00</td>
       </tr>`));
     });
 
-    // Recalcular subtotales/total
     const fmt = (n)=> Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'});
     function recalc(){
       let total = 0;
@@ -445,16 +460,11 @@ table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-ri
       });
       $('#apTotal').textContent = fmt(total);
       $('#apTotalFoot').textContent = fmt(total);
-      // habilitar guardar si hay jornada y alguna edición (o siempre que haya jornada)
       const hasJ = !!(window.APP && APP.jornada_id);
       $('#btnApSave').disabled = !hasJ;
     }
     recalc();
-
-    // Eventos
-    $('#apRows').addEventListener('input', e=>{
-      if(e.target.tagName==='INPUT') recalc();
-    });
+    $('#apRows').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') recalc(); });
 
     $('#btnApSave').onclick = async ()=>{
       const items = $$('#apRows tr').map(tr=>{
@@ -505,35 +515,79 @@ table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-ri
   /* ============================= SALDO FINAL — Caja ============================= */
   async function renderSaldoFinal(){
     const v = getContainer('mod-sfinal'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Saldo final en caja</h2>';
-    await ensureCatalogos();
+    v.innerHTML = `<div class="apertura-head">
+        <h2>Saldo final (Efectivo)</h2>
+        <div class="apertura-total-badge"><span>Total</span> <strong id="sfTotal">$0.00</strong></div>
+      </div>
+      <table class="apertura"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
+      <tbody id="sfRows"></tbody>
+      <tfoot><tr><td colspan="2" style="text-align:right;font-weight:600">Total</td><td class="apSub" id="sfTotalFoot">$0.00</td></tr></tfoot>
+      </table>
+      <div class="apertura-actions"><button class="btn primary" id="btnSfSave" disabled>Guardar</button></div>`;
 
-    let detalle = [];
-    try{ detalle = await rpc('ui_saldofinal_get_items') || []; }catch{}
+    (async()=>{
+      await ensureJornada();
+      await ensureCatalogos();
+      if(!S.denoms || !S.denoms.length){
+        try{ const { data:den } = await S.supa.from('denominaciones').select('id, valor, tipo, nombre'); S.denoms = den||[]; }catch(e){}
+      }
 
-    const tbl = el(`<div class="row"><div class="col">
-      <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="sfRows"></tbody></table>
-      <div class="row"><button class="btn primary" id="btnSfSave">Guardar</button></div>
-    </div></div>`);
-    v.appendChild(tbl);
+      let detalle = [];
+      try{ detalle = await rpc('ui_saldofinal_get_items') || []; }catch{}
+      const denById = Object.fromEntries((S.denoms||[]).map(d=>[String(d.id), d]));
 
-    const body = $('#sfRows');
-    S.denoms.forEach(d=>{
-      const qty = (detalle.find(x=>x.denominacion_id===d.id)?.cantidad) || 0;
-      body.appendChild(el(`<tr>
-        <td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td>
-        <td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td>
-      </tr>`));
-    });
+      let items = [];
+      if(Array.isArray(detalle) && detalle.length){
+        items = detalle.map(d => {
+          const id = String(d.denominacion_id ?? d.id);
+          const base = denById[id] || {};
+          const valor = Number(d.valor ?? d.denominacion_valor ?? base.valor ?? 0);
+          const tipo  = d.tipo ?? base.tipo;
+          const label = d.label ?? d.nombre ?? (valor ? ((tipo==='moneda'?'¢ ':'$ ') + valor) : (base.nombre || String(valor)));
+          return { id, valor, label, cantidad: Number(d.cantidad||0) };
+        });
+      } else {
+        items = (S.denoms||[]).map(d=>({ id:String(d.id), valor:Number(d.valor), label:(d.tipo==='moneda'?'¢ ':'$ ')+d.valor, cantidad:0 }));
+      }
 
-    $('#btnSfSave').onclick = async ()=>{
-      const items = $$('#sfRows input').map(i=>({ denominacion_id: i.dataset.denom, cantidad: parseInt(i.value||'0',10)||0 }));
-      await rpc('saldofinal_save_counts', { p_items: items, p_obs: null }).catch(e=>toast('saldofinal_save: '+e.message,'err'));
-      toast('Saldo final guardado');
-    };
+      const body = $('#sfRows'); body.innerHTML='';
+      items.sort((a,b)=>a.valor-b.valor).forEach(it=>{
+        body.appendChild(el(`<tr data-id="${it.id}" data-valor="${it.valor}">
+          <td>${it.label}</td>
+          <td><input type="number" step="1" min="0" value="${it.cantidad||0}" style="width:120px"></td>
+          <td class="apSub">$0.00</td>
+        </tr>`));
+      });
+
+      const fmt = (n)=> Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'});
+      function recalc(){
+        let total = 0;
+        $$('#sfRows tr').forEach(tr=>{
+          const valor = Number(tr.dataset.valor||0);
+          const qty   = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+          const sub   = valor * qty;
+          tr.querySelector('.apSub').textContent = fmt(sub);
+          total += sub;
+        });
+        $('#sfTotal').textContent = fmt(total);
+        $('#sfTotalFoot').textContent = fmt(total);
+        const hasJ = !!(window.APP && APP.jornada_id);
+        $('#btnSfSave').disabled = !hasJ;
+      }
+      recalc();
+      $('#sfRows').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') recalc(); });
+
+      $('#btnSfSave').onclick = async ()=>{
+        const items = $$('#sfRows tr').map(tr=>{
+          const id = tr.dataset.id, qty = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+          return { denominacion_id:id, cantidad: qty };
+        });
+        await rpc('saldofinal_save_counts', { p_items: items, p_obs: null }).catch(e=>toast('saldofinal_save: '+friendlyError(e),'err'));
+        toast('Saldo final guardado');
+      };
+    })();
   }
-
-  /* ================================ VOUCHERS ================================= */
+/* ================================ VOUCHERS ================================= */
   async function renderVouchers(){
     const v = getContainer('mod-vouchers'); if (!requireJornadaOrExplain(v)) return;
     v.innerHTML = '<h2>Vouchers</h2>';
@@ -879,6 +933,8 @@ table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-ri
   </script>
 </body>
 </html>
+
+
 
 
 
