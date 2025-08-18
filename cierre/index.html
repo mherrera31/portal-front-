@@ -125,12 +125,18 @@ function toast(msg, type=''){
 
 /* RPC wrapper con reintento tras refresh */
 async function rpc(name, params){
-  let { data, error } = await S.supa.rpc(name, params);
-  if (!error) return data;
-  try { await S.supa.auth.refreshSession(); } catch {}
-  ({ data, error } = await S.supa.rpc(name, params));
-  if (error) throw error;
-  return data;
+  let res = await S.supa.rpc(name, params);
+  if (res.error) {
+    // PostgREST usa 404 cuando la ruta RPC no existe/visible
+    if (res.error.message?.includes('404') || res.error.code === 'PGRST116') {
+      toast(`RPC no encontrado: ${name}. Expón el schema 'cierre' y da EXECUTE.`, 'err');
+    }
+    // reintento por sesión
+    try { await S.supa.auth.refreshSession(); } catch {}
+    res = await S.supa.rpc(name, params);
+    if (res.error) throw res.error;
+  }
+  return res.data;
 }
 window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
 
