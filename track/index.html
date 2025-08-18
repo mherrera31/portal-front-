@@ -54,7 +54,7 @@
       width:100%;
       appearance:none;-webkit-appearance:none;
       border:1px solid var(--line);
-      background:#fff;color:var(--ink);
+      background:#fff;color:#1c1c1e;
       border-radius:14px;
       padding:12px 152px 12px 14px;
       outline:none;
@@ -232,7 +232,7 @@
       }catch{ return 'pn' }
     }
 
-    // === ACTUALIZADO: mostrar status de DB en los eventos PSC antes de "Peso(Aprox.)"
+    // Mostrar status de DB en eventos PSC antes de "Peso(Aprox.)"
     function transformDesc(src, ev, resp){
       let d = String(ev.description||'');
 
@@ -246,9 +246,8 @@
         const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
         const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
 
-        // Status de la DB (top-level o nested)
-        const dbStatus = (resp?.db_status ?? resp?.sources?.db?.selected?.status ?? '').toString().trim();
-        const label = dbStatus || 'Centro de Dist. PSC'; // fallback si no viniera
+        const dbStatus = (resp && resp.db_status) || (resp && resp.sources && resp.sources.db && resp.sources.db.selected && resp.sources.db.selected.status) || '';
+        const label = String(dbStatus).trim() || 'Centro de Dist. PSC';
         d = `${label} - Peso(Aprox.)` + (lbs ? ` ${lbs} lbs` : '');
         return d;
       }
@@ -271,7 +270,6 @@
       const a2 = (r.sources && r.sources.postal_ninja && Array.isArray(r.sources.postal_ninja.alt_trackings))
                   ? r.sources.postal_ninja.alt_trackings : [];
       const all = [...a1, ...a2].map(v=>String(v||'').trim()).filter(Boolean);
-      // dedupe case-insensitive y excluir el tracking principal
       const primary = String(r.tracking||'').toUpperCase();
       const seen = new Set();
       const out = [];
@@ -287,15 +285,18 @@
       const alts = getAltList(r);
       if(!alts.length){ qsAlt.textContent='—'; return; }
       qsAlt.innerHTML='';
-      // mostrar hasta 6 alternos
+      // hasta 6 alternos
       alts.slice(0,6).forEach(code=>{
         const chip = document.createElement('div');
         chip.className = 'altChip';
-        chip.innerHTML = `<code>${esc(code)}</code><button type="button" data-code="${esc(code)}">Buscar</button>`;
-        chip.querySelector('button')?.addEventListener('click', (e)=>{
-          const c = (e.currentTarget as HTMLButtonElement).dataset.code || '';
-          if(c){ trk.value = c; doSearch(); }
-        });
+        chip.innerHTML = `<code>${esc(code)}</code><button type="button">Buscar</button>`;
+        const btn = chip.querySelector('button');
+        if (btn) {
+          btn.addEventListener('click', ()=>{
+            trk.value = code;      // ← sin TypeScript, puro JS
+            doSearch();
+          });
+        }
         qsAlt.appendChild(chip);
       });
       if(alts.length>6){
@@ -306,11 +307,11 @@
       }
     }
 
-    // ===== CAMBIO: prioriza status desde DB en el resumen =====
+    // Resumen: prioriza status desde DB
     function renderTopSummary(r){
       qsTracking.textContent = r.tracking || '—';
 
-      const dbStatus = (r.db_status ?? (r.sources && r.sources.db && r.sources.db.selected && r.sources.db.selected.status) ?? null);
+      const dbStatus = (r.db_status || (r.sources && r.sources.db && r.sources.db.selected && r.sources.db.selected.status)) || null;
       if (dbStatus && String(dbStatus).trim().length > 0) {
         qsStatus.textContent = String(dbStatus).trim();
       } else {
@@ -337,7 +338,6 @@
       qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
       qsPeso.textContent    = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
 
-      // Alternos
       renderAltTrackings(r);
     }
 
@@ -397,5 +397,6 @@
   </script>
 </body>
 </html>
+
 
 
