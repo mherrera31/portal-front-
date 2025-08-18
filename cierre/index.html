@@ -1,264 +1,835 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PSC Cierre — Config básica</title>
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f7f7f8;color:#111}
-  .wrap{max-width:1024px;margin:0 auto;padding:20px}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.05)}
-  h1{font-size:22px;margin:0 0 8px}h2{font-size:18px;margin:0 0 8px}.row{display:flex;gap:10px;flex-wrap:wrap}
-  input,button,select{font:inherit}input,select{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
-  button{padding:10px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#111;color:#fff;cursor:pointer}
-  button.ghost{background:#fff;color:#111}
-  .list{border-top:1px dashed #e5e7eb;margin-top:8px}
-  .item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #e5e7eb}
-  .tag{display:inline-flex;padding:2px 8px;border-radius:999px;border:1px solid #e5e7eb;font-size:12px;background:#fff}
-  .hint{font-size:12px;color:#6b7280}.hidden{display:none}
-</style>
-<script src="https://esm.sh/@supabase/supabase-js@2"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cierre Diario</title>
+  <link rel="preload" as="image" href="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp">
+  <!-- Opcional: pon un config.js junto a este archivo. Debe definir window.PSC_CONFIG = { ref, url, anon, bucket, logo } -->
+  <script src="config.js"></script>
+  <style>
+    :root{
+      --bg:#f6f7fb;           /* fondo general muy claro */
+      --bg2:#eef2f7;          /* segundo tono para degradado */
+      --card:#ffffff;         /* tarjetas blancas */
+      --border:#e5e7eb;       /* gris clarito para bordes */
+      --muted:#6b7280;        /* texto secundario */
+      --fg:#111827;           /* texto principal oscuro */
+      --accent:#10b981;       /* acento verde */
+      --warn:#f59e0b;         /* ámbar */
+      --err:#ef4444;          /* rojo */
+      --ok:#059669;           /* verde ok */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+      background:linear-gradient(180deg,var(--bg),var(--bg2));
+      color:var(--fg);
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:24px}
+    h1,h2,h3{margin:0 0 12px}
+    h1{font-size:22px}
+    h2{font-size:18px;color:#1f2937}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);margin:14px 0}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .col{flex:1 1 260px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;background:#ffffff;border:1px solid var(--border);color:var(--fg);border-radius:10px;outline:0}
+    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(16,185,129,.15); border-color:#a7f3d0}
+    textarea{min-height:80px}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th,td{text-align:left;padding:8px 10px}
+    th{font-size:12px;color:#4b5563}
+    tr{background:#f9fafb;border-radius:10px;border:1px solid var(--border)}
+    tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+    .btn{appearance:none;border:1px solid var(--border);background:#ffffff;color:var(--fg);border-radius:12px;padding:10px 14px;cursor:pointer;transition:all .15s ease;font-weight:600}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.08)}
+    .btn.primary{background:linear-gradient(135deg,#10b981,#34d399); color:#ffffff;border:0}
+    .btn.warn{background:#fff7ed;border:1px solid #fcd34d;color:#92400e}
+    .btn.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#f3f4f6;border:1px solid var(--border);color:#374151}
+    .muted{color:var(--muted);font-size:13px}
+    nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+    nav .btn{padding:8px 10px;font-size:14px}
+    .hidden{display:none!important}
+    .ok{color:var(--ok)}
+    .bad{color:var(--err)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .hr{height:1px;background:var(--border);margin:16px 0}
+    .kpi{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#f9fafb;display:flex;justify-content:space-between;align-items:center}
+    .kpi small{color:#6b7280}
+    /* Marca */
+    .brand{display:flex;align-items:center;gap:10px}
+    .brand img{width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.08))}
+    .brand .title{font-weight:800;letter-spacing:.2px}
+
+    /* Modal Config */
+    .modal{position:fixed;inset:0;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;z-index:50}
+    .modal>.box{width:min(720px,92vw);background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px}
+    .modal h3{margin-bottom:8px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .right{display:flex;gap:8px;justify-content:flex-end}
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>PSC Cierre — Config básica</h1>
-
-  <div class="card">
-    <h2>Acceso</h2>
-    <div class="row">
-      <div style="flex:1 1 280px"><input id="email" type="email" value="test@test.com"></div>
-      <div style="flex:1 1 200px"><input id="password" type="password" value="test"></div>
-      <div><button id="btnLogin">Entrar</button></div>
-      <div><button class="ghost" id="btnLogout">Salir</button></div>
-    </div>
-    <p class="hint" id="who"></p>
+  <div class="wrap">
+    <div id="app"></div>
   </div>
 
-  <div id="admin" class="hidden">
-    <div class="card">
-      <h2>Sucursales</h2>
-      <div class="row">
-        <div style="flex:1 1 280px"><input id="sucursalNombre" placeholder="Nueva sucursal (ej. Sucursal 1)"></div>
-        <div><button id="btnAddSucursal">Añadir</button></div>
+  <template id="tpl-config">
+    <div class="modal" id="modalCfg">
+      <div class="box">
+        <h3>⚙️ Configuración de API (global)</h3>
+        <p class="muted">
+          Puedes centralizar la config en <code>config.js</code> (recomendado) o guardarla en <b>localStorage</b>.
+          Si existe <code>window.PSC_CONFIG</code>, se usará <b>por encima</b> de lo guardado en el navegador.
+        </p>
+        <div class="grid">
+          <div>
+            <label>Project Ref (p. ej. <code>ztdkaxbgpogudtrdgzic</code>)</label>
+            <input id="cfgRef" placeholder="xxxxxxsupabaseref" />
+          </div>
+          <div>
+            <label>URL del proyecto (si ya lo tienes)</label>
+            <input id="cfgUrl" placeholder="https://REF.supabase.co" />
+          </div>
+          <div>
+            <label>Anon Key</label>
+            <input id="cfgAnon" placeholder="eyJhbGciOiJI..." />
+          </div>
+          <div>
+            <label>Bucket de comprobantes</label>
+            <input id="cfgBucket" placeholder="cierre-comprobantes" />
+          </div>
+          <div>
+            <label>Logo URL</label>
+            <input id="cfgLogo" placeholder="https://.../logo.webp" />
+          </div>
+          <div>
+            <label>Guardar como perfil (opcional)</label>
+            <input id="cfgProfile" placeholder="nombre-del-perfil" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;justify-content:space-between">
+          <div>
+            <button class="btn" id="btnCfgLoad">Cargar perfil</button>
+            <button class="btn" id="btnCfgSaveProfile">Guardar perfil</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="btnCfgTest">Probar</button>
+            <button class="btn" id="btnCfgReset">Reset</button>
+            <button class="btn primary" id="btnCfgApply">Aplicar</button>
+          </div>
+        </div>
       </div>
-      <div id="sucursales" class="list"></div>
     </div>
+  </template>
 
-    <div class="card">
-      <h2>Sistemas</h2>
-      <div class="row">
-        <div style="flex:1 1 280px"><input id="sistemaNombre" placeholder="Nuevo sistema (ej. Sistema 1)"></div>
-        <div><button id="btnAddSistema">Añadir</button></div>
+  <script>
+  // ====== CONFIG GLOBAL ======
+  const K = {
+    url: 'psc.cierre.supabaseUrl',
+    anon: 'psc.cierre.anonKey',
+    ref: 'psc.cierre.projectRef',
+    bucket: 'psc.cierre.bucket',
+    logo: 'psc.cierre.logo',
+    profile: 'psc.cierre.profiles', // JSON de perfiles guardados
+  };
+  const Defaults = {
+    url: '',
+    anon: '',
+    ref: '',
+    bucket: 'cierre-comprobantes',
+    logo: 'https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp',
+  };
+  function getProfiles(){
+    try{ return JSON.parse(localStorage.getItem(K.profile)||'{}'); }catch{return {}};
+  }
+  function saveProfiles(p){ localStorage.setItem(K.profile, JSON.stringify(p||{})); }
+  // Si hay config.js, tiene prioridad sobre localStorage
+  let USING_JS_CFG = !!(window && window.PSC_CONFIG);
+  function loadCFG(){
+    const ls = {
+      url: localStorage.getItem(K.url) || Defaults.url,
+      anon: localStorage.getItem(K.anon) || Defaults.anon,
+      ref: localStorage.getItem(K.ref) || Defaults.ref,
+      bucket: localStorage.getItem(K.bucket) || Defaults.bucket,
+      logo: localStorage.getItem(K.logo) || Defaults.logo,
+    };
+    const js = (window && window.PSC_CONFIG) ? window.PSC_CONFIG : {};
+    // Prioridad: config.js > localStorage > defaults
+    const cfg = Object.assign({}, ls, js);
+    if(!cfg.url && cfg.ref){ cfg.url = `https://${cfg.ref}.supabase.co`; }
+    return cfg;
+  }
+  function saveCFG(cfg){
+    // Guarda en localStorage; si existe config.js, este seguirá mandando.
+    if(cfg.ref) localStorage.setItem(K.ref, cfg.ref);
+    if(cfg.url) localStorage.setItem(K.url, cfg.url);
+    if(cfg.anon) localStorage.setItem(K.anon, cfg.anon);
+    if(cfg.bucket) localStorage.setItem(K.bucket, cfg.bucket);
+    if(cfg.logo) localStorage.setItem(K.logo, cfg.logo);
+  }
+  function resetCFG(){
+    [K.url,K.anon,K.ref,K.bucket,K.logo].forEach(k=>localStorage.removeItem(k));
+  }
+
+  // CFG en memoria de esta página
+  let CFG = loadCFG();
+
+  // ====== STATE ======
+  const S = {
+    supa: null,
+    user: null,
+    isAdmin: false,
+    sucursalId: null,
+    jornadaId: null,
+    sistemas: [],
+    metodos: [],
+    denoms: [],
+    precheck: [],
+    deposito: null,
+  };
+
+  // ====== UI HELPERS ======
+  const el = (html) => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const fmt = (n)=> (n==null||isNaN(n))? '0.00' : Number(n).toFixed(2);
+
+  function toast(msg, type=''){
+    console.log(msg);
+    const div = el(`<div class="card" style="position:fixed;right:16px;bottom:16px;z-index:9999;border-color:${type==='err'?'#fecaca':'var(--border)'}">${msg}</div>`);
+    document.body.appendChild(div); setTimeout(()=>div.remove(), 2400);
+  }
+
+  // ====== MODAL CONFIG ======
+  function openConfig(){
+    const tpl = $('#tpl-config');
+    const node = tpl.content.cloneNode(true);
+    document.body.appendChild(node);
+    const modal = $('#modalCfg');
+    $('#cfgRef').value = CFG.ref || '';
+    $('#cfgUrl').value = CFG.url || '';
+    $('#cfgAnon').value = CFG.anon || '';
+    $('#cfgBucket').value = CFG.bucket || '';
+    $('#cfgLogo').value = CFG.logo || '';
+
+    $('#btnCfgApply').onclick = ()=>{
+      const ref = $('#cfgRef').value.trim();
+      const url = $('#cfgUrl').value.trim() || (ref? `https://${ref}.supabase.co` : '');
+      const anon = $('#cfgAnon').value.trim();
+      const bucket = $('#cfgBucket').value.trim() || 'cierre-comprobantes';
+      const logo = $('#cfgLogo').value.trim() || Defaults.logo;
+      const cfg = {ref,url,anon,bucket,logo};
+      saveCFG(cfg);
+      CFG = loadCFG();
+      toast('Configuración guardada. Recargando…');
+      setTimeout(()=> location.reload(), 400);
+    };
+    $('#btnCfgReset').onclick = ()=>{ resetCFG(); toast('Config reseteada'); setTimeout(()=>location.reload(), 300); };
+    $('#btnCfgTest').onclick = async ()=>{
+      const ref = $('#cfgRef').value.trim();
+      const url = $('#cfgUrl').value.trim() || (ref? `https://${ref}.supabase.co` : '');
+      const anon = $('#cfgAnon').value.trim();
+      if(!url || !anon){ toast('Falta URL y/o Anon Key','err'); return; }
+      const ok = await testSupabase(url, anon);
+      toast(ok? '✅ Conexión OK' : '❌ Falla de conexión', ok? '':'err');
+    };
+    $('#btnCfgSaveProfile').onclick = ()=>{
+      const name = $('#cfgProfile').value.trim();
+      if(!name){ toast('Nombre de perfil requerido','err'); return; }
+      const profiles = getProfiles();
+      profiles[name] = {
+        ref: $('#cfgRef').value.trim(),
+        url: $('#cfgUrl').value.trim(),
+        anon: $('#cfgAnon').value.trim(),
+        bucket: $('#cfgBucket').value.trim(),
+        logo: $('#cfgLogo').value.trim()
+      };
+      saveProfiles(profiles);
+      toast('Perfil guardado');
+    };
+    $('#btnCfgLoad').onclick = ()=>{
+      const name = prompt('Nombre del perfil a cargar:');
+      if(!name) return;
+      const p = getProfiles()[name];
+      if(!p){ toast('Perfil no encontrado','err'); return; }
+      $('#cfgRef').value = p.ref||'';
+      $('#cfgUrl').value = p.url||'';
+      $('#cfgAnon').value = p.anon||'';
+      $('#cfgBucket').value = p.bucket||'';
+      $('#cfgLogo').value = p.logo||'';
+      toast('Perfil cargado');
+    };
+    modal.onclick = (e)=>{ if(e.target.id==='modalCfg') modal.remove(); };
+  }
+
+  async function testSupabase(url, anon){
+    return new Promise(resolve=>{
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/@supabase/supabase-js@2.45.1/dist/umd/supabase.js';
+      s.onload = async ()=>{
+        try{
+          const tmp = supabase.createClient(url, anon, { auth:{ persistSession:false } });
+          const { data, error } = await tmp.auth.getSession(); // llamada simple
+          resolve(error? false : true);
+        }catch{ resolve(false); }
+      };
+      s.onerror = ()=> resolve(false);
+      document.body.appendChild(s);
+    });
+  }
+
+  // ====== SUPABASE INIT ======
+  (async function init(){
+    // Si no hay config, abre modal antes de todo
+    if(!CFG.url || !CFG.anon){
+      $('#app').innerHTML = `<div class="card"><div class="row" style="align-items:center;gap:12px"><img src="${CFG.logo}" alt="Logo" width="42" height="42"/><b>Configura Project Ref / Anon Key</b><span class="tag">${USING_JS_CFG? 'config.js' : 'localStorage'}</span><div style="flex:1"></div><button class="btn primary" id="goCfg">Abrir configuración</button></div></div>`;
+      $('#goCfg').onclick = openConfig;
+      return;
+    }
+
+    $('#app').innerHTML = `<div class="card"><div class="row" style="align-items:center;gap:12px"><img src="${CFG.logo}" alt="Logo" width="42" height="42"/><b>Cargando librería…</b><span class="tag">${USING_JS_CFG? 'config.js' : 'localStorage'}</span><div style="flex:1"></div><button class="btn" id="openCfg">⚙️ Config</button></div></div>`;
+    $('#openCfg').onclick = openConfig;
+
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/@supabase/supabase-js@2.45.1/dist/umd/supabase.js';
+    s.onload = async () => {
+      S.supa = supabase.createClient(CFG.url, CFG.anon, { auth: { persistSession: true } });
+      const { data: { session } } = await S.supa.auth.getSession();
+      if(session){ S.user = session.user; await afterLogin(); } else { renderLogin(); }
+      S.supa.auth.onAuthStateChange(async (evt, sess) => {
+        if(sess && sess.user){ S.user=sess.user; await afterLogin(); } else { S.user=null; renderLogin(); }
+      });
+    };
+    document.body.appendChild(s);
+  })();
+
+  // ====== VISTAS ======
+  function renderLogin(){
+    $('#app').innerHTML = '';
+    const v = el(`
+      <div class="card">
+        <div class="brand" style="margin-bottom:8px">
+          <img src="${CFG.logo}" alt="PSC Cargas"/>
+          <div>
+            <div class="title">PSC Cargas</div>
+            <div class="muted">Cierre Diario</div>
+          </div>
+          <div style="flex:1"></div>
+          <button class="btn" id="cfgBtn">⚙️ Config</button>
+        </div>
+        <h1>Iniciar sesión</h1>
+        <div class="row">
+          <div class="col"><label>Email</label><input id="lEmail" type="email" placeholder="test@test.com"></div>
+          <div class="col"><label>Contraseña</label><input id="lPass" type="password" placeholder="••••••"></div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="btnLogin">Entrar</button>
+          <button class="btn" id="btnSignup">Crear cuenta</button>
+        </div>
+        <div class="muted" style="margin-top:8px">Usa el usuario de prueba si ya existe: test@test.com / test123</div>
+      </div>`);
+    $('#app').appendChild(v);
+    $('#btnLogin').onclick = login;
+    $('#btnSignup').onclick = signup;
+    $('#cfgBtn').onclick = openConfig;
+  }
+
+  async function afterLogin(){
+    try{
+      const { data: isAdm, error: eAdm } = await S.supa.rpc('is_admin');
+      if(eAdm){ console.warn(eAdm); }
+      S.isAdmin = !!(isAdm && isAdm[0] ? isAdm[0] : isAdm);
+
+      const { data: suc, error: eSuc } = await S.supa.rpc('my_sucursal_id');
+      if(eSuc){ toast('No hay sucursal asignada en profiles', 'err'); }
+      S.sucursalId = Array.isArray(suc)? (suc[0]?.my_sucursal_id||suc[0]) : (suc?.my_sucursal_id||suc);
+
+      renderPortal();
+    }catch(err){ console.error(err); toast('Error post-login','err'); }
+  }
+
+  function topBar(){
+    const u = S.user?.email || S.user?.id;
+    return el(`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div class="brand">
+        <img src="${CFG.logo}" alt="PSC Cargas"/>
+        <div>
+          <div class="title">PSC Cargas</div>
+          <div class="muted">Portal de Cierre</div>
+        </div>
       </div>
-      <div id="sistemas" class="list"></div>
-    </div>
-  </div>
-</div>
-
-  <!-- ==== MÉTODOS DE PAGO ==== -->
-<div class="card">
-  <h2>Métodos de pago</h2>
-  <div class="row">
-    <div style="flex:1 1 280px">
-      <input id="mpNombre" placeholder="Nuevo método (ej. Efectivo)">
-    </div>
-    <div style="width:140px">
-      <input id="mpOrden" type="number" min="1" value="100" placeholder="Orden">
-    </div>
-    <div><button id="btnAddMP">Añadir</button></div>
-  </div>
-  <div id="metodosPago" class="list"></div>
-</div>
-
-<!-- ==== DENOMINACIONES ==== -->
-<div class="card">
-  <h2>Denominaciones</h2>
-  <div class="row">
-    <div style="width:160px">
-      <input id="denValor" type="number" step="0.01" min="0.01" placeholder="Valor (ej. 0.25)">
-    </div>
-    <div style="width:160px">
-      <select id="denTipo">
-        <option value="moneda">moneda</option>
-        <option value="billete">billete</option>
-      </select>
-    </div>
-    <div style="width:140px">
-      <input id="denOrden" type="number" min="1" value="100" placeholder="Orden">
-    </div>
-    <div><button id="btnAddDen">Añadir</button></div>
-  </div>
-  <div id="denominaciones" class="list"></div>
-</div>
-
-
-<script>
-  // <<<<<< PON TUS CLAVES REALES AQUÍ >>>>>
-  const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
-  // <<<<<< FIN CONFIG >>>>>
-
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { db: { schema: 'cierre' } });
-
-  const $ = (id)=>document.getElementById(id);
-  const who = $("who"); const adminArea = $("admin");
-
-  async function refresh(){
-    const { data: { user } } = await supabase.auth.getUser();
-    if(!user){ who.textContent="No conectado"; adminArea.classList.add("hidden"); return; }
-    who.textContent = "Conectado: " + user.email;
-    adminArea.classList.remove("hidden");
-    await loadLists();
+      <div class="row" style="align-items:center">
+        <span class="tag">${USING_JS_CFG? 'config.js' : 'localStorage'}</span>
+        <button class="btn" id="btnCfg2">⚙️ Config</button>
+        <span class="muted" style="margin-right:6px">${S.isAdmin? 'Rol: Admin' : 'Rol: Usuario'} • ${u||''}</span>
+        <button class="btn" id="btnEnsure">Mi Jornada de hoy</button>
+        <button class="btn" id="btnMarkStart">Iniciar jornada</button>
+        <button class="btn warn" id="btnLogout">Salir</button>
+      </div>
+    </div>`);
   }
 
-  $("btnLogin").onclick = async ()=>{
-    const { error } = await supabase.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
-    if(error){ alert(error.message); return; }
-    await refresh();
-  };
-  $("btnLogout").onclick = async ()=>{ await supabase.auth.signOut(); await refresh(); };
+  function renderPortal(){
+    $('#app').innerHTML = '';
+    $('#app').appendChild(topBar());
+    $('#btnCfg2').onclick = openConfig;
 
-  async function loadLists(){
-    // Sucursales
-    const sc = $("sucursales"); sc.innerHTML="";
-    let r1 = await supabase.from("sucursales").select("*").order("created_at",{ascending:true});
-    if(r1.error){ sc.innerHTML = '<div class="hint">Error: '+r1.error.message+'</div>'; } else {
-      (r1.data||[]).forEach(r=>{
-        const d=document.createElement("div"); d.className="item";
-        d.innerHTML=`<div><strong>${r.nombre}</strong></div>
-                     <div><button class="ghost" data-id="${r.id}" data-type="sucursal-del">Eliminar</button></div>`;
-        sc.appendChild(d);
+    const nav = el(`<div class="card"><nav id="nav">
+      <button class="btn" data-go="mod-inicio">Inicio de jornada</button>
+      <button class="btn" data-go="mod-apertura">Saldo inicial</button>
+      <button class="btn" data-go="mod-ingresos">Ingresar datos de sistemas</button>
+      <button class="btn" data-go="mod-sfinal">Saldo final</button>
+      <button class="btn" data-go="mod-vouchers">Vouchers (POS/Yappy)</button>
+      <button class="btn" data-go="mod-precheck">Precheck</button>
+      <button class="btn" data-go="mod-deposito">Depósito</button>
+      <button class="btn" data-go="mod-cierre">Cierre</button>
+      ${S.isAdmin? '<button class="btn" data-go="mod-panel">Panel de jornadas</button>' : ''}
+      ${S.isAdmin? '<button class="btn" data-go="mod-config">Configuración</button>' : ''}
+    </nav>
+    <div class="muted">Jornada actual: <span id="labJ"></span> | Sucursal: <span id="labS"></span></div>
+    </div>`);
+    $('#app').appendChild(nav);
+
+    const mods = el(`
+      <div id="mods">
+        <section id="mod-inicio" class="card hidden"></section>
+        <section id="mod-apertura" class="card hidden"></section>
+        <section id="mod-ingresos" class="card hidden"></section>
+        <section id="mod-sfinal" class="card hidden"></section>
+        <section id="mod-vouchers" class="card hidden"></section>
+        <section id="mod-precheck" class="card hidden"></section>
+        <section id="mod-deposito" class="card hidden"></section>
+        <section id="mod-cierre" class="card hidden"></section>
+        <section id="mod-panel" class="card hidden"></section>
+        <section id="mod-config" class="card hidden"></section>
+      </div>`);
+    $('#app').appendChild(mods);
+
+    $('#btnLogout').onclick = async ()=>{ await S.supa.auth.signOut(); };
+    $('#btnEnsure').onclick = ensureJornada;
+    $('#btnMarkStart').onclick = marcarInicio;
+    $$('#nav .btn').forEach(b=> b.onclick = ()=> show(b.dataset.go));
+
+    $('#labS').textContent = S.sucursalId || '-';
+    ensureJornada();
+  }
+
+  function show(id){
+    $$('#mods > section').forEach(s=> s.classList.add('hidden'));
+    const sec = $('#'+id); if(sec) sec.classList.remove('hidden');
+    if(id==='mod-inicio') renderInicio();
+    if(id==='mod-apertura') renderApertura();
+    if(id==='mod-ingresos') renderIngresos();
+    if(id==='mod-sfinal') renderSaldoFinal();
+    if(id==='mod-vouchers') renderVouchers();
+    if(id==='mod-precheck') renderPrecheck();
+    if(id==='mod-deposito') renderDeposito();
+    if(id==='mod-cierre') renderCierre();
+    if(id==='mod-panel') renderPanel();
+    if(id==='mod-config') renderConfig();
+  }
+
+  // ====== AUTH ======
+  async function login(){
+    const email = $('#lEmail').value.trim();
+    const password = $('#lPass').value;
+    const { data, error } = await S.supa.auth.signInWithPassword({ email, password });
+    if(error){ toast('Login: '+error.message, 'err'); return; }
+  }
+  async function signup(){
+    const email = $('#lEmail').value.trim();
+    const password = $('#lPass').value || 'test123';
+    const { data, error } = await S.supa.auth.signUp({ email, password });
+    if(error){ toast('SignUp: '+error.message, 'err'); return; }
+    toast('Usuario creado. Revisa tu correo si requiere verificación.');
+  }
+
+  // ====== JORNADA ======
+  async function ensureJornada(){
+    const { data, error } = await S.supa.rpc('ensure_jornada_hoy', { p_sucursal_id: null });
+    if(error){ toast('ensure_jornada_hoy: '+error.message, 'err'); return; }
+    S.jornadaId = Array.isArray(data)? data[0]?.ensure_jornada_hoy||data[0] : (data.ensure_jornada_hoy||data);
+    $('#labJ').textContent = S.jornadaId || '-';
+  }
+  async function marcarInicio(){
+    const { data, error } = await S.supa.rpc('jornada_marcaje_inicio', { p_sucursal_id: null });
+    if(error){ toast('inicio: '+error.message, 'err'); return; }
+    toast('Inicio marcado');
+    await ensureJornada();
+  }
+
+  // ====== CATALOGO (Sistemas / Métodos / Denominaciones) ======
+  async function ensureCatalogos(){
+    if(!S.sistemas.length){
+      const { data, error } = await S.supa.rpc('ui_list_sistemas');
+      if(error){ console.warn(error); } else { S.sistemas = data||[]; }
+    }
+    if(!S.metodos.length){
+      const { data, error } = await S.supa.rpc('ui_list_metodos_pago');
+      if(error){ console.warn(error); } else { S.metodos = data||[]; }
+    }
+    if(!S.denoms.length){
+      const { data, error } = await S.supa.rpc('ui_list_denominaciones');
+      if(error){ console.warn(error); } else { S.denoms = data||[]; }
+    }
+  }
+
+  // ====== MOD: Inicio ======
+  function renderInicio(){
+    const v = $('#mod-inicio'); v.innerHTML = '';
+    v.appendChild(el(`<div>
+      <h2>Inicio de jornada</h2>
+      <div class="row">
+        <button class="btn primary" onclick="(${marcarInicio})()">Marcar inicio</button>
+        <button class="btn" onclick="(${ensureJornada})()">Refrescar jornada</button>
+      </div>
+      <div class="muted">Jornada: ${S.jornadaId||'-'}</div>
+    </div>`));
+  }
+
+  // ====== MOD: Apertura (Saldo inicial) ======
+  async function renderApertura(){
+    const v = $('#mod-apertura'); v.innerHTML = '<h2>Saldo inicial (Apertura)</h2>';
+    await ensureCatalogos();
+
+    let detalle = [];
+    try{ const { data } = await S.supa.rpc('ui_apertura_get_items'); detalle = data||[]; }catch{}
+
+    const tbl = el(`<div class="row"><div class="col">
+      <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="apRows"></tbody></table>
+      <div class="row"><button class="btn primary" id="btnApSave">Guardar</button></div>
+    </div></div>`);
+    v.appendChild(tbl);
+
+    const body = $('#apRows');
+    S.denoms.forEach(d=>{
+      const qty = (detalle.find(x=>x.denominacion_id===d.id)?.cantidad) || 0;
+      body.appendChild(el(`<tr>
+        <td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td>
+        <td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td>
+      </tr>`));
+    });
+
+    $('#btnApSave').onclick = async ()=>{
+      const items = $$('#apRows input').map(i=>({ denominacion_id: i.dataset.denom, cantidad: parseInt(i.value||'0',10)||0 }));
+      const { error } = await S.supa.rpc('apertura_save_counts', { p_items: items });
+      if(error){ toast('apertura_save: '+error.message,'err'); return; }
+      toast('Apertura guardada');
+    };
+  }
+
+  // ====== MOD: Ingresos por sistemas ======
+  async function renderIngresos(){
+    await ensureCatalogos();
+    const v = $('#mod-ingresos'); v.innerHTML = '<h2>Ingresos — Totales del día</h2>';
+
+    const grid = el('<div class="grid3" id="ingGrid"></div>');
+    v.appendChild(grid);
+
+    S.sistemas.forEach(sys=>{
+      const box = el(`<div class="card">
+        <h3>${sys.nombre}</h3>
+        ${S.metodos.map(m=>`
+          <div style="margin:10px 0">
+            <label>${m.nombre}</label>
+            <input type="number" step="0.01" min="0" placeholder="0.00" data-sis="${sys.nombre}" data-met="${m.nombre}" />
+          </div>`).join('')}
+        <button class="btn primary" data-save="${sys.nombre}">Guardar ${sys.nombre}</button>
+      </div>`);
+      grid.appendChild(box);
+    });
+
+    $$('#ingGrid [data-save]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const sis = btn.dataset.save;
+        const inputs = $$(`input[data-sis="${sis}"]`, $('#ingGrid'));
+        for(const i of inputs){
+          const val = parseFloat(i.value||'0');
+          if(!isFinite(val) || val<=0) continue;
+          const p = { p_sistema: sis, p_metodo: i.dataset.met, p_monto: val, p_sucursal_id: null, p_obs: null };
+          const { error } = await S.supa.rpc('ingreso_set_total_by_names', p);
+          if(error){ toast(`Ingreso ${sis}/${i.dataset.met}: ${error.message}`,'err'); return; }
+        }
+        toast(`Ingresos de ${sis} guardados`);
+      }
+    });
+  }
+
+  // ====== MOD: Saldo final ======
+  async function renderSaldoFinal(){
+    const v = $('#mod-sfinal'); v.innerHTML = '<h2>Saldo final en caja</h2>';
+    await ensureCatalogos();
+
+    let detalle = [];
+    try{ const { data } = await S.supa.rpc('ui_saldofinal_get_items'); detalle = data||[]; }catch{}
+
+    const tbl = el(`<div class="row"><div class="col">
+      <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="sfRows"></tbody></table>
+      <div class="row"><button class="btn primary" id="btnSfSave">Guardar</button></div>
+    </div></div>`);
+    v.appendChild(tbl);
+
+    const body = $('#sfRows');
+    S.denoms.forEach(d=>{
+      const qty = (detalle.find(x=>x.denominacion_id===d.id)?.cantidad) || 0;
+      body.appendChild(el(`<tr>
+        <td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td>
+        <td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td>
+      </tr>`));
+    });
+
+    $('#btnSfSave').onclick = async ()=>{
+      const items = $$('#sfRows input').map(i=>({ denominacion_id: i.dataset.denom, cantidad: parseInt(i.value||'0',10)||0 }));
+      const { error } = await S.supa.rpc('saldofinal_save_counts', { p_items: items, p_obs: null });
+      if(error){ toast('saldofinal_save: '+error.message,'err'); return; }
+      toast('Saldo final guardado');
+    };
+  }
+
+  // ====== MOD: Vouchers (POS / Yappy / otros con match) ======
+  async function renderVouchers(){
+    await ensureCatalogos();
+    const v = $('#mod-vouchers'); v.innerHTML = '<h2>Vouchers</h2>';
+
+    const mMatch = S.metodos.filter(m=> m.requiere_match);
+
+    const box = el(`<div class="grid2"></div>`);
+    v.appendChild(box);
+
+    mMatch.forEach(m=>{
+      const card = el(`<div class="card">
+        <h3>${m.nombre}</h3>
+        <div class="row">
+          <div class="col"><label>Monto del voucher</label><input type="number" step="0.01" min="0" placeholder="0.00" data-monto="${m.nombre}"></div>
+          <div class="col"><label>Tipo</label>
+            <select data-tipo="${m.nombre}">
+              <option value="POS">POS</option>
+              <option value="YAPPY">YAPPY</option>
+              <option value="OTRO">OTRO</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col"><label>Foto del voucher</label><input type="file" accept="image/*" capture="environment" data-file="${m.nombre}"></div>
+        </div>
+        <div class="row">
+          <button class="btn primary" data-subir="${m.nombre}">Subir voucher</button>
+        </div>
+      </div>`);
+      box.appendChild(card);
+    });
+
+    $$('#mod-vouchers [data-subir]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const metodo = btn.dataset.subir;
+        const montoEl = $(`[data-monto="${metodo}"]`);
+        const tipoEl  = $(`[data-tipo="${metodo}"]`);
+        const fileEl  = $(`[data-file="${metodo}"]`);
+        const monto = parseFloat(montoEl.value||'0');
+        if(!isFinite(monto) || monto<=0){ toast('Monto inválido','err'); return; }
+        const file = fileEl.files?.[0];
+        if(!file){ toast('Selecciona una foto','err'); return; }
+        const path = `jornadas/${S.jornadaId}/${Date.now()}_${file.name}`;
+        const { error: upErr } = await S.supa.storage.from(CFG.bucket).upload(path, file, { upsert:false });
+        if(upErr){ toast('Upload: '+upErr.message,'err'); return; }
+        const { error } = await S.supa.rpc('comprobante_add_by_names', {
+          p_metodo: metodo,
+          p_monto: monto,
+          p_url: path,
+          p_tipo: tipoEl.value,
+          p_sucursal_id: null
+        });
+        if(error){ toast('Comprobante: '+error.message,'err'); return; }
+        toast('Voucher registrado');
+      };
+    });
+  }
+
+  // ====== MOD: Precheck ======
+  async function renderPrecheck(){
+    const v = $('#mod-precheck'); v.innerHTML = '<h2>Pre-chequeo</h2>';
+    const { data: res, error: e1 } = await S.supa.rpc('cierre_precheck_resumen', { p_jornada: S.jornadaId });
+    if(e1){ v.appendChild(el(`<div class="muted">${e1.message}</div>`)); return; }
+    const r = Array.isArray(res)? res[0]: res;
+    const kpis = el(`<div class="grid3">
+      <div class="kpi"><small>Métodos con match</small><b>${r?.metodos_con_match||0}</b></div>
+      <div class="kpi"><small>Descuadrados</small><b class="${(r?.metodos_descuadrados||0)>0?'bad':'ok'}">${r?.metodos_descuadrados||0}</b></div>
+      <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(r?.deposito_sugerido)}</b></div>
+    </div>`);
+    v.appendChild(kpis);
+
+    const { data: det, error: e2 } = await S.supa.rpc('cierre_precheck_detalle', { p_jornada: S.jornadaId });
+    if(e2){ v.appendChild(el(`<div class="muted">${e2.message}</div>`)); return; }
+    S.precheck = det||[];
+
+    const table = el(`<div class="card"><table>
+      <thead><tr><th>Método</th><th>Total sistemas</th><th>Total vouchers</th><th>Diferencia</th><th>Estado</th></tr></thead>
+      <tbody id="preRows"></tbody></table></div>`);
+    v.appendChild(table);
+
+    const body = $('#preRows');
+    S.precheck.forEach(x=>{
+      body.appendChild(el(`<tr>
+        <td>${x.metodo_pago}</td>
+        <td>$${fmt(x.total_sistemas)}</td>
+        <td>${x.total_vouchers==null? '<span class="tag">(skip)</span>' : '$'+fmt(x.total_vouchers)}</td>
+        <td>${x.diferencia==null? '-' : ('$'+fmt(x.diferencia))}</td>
+        <td>${x.estado==='ok'? '<span class="ok">OK</span>' : (x.estado==='skip'? '<span class="muted">skip</span>' : '<span class="bad">'+x.estado+'</span>')}</td>
+      </tr>`));
+    });
+  }
+
+  // ====== MOD: Depósito ======
+  async function renderDeposito(){
+    const v = $('#mod-deposito'); v.innerHTML = '<h2>Depósito</h2>';
+    const { data, error } = await S.supa.rpc('ui_deposito_sugerido', { p_jornada: S.jornadaId });
+    if(error){ v.appendChild(el(`<div class="muted">${error.message}</div>`)); return; }
+    const d = Array.isArray(data)? data[0] : data;
+    S.deposito = d;
+    v.appendChild(el(`<div class="grid3">
+      <div class="kpi"><small>Total efectivo</small><b>$${fmt(d?.total_efectivo)}</b></div>
+      <div class="kpi"><small>Saldo final</small><b>$${fmt(d?.saldo_final)}</b></div>
+      <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(d?.deposito_sugerido)}</b></div>
+    </div>`));
+    v.appendChild(el(`<div class="row"><button class="btn primary" id="btnDepOk">Aceptar depósito</button></div>`));
+    $('#btnDepOk').onclick = async ()=>{
+      const { data, error } = await S.supa.rpc('deposito_aceptar', { p_jornada: S.jornadaId });
+      if(error){ toast('Depósito: '+error.message,'err'); return; }
+      toast('Depósito aceptado');
+    };
+  }
+
+  // ====== MOD: Cierre ======
+  async function renderCierre(){
+    const v = $('#mod-cierre'); v.innerHTML = '<h2>Cierre de jornada</h2>';
+    const box = el(`<div class="row">
+      <div class="col"><label>Comentario / Motivo (obligatorio si cierre con error)</label><textarea id="cierreMotivo" placeholder="Opcional para cierre OK; obligatorio para cierre con error"></textarea></div>
+    </div>`);
+    v.appendChild(box);
+    const btns = el(`<div class="row">
+      <button class="btn primary" id="btnCerrarOk">Cerrar OK</button>
+      <button class="btn err" id="btnCerrarErr">Cerrar con error (solo admin)</button>
+    </div>`);
+    v.appendChild(btns);
+
+    $('#btnCerrarOk').onclick = async ()=>{
+      const { data, error } = await S.supa.rpc('cierre_marcar', { p_jornada: S.jornadaId, p_ok: true, p_motivo: 'OK' });
+      if(error){ toast('Cierre: '+error.message,'err'); return; }
+      toast('Cierre OK guardado');
+    };
+
+    $('#btnCerrarErr').onclick = async ()=>{
+      const motivo = $('#cierreMotivo').value.trim();
+      if(!S.isAdmin){ toast('Solo admin puede cerrar con error','err'); return; }
+      if(motivo.length<3){ toast('Motivo requerido','err'); return; }
+      const { data, error } = await S.supa.rpc('cierre_marcar', { p_jornada: S.jornadaId, p_ok: false, p_motivo: motivo });
+      if(error){ toast('Cierre: '+error.message,'err'); return; }
+      toast('Cierre marcado con error');
+    };
+  }
+
+  // ====== MOD: Panel de jornadas (Admin) ======
+  async function renderPanel(){
+    const v = $('#mod-panel'); v.innerHTML = '<h2>Panel de jornadas por sucursal</h2>';
+    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
+
+    const pick = el(`<div class="row">
+      <div class="col"><label>Sucursal ID</label><input id="pSuc" placeholder="${S.sucursalId||''}" value="${S.sucursalId||''}"></div>
+      <div class="col"><label>Desde</label><input id="pFrom" type="date"></div>
+      <div class="col"><label>Hasta</label><input id="pTo" type="date"></div>
+      <div class="col" style="align-self:end"><button class="btn" id="btnLoadPanel">Cargar</button></div>
+    </div>`);
+    v.appendChild(pick);
+
+    const table = el(`<div class="card"><table>
+      <thead><tr><th>Fecha</th><th>Jornada</th><th>Abierto por</th><th>Estado</th><th>Depósito</th><th>Acciones</th></tr></thead>
+      <tbody id="panelRows"></tbody></table></div>`);
+    v.appendChild(table);
+
+    $('#btnLoadPanel').onclick = async ()=>{
+      const p = { p_sucursal_id: $('#pSuc').value || null, p_from: $('#pFrom').value || null, p_to: $('#pTo').value || null };
+      const { data, error } = await S.supa.rpc('admin_jornadas_between', p);
+      if(error){ toast('Panel: '+error.message,'err'); return; }
+      const rows = $('#panelRows'); rows.innerHTML = '';
+      (data||[]).forEach(j=>{
+        const tr = el(`<tr>
+          <td>${j.fecha}</td>
+          <td><code>${j.jornada_id}</code></td>
+          <td>${j.abierto_por_email||''}</td>
+          <td>${j.estado}${j.cierre_ok===false? ' (error)':''}</td>
+          <td>$${fmt(j.deposito_monto)}</td>
+          <td><button class="btn warn" data-cerrar="${j.jornada_id}">Cerrar con error</button></td>
+        </tr>`);
+        rows.appendChild(tr);
       });
-    }
-
-    <script>
-  // ====== LISTADOS ======
-  async function loadMetodosPago() {
-    const cont = document.getElementById("metodosPago"); cont.innerHTML = "";
-    const { data, error } = await supabase.from("metodos_pago").select("*").order("orden",{ascending:true});
-    if (error) { cont.innerHTML = `<div class="hint">Error: ${error.message}</div>`; return; }
-    (data||[]).forEach(r=>{
-      const d = document.createElement("div"); d.className="item";
-      d.innerHTML = `<div><strong>${r.nombre}</strong> <span class="tag">orden ${r.orden}</span></div>
-                     <div><button class="ghost" data-type="mp-del" data-id="${r.id}">Eliminar</button></div>`;
-      cont.appendChild(d);
-    });
-  }
-
-  async function loadDenominaciones() {
-    const cont = document.getElementById("denominaciones"); cont.innerHTML = "";
-    const { data, error } = await supabase.from("denominaciones").select("*").order("orden",{ascending:true});
-    if (error) { cont.innerHTML = `<div class="hint">Error: ${error.message}</div>`; return; }
-    (data||[]).forEach(r=>{
-      const d = document.createElement("div"); d.className="item";
-      d.innerHTML = `<div><strong>${Number(r.valor).toFixed(2)}</strong> <span class="tag">${r.tipo}</span> <span class="tag">orden ${r.orden}</span></div>
-                     <div><button class="ghost" data-type="den-del" data-id="${r.id}">Eliminar</button></div>`;
-      cont.appendChild(d);
-    });
-  }
-
-  // Llama a tus loads existentes + estos dos
-  async function loadAll() {
-    await loadLists();           // <-- tu función que ya carga sucursales/sistemas
-    await loadMetodosPago();
-    await loadDenominaciones();
-  }
-
-  // ====== INSERTAR ======
-  document.getElementById("btnAddMP").onclick = async ()=>{
-    const nombre = document.getElementById("mpNombre").value.trim();
-    const orden  = parseInt(document.getElementById("mpOrden").value || "100", 10);
-    if (!nombre) return alert("Ingresa un nombre");
-    const { error } = await supabase.from("metodos_pago").insert({ nombre, orden });
-    if (error) return alert(error.message);
-    document.getElementById("mpNombre").value = ""; document.getElementById("mpOrden").value = "100";
-    await loadMetodosPago();
-  };
-
-  document.getElementById("btnAddDen").onclick = async ()=>{
-    const valor = parseFloat(document.getElementById("denValor").value);
-    const tipo  = document.getElementById("denTipo").value;
-    const orden = parseInt(document.getElementById("denOrden").value || "100", 10);
-    if (!valor || valor <= 0) return alert("Valor inválido");
-    const { error } = await supabase.from("denominaciones").insert({
-      valor: Number(valor.toFixed(2)), tipo, orden
-    });
-    if (error) return alert(error.message);
-    document.getElementById("denValor").value = ""; document.getElementById("denOrden").value = "100";
-    await loadDenominaciones();
-  };
-
-  // ====== ELIMINAR (delegado) ======
-  document.addEventListener("click", async (e)=>{
-    const t = e.target; if(!(t instanceof HTMLElement)) return;
-    const type = t.getAttribute("data-type"), id = t.getAttribute("data-id");
-    if (type === "mp-del" && id) {
-      if (!confirm("¿Eliminar método de pago?")) return;
-      const { error } = await supabase.from("metodos_pago").delete().eq("id", id);
-      if (error) return alert(error.message);
-      await loadMetodosPago();
-    }
-    if (type === "den-del" && id) {
-      if (!confirm("¿Eliminar denominación?")) return;
-      const { error } = await supabase.from("denominaciones").delete().eq("id", id);
-      if (error) return alert(error.message);
-      await loadDenominaciones();
-    }
-  });
-
-  // Llama loadAll() después de loguearte (donde antes llamabas refresh/loadLists)
-  // Por ejemplo, en tu flujo:
-  //   - tras login OK -> await loadAll();
-  //   - al entrar con sesión ya iniciada -> await loadAll();
-</script>
-
-    // Sistemas
-    const si = $("sistemas"); si.innerHTML="";
-    let r2 = await supabase.from("sistemas").select("*").order("created_at",{ascending:true});
-    if(r2.error){ si.innerHTML = '<div class="hint">Error: '+r2.error.message+'</div>'; } else {
-      (r2.data||[]).forEach(r=>{
-        const d=document.createElement("div"); d.className="item";
-        d.innerHTML=`<div><strong>${r.nombre}</strong></div>
-                     <div><button class="ghost" data-id="${r.id}" data-type="sistema-del">Eliminar</button></div>`;
-        si.appendChild(d);
+      $$('#panelRows [data-cerrar]').forEach(b=> b.onclick = async ()=>{
+        const motivo = prompt('Motivo del cierre con error:');
+        if(!motivo) return;
+        await S.supa.rpc('cierre_marcar', { p_jornada: b.dataset.cerrar, p_ok: false, p_motivo: motivo });
+        toast('Cierre con error enviado');
       });
-    }
+    };
   }
 
-  document.addEventListener("click", async (ev)=>{
-    const t = ev.target; if(!(t instanceof HTMLElement)) return;
-    const typ = t.getAttribute("data-type"); const id = t.getAttribute("data-id");
-    if(typ==="sucursal-del" && id){
-      if(!confirm("¿Eliminar sucursal?")) return;
-      const { error } = await supabase.from("sucursales").delete().eq("id", id);
-      if(error) return alert(error.message);
-      await loadLists();
-    }
-    if(typ==="sistema-del" && id){
-      if(!confirm("¿Eliminar sistema?")) return;
-      const { error } = await supabase.from("sistemas").delete().eq("id", id);
-      if(error) return alert(error.message);
-      await loadLists();
-    }
-  });
+  // ====== MOD: Configuración (Admin) ======
+  async function renderConfig(){
+    const v = $('#mod-config'); v.innerHTML = '<h2>Configuración</h2>';
+    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
 
-  $("btnAddSucursal").onclick = async ()=>{
-    const nombre = $("sucursalNombre").value.trim();
-    if(!nombre) return alert("Ingresa un nombre");
-    const { error } = await supabase.from("sucursales").insert({ nombre });
-    if(error) return alert(error.message);
-    $("sucursalNombre").value="";
-    await loadLists();
-  };
-  $("btnAddSistema").onclick = async ()=>{
-    const nombre = $("sistemaNombre").value.trim();
-    if(!nombre) return alert("Ingresa un nombre");
-    const { error } = await supabase.from("sistemas").insert({ nombre });
-    if(error) return alert(error.message);
-    $("sistemaNombre").value="";
-    await loadLists();
-  };
+    const box = el(`<div class="grid3">
+      <div class="card">
+        <h3>Sucursales</h3>
+        <label>Nombre</label><input id="cfgSucNombre" placeholder="Sucursal X"/>
+        <div class="row"><button class="btn primary" id="btnAddSuc">Añadir</button></div>
+      </div>
+      <div class="card">
+        <h3>Sistemas</h3>
+        <label>Nombre</label><input id="cfgSisNombre" placeholder="Sistema X"/>
+        <div class="row"><button class="btn primary" id="btnAddSis">Añadir</button></div>
+      </div>
+      <div class="card">
+        <h3>Métodos de pago</h3>
+        <label>Nombre</label><input id="cfgMetNombre" placeholder="Cheque"/>
+        <div class="row">
+          <label><input type="checkbox" id="cfgMatch"/> Requiere match</label>
+          <label><input type="checkbox" id="cfgFoto"/> Requiere foto</label>
+        </div>
+        <div class="row"><button class="btn primary" id="btnAddMet">Añadir</button></div>
+      </div>
+    </div>`);
+    v.appendChild(box);
 
-  refresh();
-</script>
+    $('#btnAddSuc').onclick = async ()=>{
+      const nombre = $('#cfgSucNombre').value.trim();
+      if(!nombre) return;
+      const { error } = await S.supa.rpc('admin_add_sucursal', { p_nombre: nombre });
+      if(error){ toast('Sucursal: '+error.message,'err'); return; }
+      toast('Sucursal creada');
+    };
+    $('#btnAddSis').onclick = async ()=>{
+      const nombre = $('#cfgSisNombre').value.trim();
+      if(!nombre) return;
+      const { error } = await S.supa.rpc('admin_add_sistema', { p_nombre: nombre });
+      if(error){ toast('Sistema: '+error.message,'err'); return; }
+      toast('Sistema creado');
+    };
+    $('#btnAddMet').onclick = async ()=>{
+      const nombre = $('#cfgMetNombre').value.trim();
+      const m = $('#cfgMatch').checked; const f = $('#cfgFoto').checked;
+      if(!nombre) return;
+      const { error } = await S.supa.rpc('admin_add_metodo_pago', { p_nombre: nombre, p_match: m, p_foto: f });
+      if(error){ toast('Método: '+error.message,'err'); return; }
+      toast('Método de pago creado');
+    };
+  }
+
+  </script>
 </body>
 </html>
