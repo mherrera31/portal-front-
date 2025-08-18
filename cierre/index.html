@@ -4,9 +4,43 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PSC Cierre — Portal</title>
+
+  <!-- Favicon para evitar 404 -->
   <link rel="icon" href="data:,">
+
+  <!-- ================== CONFIG & LIBS (orden importante) ================== -->
+  <!-- 1) Tu configuración: DEBE definir window.PSC_CONFIG (sin <script> adentro) -->
   <script src="./config.js"></script>
+
+  <!-- 2) Supabase UMD -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.45.1/dist/umd/supabase.js"></script>
+
+  <!-- 3) PATCH #1 — Interceptor de fetch para /rest/v1 (inyecta apikey + schema) -->
+  <script>
+  (function(){
+    const cfg = window.PSC_CONFIG || {};
+    const apiBase = cfg.url ? (cfg.url + '/rest/v1') : null;
+    const anon = cfg.anon;
+    const _fetch = window.fetch;
+    window.fetch = (url, opts = {}) => {
+      try {
+        if (apiBase && typeof url === 'string' && url.startsWith(apiBase)) {
+          const h = new Headers(opts.headers || {});
+          if (anon && !h.has('apikey')) h.set('apikey', anon);
+          if (!h.has('Accept-Profile'))  h.set('Accept-Profile',  'cierre');
+          if (!h.has('Content-Profile')) h.set('Content-Profile', 'cierre');
+          if (!h.has('Content-Type') && (!opts.method || opts.method.toUpperCase() !== 'GET')) {
+            h.set('Content-Type','application/json');
+          }
+          opts.headers = h;
+        }
+      } catch(e) { /* no-op */ }
+      return _fetch(url, opts);
+    };
+  })();
+  </script>
+
+  <!-- ============================== ESTILOS ============================== -->
   <style>
     :root{
       --bg:#f6f7fb; --bg2:#eef2f7; --card:#fff; --border:#e5e7eb; --muted:#6b7280; --fg:#111827;
@@ -43,431 +77,758 @@
     .layout{display:grid;grid-template-columns:260px 1fr;gap:16px}
     .menu a{display:block;padding:10px;border:1px solid var(--border);border-radius:10px;margin:6px 0;text-decoration:none;color:var(--fg);background:#fff}
     .menu a.active{background:#10b9811a;border-color:#34d399;font-weight:700}
-    /* Error overlay */
+    /* Overlay de errores para no quedar en blanco */
     #errbox{position:fixed;left:16px;right:16px;bottom:16px;z-index:99999;background:#fff1f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:10px 12px;box-shadow:0 8px 24px rgba(15,23,42,.12);display:none;white-space:pre-wrap}
   </style>
 </head>
 <body>
   <div class="wrap"><div id="app"></div></div>
- <div id="errbox"></div>
-  
-<script>
+  <div id="errbox"></div>
 
+  <!-- Overlay de errores (si algo rompe, lo vemos en pantalla) -->
+  <script>
   (function(){
-  const box = document.getElementById('errbox');
-  function show(msg){ box.textContent = msg; box.style.display='block'; }
-  // 👇 corregido: había un paréntesis de más al final
-  window.addEventListener('error',  e => show(String(e.error?.stack || e.message || e)));
-  window.addEventListener('unhandledrejection', e => show('Promise rejection: ' + (e.reason?.message || e.reason)));
-})();
+    const box = document.getElementById('errbox');
+    function show(msg){ box.textContent = msg; box.style.display='block'; }
+    window.addEventListener('error',  e => show(String(e.error?.stack || e.message || e)));
+    window.addEventListener('unhandledrejection', e => show('Promise rejection: ' + (e.reason?.message || e.reason)));
+  })();
+  </script>
 
-/* ====================== CONFIG ====================== */
-if (!window.PSC_CONFIG) {
-  document.getElementById('app').innerHTML =
-    '<div class="card">Falta <b>config.js</b> con <code>window.PSC_CONFIG</code>.</div>';
-  throw new Error('PSC_CONFIG missing');
-}
-const CFG = {...window.PSC_CONFIG};
-if (!CFG.url && CFG.ref) CFG.url = `https://${CFG.ref}.supabase.co`;
-if (!CFG.url || !CFG.anon) {
-  document.getElementById('app').innerHTML =
-    '<div class="card">En <b>config.js</b> falta <code>url</code> (o <code>ref</code>) y/o <code>anon</code>.</div>';
-  throw new Error('PSC_CONFIG incomplete');
-}
-CFG.bucket = CFG.bucket || 'cierre-comprobantes';
-CFG.logo   = CFG.logo   || 'https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp';
+  <!-- ============================ APP SCRIPT ============================ -->
+  <script>
+  /* --------- Validación de config --------- */
+  if (!window.PSC_CONFIG) {
+    document.getElementById('app').innerHTML =
+      '<div class="card">Falta <b>config.js</b> con <code>window.PSC_CONFIG</code>.</div>';
+    throw new Error('PSC_CONFIG missing');
+  }
+  const CFG = {...window.PSC_CONFIG};
+  if (!CFG.url && CFG.ref) CFG.url = `https://${CFG.ref}.supabase.co`;
+  if (!CFG.url || !CFG.anon) {
+    document.getElementById('app').innerHTML =
+      '<div class="card">En <b>config.js</b> falta <code>url</code> (o <code>ref</code>) y/o <code>anon</code>.</div>';
+    throw new Error('PSC_CONFIG incomplete');
+  }
+  CFG.bucket = CFG.bucket || 'cierre-comprobantes';
+  CFG.logo   = CFG.logo   || 'https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp';
 
-/* =========================== STATE / HELPERS =========================== */
-const S = { supa:null, user:null, isAdmin:false, sucursalId:null, jornadaId:null, sistemas:[], metodos:[], denoms:[], precheck:[], deposito:null };
-const el = (html) => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
-const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
-const $  = (sel,root=document)=>root.querySelector(sel);
-const fmt = (n)=> (n==null||isNaN(n))? '0.00' : Number(n).toFixed(2);
-const getContainer = (id)=> document.getElementById('content') || document.getElementById(id);
-function toast(msg,type=''){ console.log(msg); const d=el(`<div class="card" style="position:fixed;right:16px;bottom:16px;z-index:9999;border-color:${type==='err'?'#fecaca':'var(--border)'}">${msg}</div>`); document.body.appendChild(d); setTimeout(()=>d.remove(),2400); }
+  /* --------- State y helpers --------- */
+  const S = {
+    supa:null,          // cliente principal
+    supaNoPersist:null, // cliente secundario sin persistencia (crear usuarios sin alterar tu sesión)
+    user:null,
+    isAdmin:false,
+    sucursalId:null,
+    jornadaId:null,
+    sistemas:[],
+    metodos:[],
+    denoms:[],
+    precheck:[],
+    deposito:null,
+  };
+  const el = (html) => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const $  = (sel,root=document)=>root.querySelector(sel);
+  const fmt = (n)=> (n==null||isNaN(n))? '0.00' : Number(n).toFixed(2);
+  function toast(msg, type=''){
+    console.log(msg);
+    const div = el(`<div class="card" style="position:fixed;right:16px;bottom:16px;z-index:9999;border-color:${type==='err'?'#fecaca':'var(--border)'}">${msg}</div>`);
+    document.body.appendChild(div); setTimeout(()=>div.remove(), 2400);
+  }
+  const getContainer = (id)=> document.getElementById('content') || document.getElementById(id);
 
-/* ============= Supabase: un solo createClient + schema + apikey ============= */
-S.supa = supabase.createClient(CFG.url, CFG.anon, {
-  db:   { schema: 'cierre' },
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl:false },
-  global: {
-    headers: {
-      apikey: CFG.anon,
-      'Accept-Profile': 'cierre',
-      'Content-Profile': 'cierre'
+  /* --------- PATCH #3 — ÚNICO createClient (con headers globales) --------- */
+  S.supa = supabase.createClient(CFG.url, CFG.anon, {
+    db:   { schema: 'cierre' },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl:false },
+    global: { headers: { apikey: CFG.anon, 'Accept-Profile': 'cierre', 'Content-Profile': 'cierre' } }
+  });
+  // Cliente Aux para signUp sin tocar tu sesión (no persiste)
+  S.supaNoPersist = supabase.createClient(CFG.url, CFG.anon, {
+    db:   { schema: 'cierre' },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl:false },
+    global: { headers: { apikey: CFG.anon, 'Accept-Profile': 'cierre', 'Content-Profile': 'cierre' } }
+  });
+  window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
+
+  /* --------- RPC "crudo" (siempre con apikey + bearer) --------- */
+  async function rpcRaw(name, params){
+    const { data: { session } } = await S.supa.auth.getSession();
+    const res = await fetch(`${CFG.url}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: {
+        'apikey': CFG.anon,
+        'Authorization': `Bearer ${session?.access_token ?? CFG.anon}`,
+        'Content-Type': 'application/json',
+        'Accept-Profile': 'cierre',
+        'Content-Profile': 'cierre'
+      },
+      body: JSON.stringify(params||{})
+    });
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error(txt || res.statusText);
     }
+    return res.json();
   }
-});
+  // Forzamos todos los RPC a pasar por rpcRaw
+  async function rpc(name, params){ return rpcRaw(name, params); }
 
- 
-window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
-
-/* RPC helpers */
-async function rpcRaw(name, params){
-  const { data: { session } } = await S.supa.auth.getSession();
-  const res = await fetch(`${CFG.url}/rest/v1/rpc/${name}`, {
-    method:'POST',
-    headers:{
-      'apikey': CFG.anon,
-      'Authorization': `Bearer ${session?.access_token ?? CFG.anon}`,
-      'Content-Type':'application/json',
-      'Accept-Profile':'cierre',
-      'Content-Profile':'cierre'
-    },
-    body: JSON.stringify(params||{})
+  /* --------- Init auth --------- */
+  document.addEventListener('DOMContentLoaded', async () => {
+    const { data: { session } } = await S.supa.auth.getSession();
+    if(session){ S.user = session.user; await afterLogin(); } else { renderLogin(); }
+    S.supa.auth.onAuthStateChange(async (_evt, sess) => {
+      if(sess?.user){ S.user=sess.user; await afterLogin(); } else { S.user=null; renderLogin(); }
+    });
   });
-  if(!res.ok) throw new Error(await res.text()||res.statusText);
-  return res.json();
-}
-async function rpc(name, params){
-  let { data, error } = await S.supa.rpc(name, params);
-  if (!error) return data;
-  if (String(error.message||'').includes('No API key')) return rpcRaw(name, params);
-  try { await S.supa.auth.refreshSession(); } catch {}
-  ({ data, error } = await S.supa.rpc(name, params));
-  if (error) throw error;
-  return data;
-}
 
-/* =============================== INIT =============================== */
-document.addEventListener('DOMContentLoaded', async () => {
-  const { data: { session } } = await S.supa.auth.getSession();
-  if(session){ S.user = session.user; await afterLogin(); } else { renderLogin(); }
-  S.supa.auth.onAuthStateChange(async (_evt, sess) => {
-    if(sess?.user){ S.user=sess.user; await afterLogin(); } else { S.user=null; renderLogin(); }
-  });
-});
-
-/* ============================= VISTAS ============================= */
-function renderLogin(){
-  $('#app').innerHTML = '';
-  const v = el(`
-    <div class="card">
-      <div class="brand" style="margin-bottom:8px">
-        <img src="${CFG.logo}" alt="PSC Cargas"/>
-        <div><div class="title">PSC Cargas</div><div class="muted">Cierre Diario</div></div>
-      </div>
-      <h1>Iniciar sesión</h1>
-      <div class="row">
-        <div class="col"><label>Email</label><input id="lEmail" type="email" placeholder="test@test.com"></div>
-        <div class="col"><label>Contraseña</label><input id="lPass" type="password" placeholder="••••••"></div>
-      </div>
-      <div class="row"><button class="btn primary" id="btnLogin">Entrar</button><button class="btn" id="btnSignup">Crear cuenta</button></div>
-      <div class="muted" style="margin-top:8px">Ejemplo: test@test.com / test123</div>
-    </div>`);
-  $('#app').appendChild(v);
-  $('#btnLogin').onclick = login;
-  $('#btnSignup').onclick = signup;
-}
-
-async function afterLogin(){
-  try{
-    const { data: prof, error } = await S.supa.from('profiles').select('role,sucursal_id').eq('id', S.user.id).single();
-    if (error) throw error;
-    S.isAdmin    = (prof?.role === 'admin');
-    S.sucursalId = prof?.sucursal_id || null;
-  }catch(e){
-    console.warn(e); toast('No hay perfil o sucursal asignada','err');
-    S.isAdmin=false; S.sucursalId=null;
+  /* ============================ UTILIDADES PERFIL ============================ */
+  async function reloadPerfil(){
+    try{
+      const { data: prof, error } = await S.supa.from('profiles').select('role,sucursal_id').eq('id', S.user.id).single();
+      if (error) throw error;
+      S.isAdmin    = (prof?.role === 'admin');
+      S.sucursalId = prof?.sucursal_id || null;
+      const labS = document.getElementById('labS'); if (labS) labS.textContent = S.sucursalId || '-';
+    }catch(e){ console.warn(e); S.isAdmin=false; S.sucursalId=null; }
   }
-  renderPortal();
-}
+  async function listSucursales(){
+    const { data, error } = await S.supa.from('sucursales').select('id,nombre').order('nombre');
+    if (error) { toast('Sucursales: '+error.message, 'err'); return []; }
+    return data||[];
+  }
+  async function asignarmeSucursal(sucursalId){
+    try{
+      await rpc('admin_profile_set_sucursal', { p_user_id: S.user.id, p_sucursal_id: sucursalId });
+      toast('Sucursal asignada'); await reloadPerfil();
+    }catch(e){ toast('Asignar sucursal: ' + e.message, 'err'); }
+  }
 
-function topBar(){
-  const u = S.user?.email || S.user?.id;
-  return el(`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-    <div class="brand"><img src="${CFG.logo}" alt="PSC Cargas"/><div><div class="title">PSC Cargas</div><div class="muted">Portal de Cierre</div></div></div>
-    <div class="row" style="align-items:center"><span class="muted">${S.isAdmin?'Rol: Admin':'Rol: Usuario'} • ${u||''}</span><button class="btn warn" id="btnLogout">Salir</button></div>
-  </div>`);
-}
+  /* ============================== LOGIN / SIGNUP ============================== */
+  function renderLogin(){
+    $('#app').innerHTML = '';
+    const v = el(`
+      <div class="card">
+        <div class="brand" style="margin-bottom:8px">
+          <img src="${CFG.logo}" alt="PSC Cargas"/>
+          <div><div class="title">PSC Cargas</div><div class="muted">Cierre Diario</div></div>
+        </div>
+        <h1>Iniciar sesión</h1>
+        <div class="row">
+          <div class="col"><label>Email</label><input id="lEmail" type="email" placeholder="test@test.com"></div>
+          <div class="col"><label>Contraseña</label><input id="lPass" type="password" placeholder="••••••"></div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="btnLogin">Entrar</button>
+          <button class="btn" id="btnSignup">Crear cuenta</button>
+        </div>
+        <div class="muted" style="margin-top:8px">Ejemplo: test@test.com / test123</div>
+      </div>`);
+    $('#app').appendChild(v);
+    $('#btnLogin').onclick = login;
+    $('#btnSignup').onclick = signup;
+  }
+  async function login(){
+    const email = $('#lEmail').value.trim();
+    const password = $('#lPass').value;
+    const { error } = await S.supa.auth.signInWithPassword({ email, password });
+    if(error){ toast('Login: '+error.message, 'err'); }
+  }
+  async function signup(){
+    // OJO: este signup crea usuario y cambiará sesión si usas S.supa.
+    // Para no afectar tu login actual, usamos S.supaNoPersist y mostramos una nota.
+    const email = $('#lEmail').value.trim();
+    const password = $('#lPass').value || 'test123';
+    const { data, error } = await S.supaNoPersist.auth.signUp({ email, password });
+    if(error){ toast('SignUp: '+error.message, 'err'); return; }
+    toast('Usuario creado. Revisa tu correo si requiere verificación.');
+  }
 
-function renderPortal(){
-  $('#app').innerHTML = '';
-  $('#app').appendChild(topBar());
-  $('#btnLogout').onclick = async ()=>{ await S.supa.auth.signOut(); };
-
-  const layout = el(`
-    <div class="layout">
-      <aside class="card">
-        <h3>Menú</h3>
-        <nav id="nav" class="menu">
-          <a href="#/mod-inicio">Inicio de jornada</a>
-          <a href="#/mod-apertura">Saldo inicial</a>
-          <a href="#/mod-ingresos">Ingresos (sistemas)</a>
-          <a href="#/mod-sfinal">Saldo final</a>
-          <a href="#/mod-vouchers">Vouchers</a>
-          <a href="#/mod-precheck">Precheck</a>
-          <a href="#/mod-deposito">Depósito</a>
-          <a href="#/mod-cierre">Cierre</a>
-          ${S.isAdmin? '<a href="#/mod-panel">Panel de jornadas</a>' : ''}
-          ${S.isAdmin? '<a href="#/mod-config">Configuración</a>' : ''}
-        </nav>
-        <div class="hr"></div>
-        <div class="muted">Sucursal: <span id="labS">${S.sucursalId||'-'}</span><br>Jornada: <span id="labJ">${S.jornadaId||'-'}</span></div>
-      </aside>
-      <main id="content" class="card"></main>
+  /* ============================== PORTAL & ROUTER ============================== */
+  async function afterLogin(){
+    await reloadPerfil();
+    renderPortal();
+  }
+  function topBar(){
+    const u = S.user?.email || S.user?.id;
+    return el(`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div class="brand"><img src="${CFG.logo}" alt="PSC Cargas"/><div><div class="title">PSC Cargas</div><div class="muted">Portal de Cierre</div></div></div>
+      <div class="row" style="align-items:center"><span class="muted">${S.isAdmin?'Rol: Admin':'Rol: Usuario'} • ${u||''}</span><button class="btn warn" id="btnLogout">Salir</button></div>
     </div>`);
-  $('#app').appendChild(layout);
+  }
+  function renderPortal(){
+    $('#app').innerHTML = '';
+    $('#app').appendChild(topBar());
+    $('#btnLogout').onclick = async ()=>{ await S.supa.auth.signOut(); };
 
-  const applyActive = ()=> $$('#nav a').forEach(a=> a.classList.toggle('active', a.getAttribute('href')===location.hash));
-  window.addEventListener('hashchange', ()=>{ applyActive(); show(location.hash.slice(2) || 'mod-inicio'); });
-  if (!location.hash) location.hash = '#/mod-inicio';
-  applyActive();
-  show(location.hash.slice(2));
-}
+    const layout = el(`
+      <div class="layout">
+        <aside class="card">
+          <h3>Menú</h3>
+          <nav id="nav" class="menu">
+            <a href="#/mod-inicio">Inicio de jornada</a>
+            <a href="#/mod-apertura">Saldo inicial</a>
+            <a href="#/mod-ingresos">Ingresos (sistemas)</a>
+            <a href="#/mod-sfinal">Saldo final</a>
+            <a href="#/mod-vouchers">Vouchers</a>
+            <a href="#/mod-precheck">Precheck</a>
+            <a href="#/mod-deposito">Depósito</a>
+            <a href="#/mod-cierre">Cierre</a>
+            ${S.isAdmin? '<a href="#/mod-panel">Panel de jornadas</a>' : ''}
+            ${S.isAdmin? '<a href="#/mod-usuarios">Usuarios (admin)</a>' : ''}
+            ${S.isAdmin? '<a href="#/mod-config">Configuración</a>' : ''}
+          </nav>
+          <div class="hr"></div>
+          <div class="muted">Sucursal: <span id="labS">${S.sucursalId||'-'}</span><br>Jornada: <span id="labJ">${S.jornadaId||'-'}</span></div>
+        </aside>
+        <main id="content" class="card"></main>
+      </div>`);
+    $('#app').appendChild(layout);
 
-function show(id){
-  const main = document.getElementById('content'); if(!main) return;
-  main.innerHTML = '';
-  if(id==='mod-inicio')      renderInicio();
-  if(id==='mod-apertura')    renderApertura();
-  if(id==='mod-ingresos')    renderIngresos();
-  if(id==='mod-sfinal')      renderSaldoFinal();
-  if(id==='mod-vouchers')    renderVouchers();
-  if(id==='mod-precheck')    renderPrecheck();
-  if(id==='mod-deposito')    renderDeposito();
-  if(id==='mod-cierre')      renderCierre();
-  if(id==='mod-panel')       renderPanel();
-  if(id==='mod-config')      renderConfig();
-}
+    const applyActive = ()=> $$('#nav a').forEach(a=> a.classList.toggle('active', a.getAttribute('href')===location.hash));
+    window.addEventListener('hashchange', ()=>{ applyActive(); show(location.hash.slice(2) || 'mod-inicio'); });
+    if (!location.hash) location.hash = '#/mod-inicio';
+    applyActive();
+    show(location.hash.slice(2));
+  }
+  function show(id){
+    const main = document.getElementById('content'); if(!main) return;
+    main.innerHTML = '';
+    if(id==='mod-inicio')      renderInicio();
+    if(id==='mod-apertura')    renderApertura();
+    if(id==='mod-ingresos')    renderIngresos();
+    if(id==='mod-sfinal')      renderSaldoFinal();
+    if(id==='mod-vouchers')    renderVouchers();
+    if(id==='mod-precheck')    renderPrecheck();
+    if(id==='mod-deposito')    renderDeposito();
+    if(id==='mod-cierre')      renderCierre();
+    if(id==='mod-panel')       renderPanel();
+    if(id==='mod-usuarios')    renderUsuarios();
+    if(id==='mod-config')      renderConfig();
+  }
 
-/* ============================= AUTH ============================= */
-async function login(){
-  const email=$('#lEmail').value.trim(), password=$('#lPass').value;
-  const { error } = await S.supa.auth.signInWithPassword({ email, password });
-  if(error) toast('Login: '+error.message,'err');
-}
-async function signup(){
-  const email=$('#lEmail').value.trim(), password=$('#lPass').value || 'test123';
-  const { error } = await S.supa.auth.signUp({ email, password });
-  if(error) toast('SignUp: '+error.message,'err'); else toast('Usuario creado.');
-}
+  /* ======================== GUARD: jornada requerida ======================== */
+  function requireJornadaOrExplain(containerEl){
+    if (!S.jornadaId) {
+      containerEl.innerHTML = `
+        <h2>Módulo no disponible</h2>
+        <div class="card">
+          <p class="muted">No hay una jornada activa. Ve a <b>Inicio de jornada</b> y pulsa <b>Marcar inicio</b>.</p>
+        </div>`;
+      return false;
+    }
+    return true;
+  }
 
-/* ============================ JORNADA ============================ */
-async function ensureJornada(){
-  const data = await rpc('ensure_jornada_hoy', { p_sucursal_id: null }).catch(e=>toast(e.message,'err'));
-  const id = Array.isArray(data)? (data[0]?.ensure_jornada_hoy||data[0]) : (data?.ensure_jornada_hoy||data);
-  if(id){ S.jornadaId=id; $('#labJ').textContent=id; }
-}
-async function marcarInicio(){ await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{}); await ensureJornada(); }
+  /* ============================ JORNADA (inicio) ============================ */
+  async function ensureJornada(){
+    const data = await rpc('ensure_jornada_hoy', { p_sucursal_id: null }).catch(e=>toast(e.message,'err'));
+    const id = Array.isArray(data)? (data[0]?.ensure_jornada_hoy||data[0]) : (data?.ensure_jornada_hoy||data);
+    if(id){ S.jornadaId = id; const labJ=document.getElementById('labJ'); if(labJ) labJ.textContent=id; }
+  }
+  async function marcarInicio(){ await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{}); await ensureJornada(); }
 
-/* ===== Catálogos ===== */
-async function ensureCatalogos(){
-  if(!S.sistemas.length){ try{ S.sistemas = await rpc('ui_list_sistemas')||[]; }catch(e){ console.warn(e);} }
-  if(!S.metodos.length){ try{ S.metodos = await rpc('ui_list_metodos_pago')||[]; }catch(e){ console.warn(e);} }
-  if(!S.denoms.length){   try{ S.denoms   = await rpc('ui_list_denominaciones')||[]; }catch(e){ console.warn(e);} }
-}
+  function renderInicio(){
+    const v = getContainer('mod-inicio'); v.innerHTML = '';
 
-/* ========================= MOD: INICIO ========================= */
-function renderInicio(){
-  const v = getContainer('mod-inicio'); v.innerHTML='';
-  v.appendChild(el(`<div><h2>Inicio de jornada</h2>
-    <div class="row"><button class="btn primary" id="btnStart">Marcar inicio</button><button class="btn" id="btnEnsure">Refrescar jornada</button></div>
-    <div class="muted">Jornada: ${S.jornadaId||'-'}</div></div>`));
-  $('#btnStart').onclick = marcarInicio;
-  $('#btnEnsure').onclick = ensureJornada;
-}
+    v.appendChild(el(`<div>
+      <h2>Inicio de jornada</h2>
+      <div class="muted">Usuario: ${S.user?.email||S.user?.id||'-'}</div>
+      <div class="muted">Sucursal actual: <b>${S.sucursalId||'-'}</b></div>
+      <div class="muted">Jornada actual: <b>${S.jornadaId||'-'}</b></div>
+      <div class="hr"></div>
+    </div>`));
 
-/* ====================== MOD: APERTURA ====================== */
-async function renderApertura(){
-  const v = getContainer('mod-apertura'); v.innerHTML='<h2>Saldo inicial (Apertura)</h2>';
-  await ensureJornada(); await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{});
-  await ensureCatalogos();
-  let detalle=[]; try{ detalle=await rpc('ui_apertura_get_items')||[]; }catch{}
-  const tbl = el(`<div class="row"><div class="col">
-    <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="apRows"></tbody></table>
-    <div class="row"><button class="btn primary" id="btnApSave">Guardar</button></div>
-  </div></div>`); v.appendChild(tbl);
-  const body=$('#apRows');
-  S.denoms.forEach(d=>{
-    const qty=(detalle.find(x=>x.denominacion_id===d.id)?.cantidad)||0;
-    body.appendChild(el(`<tr><td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td><td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td></tr>`));
-  });
-  $('#btnApSave').onclick = async ()=>{
-    const items = $$('#apRows input').map(i=>({denominacion_id:i.dataset.denom,cantidad:parseInt(i.value||'0',10)||0}));
-    await rpc('apertura_save_counts', { p_items: items }).catch(e=>toast('apertura_save: '+e.message,'err'));
-    toast('Apertura guardada');
-  };
-}
+    if (!S.sucursalId) {
+      const box = el(`<div class="card">
+        <h3>No tienes una sucursal asignada</h3>
+        <p class="muted">Para poder iniciar jornada debes tener una sucursal.</p>
+        ${S.isAdmin ? `
+          <div class="row">
+            <div class="col"><label>Asignarme sucursal</label><select id="selMisSuc"></select></div>
+            <div class="col" style="align-self:end"><button class="btn primary" id="btnAsignar">Asignar a mi perfil</button></div>
+          </div>
+        ` : `<div class="muted">Pídele a un administrador que te asigne una sucursal.</div>`}
+      </div>`);
+      v.appendChild(box);
 
-/* ====================== MOD: INGRESOS ====================== */
-async function renderIngresos(){
-  await ensureCatalogos();
-  const v = getContainer('mod-ingresos'); v.innerHTML='<h2>Ingresos — Totales del día</h2>';
-  const grid = el('<div class="row" id="ingGrid" style="gap:16px;flex-wrap:wrap"></div>'); v.appendChild(grid);
-  S.sistemas.forEach(sys=>{
-    const box=el(`<div class="card" style="flex:1 1 320px"><h3>${sys.nombre}</h3>
-      ${S.metodos.map(m=>`<div style="margin:10px 0"><label>${m.nombre}</label><input type="number" step="0.01" min="0" placeholder="0.00" data-sis="${sys.nombre}" data-met="${m.nombre}" /></div>`).join('')}
-      <button class="btn primary" data-save="${sys.nombre}">Guardar ${sys.nombre}</button></div>`);
-    grid.appendChild(box);
-  });
-  $$('#ingGrid [data-save]').forEach(btn=>{
-    btn.onclick = async ()=>{
-      const sis=btn.dataset.save, inputs=$$(`input[data-sis="${sis}"]`, $('#ingGrid'));
-      for(const i of inputs){
-        const val=parseFloat(i.value||'0'); if(!isFinite(val)||val<=0) continue;
-        await rpc('ingreso_set_total_by_names', { p_sistema:sis, p_metodo:i.dataset.met, p_monto:val, p_sucursal_id:null, p_obs:null })
-          .catch(e=>{ toast(`Ingreso ${sis}/${i.dataset.met}: ${e.message}`,'err'); throw e; });
+      if (S.isAdmin) {
+        listSucursales().then(list=>{
+          const sel = document.getElementById('selMisSuc');
+          sel.innerHTML = list.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
+        });
+        document.getElementById('btnAsignar').onclick = async ()=>{
+          const val = document.getElementById('selMisSuc').value;
+          if(!val) return; await asignarmeSucursal(val); renderInicio();
+        };
       }
-      toast(`Ingresos de ${sis} guardados`);
-    };
-  });
-}
+      return; // sin sucursal no mostramos botones de jornada
+    }
 
-/* ========================= MOD: SALDO FINAL ========================= */
-async function renderSaldoFinal(){
-  const v = getContainer('mod-sfinal'); v.innerHTML='<h2>Saldo final en caja</h2>';
-  await ensureCatalogos();
-  let detalle=[]; try{ detalle=await rpc('ui_saldofinal_get_items')||[]; }catch{}
-  const tbl=el(`<div class="row"><div class="col">
-    <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="sfRows"></tbody></table>
-    <div class="row"><button class="btn primary" id="btnSfSave">Guardar</button></div></div></div>`); v.appendChild(tbl);
-  const body=$('#sfRows');
-  S.denoms.forEach(d=>{
-    const qty=(detalle.find(x=>x.denominacion_id===d.id)?.cantidad)||0;
-    body.appendChild(el(`<tr><td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td><td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td></tr>`));
-  });
-  $('#btnSfSave').onclick = async ()=>{
-    const items=$$('#sfRows input').map(i=>({denominacion_id:i.dataset.denom,cantidad:parseInt(i.value||'0',10)||0}));
-    await rpc('saldofinal_save_counts', { p_items: items, p_obs: null }).catch(e=>toast('saldofinal_save: '+e.message,'err'));
-    toast('Saldo final guardado');
-  };
-}
-
-/* =========================== MOD: VOUCHERS =========================== */
-async function renderVouchers(){
-  await ensureCatalogos();
-  const v = getContainer('mod-vouchers'); v.innerHTML='<h2>Vouchers</h2>';
-  const mMatch = S.metodos.filter(m=> m.requiere_match);
-  const box = el(`<div class="row" style="gap:16px;flex-wrap:wrap"></div>`); v.appendChild(box);
-  mMatch.forEach(m=>{
-    const card=el(`<div class="card" style="flex:1 1 360px"><h3>${m.nombre}</h3>
-      <div class="row">
-        <div class="col"><label>Monto</label><input type="number" step="0.01" min="0" placeholder="0.00" data-monto="${m.nombre}"></div>
-        <div class="col"><label>Tipo</label><select data-tipo="${m.nombre}"><option value="POS">POS</option><option value="YAPPY">YAPPY</option><option value="OTRO">OTRO</option></select></div>
-      </div>
-      <div class="row"><div class="col"><label>Foto del voucher</label><input type="file" accept="image/*" capture="environment" data-file="${m.nombre}"></div></div>
-      <div class="row"><button class="btn primary" data-subir="${m.nombre}">Subir voucher</button></div></div>`);
-    box.appendChild(card);
-  });
-  $$('#mod-vouchers [data-subir]').forEach(btn=>{
-    btn.onclick = async ()=>{
-      const metodo=btn.dataset.subir, montoEl=$(`[data-monto="${metodo}"]`), tipoEl=$(`[data-tipo="${metodo}"]`), fileEl=$(`[data-file="${metodo}"]`);
-      const monto=parseFloat(montoEl.value||'0'); if(!isFinite(monto)||monto<=0){ toast('Monto inválido','err'); return; }
-      const file=fileEl.files?.[0]; if(!file){ toast('Selecciona una foto','err'); return; }
-      const path=`jornadas/${S.jornadaId}/${Date.now()}_${file.name}`;
-      const { error: upErr } = await S.supa.storage.from(CFG.bucket).upload(path, file, { upsert:false });
-      if(upErr){ toast('Upload: '+upErr.message,'err'); return; }
-      await rpc('comprobante_add_by_names', { p_metodo:metodo, p_monto:monto, p_url:path, p_tipo:tipoEl.value, p_sucursal_id:null }).catch(e=>toast('Comprobante: '+e.message,'err'));
-      toast('Voucher registrado');
-    };
-  });
-}
-
-/* =========================== MOD: PRECHECK =========================== */
-async function renderPrecheck(){
-  const v = getContainer('mod-precheck'); v.innerHTML='<h2>Pre-chequeo</h2>';
-  const res = await rpc('cierre_precheck_resumen', { p_jornada: S.jornadaId }).catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
-  const r = Array.isArray(res)? res?.[0]:res;
-  if(r){
-    v.appendChild(el(`<div class="row" style="gap:12px">
-      <div class="kpi"><small>Métodos con match</small><b>${r.metodos_con_match||0}</b></div>
-      <div class="kpi"><small>Descuadrados</small><b class="${(r.metodos_descuadrados||0)>0?'bad':'ok'}">${r.metodos_descuadrados||0}</b></div>
-      <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(r.deposito_sugerido)}</b></div></div>`));
+    const actions = el(`<div class="row" style="margin-top:10px">
+      <button class="btn primary" id="btnStart">Marcar inicio de jornada</button>
+      <button class="btn" id="btnEnsure">Refrescar jornada</button>
+    </div>`);
+    v.appendChild(actions);
+    $('#btnStart').onclick = async ()=>{ try{ await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }); await ensureJornada(); toast('Jornada iniciada'); renderInicio(); }catch(e){ toast('Inicio de jornada: '+e.message,'err'); } };
+    $('#btnEnsure').onclick = async ()=>{ await ensureJornada(); toast('Jornada refrescada'); renderInicio(); };
   }
-  const det = await rpc('cierre_precheck_detalle', { p_jornada: S.jornadaId }).catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
-  S.precheck = det||[];
-  const table = el(`<div class="card"><table>
-    <thead><tr><th>Método</th><th>Total sistemas</th><th>Total vouchers</th><th>Diferencia</th><th>Estado</th></tr></thead><tbody id="preRows"></tbody></table></div>`);
-  v.appendChild(table);
-  const body=$('#preRows');
-  S.precheck.forEach(x=>{
-    body.appendChild(el(`<tr>
-      <td>${x.metodo_pago}</td>
-      <td>$${fmt(x.total_sistemas)}</td>
-      <td>${x.total_vouchers==null? '<span class="tag">(skip)</span>' : '$'+fmt(x.total_vouchers)}</td>
-      <td>${x.diferencia==null? '-' : ('$'+fmt(x.diferencia))}</td>
-      <td>${x.estado==='ok'? '<span class="ok">OK</span>' : (x.estado==='skip'? '<span class="muted">skip</span>' : '<span class="bad">'+x.estado+'</span>')}</td>
-    </tr>`));
-  });
-}
 
-/* =========================== MOD: DEPÓSITO =========================== */
-async function renderDeposito(){
-  const v = getContainer('mod-deposito'); v.innerHTML='<h2>Depósito</h2>';
-  const data = await rpc('ui_deposito_sugerido', { p_jornada: S.jornadaId }).catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
-  const d = Array.isArray(data)? data?.[0]:data; if(!d){ v.appendChild(el('<div class="muted">Sin datos</div>')); return; }
-  S.deposito = d;
-  v.appendChild(el(`<div class="row" style="gap:12px">
-    <div class="kpi"><small>Total efectivo</small><b>$${fmt(d.total_efectivo)}</b></div>
-    <div class="kpi"><small>Saldo final</small><b>$${fmt(d.saldo_final)}</b></div>
-    <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(d.deposito_sugerido)}</b></div></div>`));
-  v.appendChild(el(`<div class="row"><button class="btn primary" id="btnDepOk">Aceptar depósito</button></div>`));
-  $('#btnDepOk').onclick = async ()=>{ await rpc('deposito_aceptar', { p_jornada: S.jornadaId }).catch(e=>toast('Depósito: '+e.message,'err')); toast('Depósito aceptado'); };
-}
+  /* =================== Catálogos (sistemas, métodos, denoms) =================== */
+  async function ensureCatalogos(){
+    if(!S.sistemas.length){ try{ S.sistemas = await rpc('ui_list_sistemas') || []; }catch(e){ console.warn(e); } }
+    if(!S.metodos.length){  try{ S.metodos  = await rpc('ui_list_metodos_pago') || []; }catch(e){ console.warn(e); } }
+    if(!S.denoms.length){   try{ S.denoms   = await rpc('ui_list_denominaciones') || []; }catch(e){ console.warn(e); } }
+  }
 
-/* ============================= MOD: CIERRE ============================= */
-async function renderCierre(){
-  const v = getContainer('mod-cierre'); v.innerHTML='<h2>Cierre de jornada</h2>';
-  const box = el(`<div class="row"><div class="col"><label>Comentario / Motivo</label><textarea id="cierreMotivo" placeholder="Obligatorio si cierre con error"></textarea></div></div>`);
-  v.appendChild(box);
-  v.appendChild(el(`<div class="row"><button class="btn primary" id="btnCerrarOk">Cerrar OK</button><button class="btn err" id="btnCerrarErr">Cerrar con error (solo admin)</button></div>`));
-  $('#btnCerrarOk').onclick = async ()=>{ await rpc('cierre_marcar', { p_jornada:S.jornadaId, p_ok:true, p_motivo:'OK' }).catch(e=>toast('Cierre: '+e.message,'err')); toast('Cierre OK guardado'); };
-  $('#btnCerrarErr').onclick = async ()=>{
-    if(!S.isAdmin){ toast('Solo admin puede cerrar con error','err'); return; }
-    const motivo=$('#cierreMotivo').value.trim(); if(motivo.length<3){ toast('Motivo requerido','err'); return; }
-    await rpc('cierre_marcar', { p_jornada:S.jornadaId, p_ok:false, p_motivo:motivo }).catch(e=>toast('Cierre: '+e.message,'err'));
-    toast('Cierre marcado con error');
-  };
-}
+  /* ========================= APERTURA — Saldo inicial ========================= */
+  async function renderApertura(){
+    const v = getContainer('mod-apertura'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Saldo inicial (Apertura)</h2>';
+    await ensureJornada();
+    await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{});
+    await ensureCatalogos();
 
-/* ====================== MOD: PANEL & CONFIG (admin) ====================== */
-async function renderPanel(){
-  const v = getContainer('mod-panel'); v.innerHTML='<h2>Panel de jornadas por sucursal</h2>';
-  if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
-  const pick = el(`<div class="row">
-    <div class="col"><label>Sucursal ID</label><input id="pSuc" placeholder="${S.sucursalId||''}" value="${S.sucursalId||''}"></div>
-    <div class="col"><label>Desde</label><input id="pFrom" type="date"></div>
-    <div class="col"><label>Hasta</label><input id="pTo" type="date"></div>
-    <div class="col" style="align-self:end"><button class="btn" id="btnLoadPanel">Cargar</button></div></div>`);
-  v.appendChild(pick);
-  const table = el(`<div class="card"><table>
-    <thead><tr><th>Fecha</th><th>Jornada</th><th>Abierto por</th><th>Estado</th><th>Depósito</th><th>Acciones</th></tr></thead><tbody id="panelRows"></tbody></table></div>`);
-  v.appendChild(table);
-  $('#btnLoadPanel').onclick = async ()=>{
-    const p={ p_sucursal_id:$('#pSuc').value||null, p_from:$('#pFrom').value||null, p_to:$('#pTo').value||null };
-    const data = await rpc('admin_jornadas_between', p).catch(e=>toast('Panel: '+e.message,'err'));
-    const rows=$('#panelRows'); rows.innerHTML='';
-    (data||[]).forEach(j=>{
-      const tr=el(`<tr>
-        <td>${j.fecha}</td><td><code>${j.jornada_id}</code></td><td>${j.abierto_por_email||''}</td>
-        <td>${j.estado}${j.cierre_ok===false?' (error)':''}</td><td>$${fmt(j.deposito_monto)}</td>
-        <td><button class="btn warn" data-cerrar="${j.jornada_id}">Cerrar con error</button></td></tr>`);
-      rows.appendChild(tr);
+    let detalle = [];
+    try{ detalle = await rpc('ui_apertura_get_items') || []; }catch{}
+
+    const tbl = el(`<div class="row"><div class="col">
+      <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="apRows"></tbody></table>
+      <div class="row"><button class="btn primary" id="btnApSave">Guardar</button></div>
+    </div></div>`);
+    v.appendChild(tbl);
+
+    const body = $('#apRows');
+    S.denoms.forEach(d=>{
+      const qty = (detalle.find(x=>x.denominacion_id===d.id)?.cantidad) || 0;
+      body.appendChild(el(`<tr>
+        <td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td>
+        <td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td>
+      </tr>`));
     });
-    $$('#panelRows [data-cerrar]').forEach(b=> b.onclick = async ()=>{
-      const motivo = prompt('Motivo del cierre con error:'); if(!motivo) return;
-      await rpc('cierre_marcar', { p_jornada:b.dataset.cerrar, p_ok:false, p_motivo:motivo }).catch(e=>toast(e.message,'err'));
-      toast('Cierre con error enviado');
+
+    $('#btnApSave').onclick = async ()=>{
+      const items = $$('#apRows input').map(i=>({ denominacion_id: i.dataset.denom, cantidad: parseInt(i.value||'0',10)||0 }));
+      await rpc('apertura_save_counts', { p_items: items }).catch(e=>toast('apertura_save: '+e.message,'err'));
+      toast('Apertura guardada');
+    };
+  }
+
+  /* ========================= INGRESOS — Totales del día ========================= */
+  async function renderIngresos(){
+    const v = getContainer('mod-ingresos'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Ingresos — Totales del día</h2>';
+    await ensureCatalogos();
+
+    const grid = el('<div class="row" id="ingGrid" style="gap:16px;flex-wrap:wrap"></div>');
+    v.appendChild(grid);
+
+    S.sistemas.forEach(sys=>{
+      const box = el(`<div class="card" style="flex:1 1 320px">
+        <h3>${sys.nombre}</h3>
+        ${S.metodos.map(m=>`
+          <div style="margin:10px 0">
+            <label>${m.nombre}</label>
+            <input type="number" step="0.01" min="0" placeholder="0.00" data-sis="${sys.nombre}" data-met="${m.nombre}" />
+          </div>`).join('')}
+        <button class="btn primary" data-save="${sys.nombre}">Guardar ${sys.nombre}</button>
+      </div>`);
+      grid.appendChild(box);
     });
-  };
-}
-async function renderConfig(){
-  const v = getContainer('mod-config'); v.innerHTML='<h2>Configuración</h2>';
-  if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
-  const box=el(`<div class="row" style="gap:16px;flex-wrap:wrap">
-    <div class="card" style="flex:1 1 320px"><h3>Sucursales</h3><label>Nombre</label><input id="cfgSucNombre" placeholder="Sucursal X"/><div class="row"><button class="btn primary" id="btnAddSuc">Añadir</button></div></div>
-    <div class="card" style="flex:1 1 320px"><h3>Sistemas</h3><label>Nombre</label><input id="cfgSisNombre" placeholder="Sistema X"/><div class="row"><button class="btn primary" id="btnAddSis">Añadir</button></div></div>
-    <div class="card" style="flex:1 1 320px"><h3>Métodos de pago</h3><label>Nombre</label><input id="cfgMetNombre" placeholder="Cheque"/><div class="row">
-      <label><input type="checkbox" id="cfgMatch"/> Requiere match</label><label><input type="checkbox" id="cfgFoto"/> Requiere foto</label></div>
-      <div class="row"><button class="btn primary" id="btnAddMet">Añadir</button></div></div></div>`);
-  v.appendChild(box);
-  $('#btnAddSuc').onclick = async ()=>{ const nombre=$('#cfgSucNombre').value.trim(); if(!nombre) return; await rpc('admin_add_sucursal', { p_nombre:nombre }).catch(e=>toast('Sucursal: '+e.message,'err')); toast('Sucursal creada'); };
-  $('#btnAddSis').onclick = async ()=>{ const nombre=$('#cfgSisNombre').value.trim(); if(!nombre) return; await rpc('admin_add_sistema', { p_nombre:nombre }).catch(e=>toast('Sistema: '+e.message,'err')); toast('Sistema creado'); };
-  $('#btnAddMet').onclick = async ()=>{ const nombre=$('#cfgMetNombre').value.trim(); if(!nombre) return; const m=$('#cfgMatch').checked, f=$('#cfgFoto').checked;
-    await rpc('admin_add_metodo_pago', { p_nombre:nombre, p_match:m, p_foto:f }).catch(e=>toast('Método: '+e.message,'err')); toast('Método de pago creado'); };
-}
-</script>
+
+    $$('#ingGrid [data-save]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const sis = btn.dataset.save;
+        const inputs = $$(`input[data-sis="${sis}"]`, $('#ingGrid'));
+        for(const i of inputs){
+          const val = parseFloat(i.value||'0');
+          if(!isFinite(val) || val<=0) continue;
+          await rpc('ingreso_set_total_by_names', { p_sistema: sis, p_metodo: i.dataset.met, p_monto: val, p_sucursal_id: null, p_obs: null })
+            .catch(e=>{ toast(`Ingreso ${sis}/${i.dataset.met}: ${e.message}`,'err'); throw e; });
+        }
+        toast(`Ingresos de ${sis} guardados`);
+      };
+    });
+  }
+
+  /* ============================= SALDO FINAL — Caja ============================= */
+  async function renderSaldoFinal(){
+    const v = getContainer('mod-sfinal'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Saldo final en caja</h2>';
+    await ensureCatalogos();
+
+    let detalle = [];
+    try{ detalle = await rpc('ui_saldofinal_get_items') || []; }catch{}
+
+    const tbl = el(`<div class="row"><div class="col">
+      <table><thead><tr><th>Denom</th><th>Cant.</th></tr></thead><tbody id="sfRows"></tbody></table>
+      <div class="row"><button class="btn primary" id="btnSfSave">Guardar</button></div>
+    </div></div>`);
+    v.appendChild(tbl);
+
+    const body = $('#sfRows');
+    S.denoms.forEach(d=>{
+      const qty = (detalle.find(x=>x.denominacion_id===d.id)?.cantidad) || 0;
+      body.appendChild(el(`<tr>
+        <td>${d.tipo==='moneda'?'¢':'$'} ${d.valor}</td>
+        <td><input type="number" step="1" min="0" value="${qty}" data-denom="${d.id}"/></td>
+      </tr>`));
+    });
+
+    $('#btnSfSave').onclick = async ()=>{
+      const items = $$('#sfRows input').map(i=>({ denominacion_id: i.dataset.denom, cantidad: parseInt(i.value||'0',10)||0 }));
+      await rpc('saldofinal_save_counts', { p_items: items, p_obs: null }).catch(e=>toast('saldofinal_save: '+e.message,'err'));
+      toast('Saldo final guardado');
+    };
+  }
+
+  /* ================================ VOUCHERS ================================= */
+  async function renderVouchers(){
+    const v = getContainer('mod-vouchers'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Vouchers</h2>';
+    await ensureCatalogos();
+
+    const mMatch = S.metodos.filter(m=> m.requiere_match);
+    const box = el(`<div class="row" style="gap:16px;flex-wrap:wrap"></div>`);
+    v.appendChild(box);
+
+    mMatch.forEach(m=>{
+      const card = el(`<div class="card" style="flex:1 1 360px">
+        <h3>${m.nombre}</h3>
+        <div class="row">
+          <div class="col"><label>Monto</label><input type="number" step="0.01" min="0" placeholder="0.00" data-monto="${m.nombre}"></div>
+          <div class="col"><label>Tipo</label>
+            <select data-tipo="${m.nombre}">
+              <option value="POS">POS</option>
+              <option value="YAPPY">YAPPY</option>
+              <option value="OTRO">OTRO</option>
+            </select>
+          </div>
+        </div>
+        <div class="row"><div class="col"><label>Foto del voucher</label><input type="file" accept="image/*" capture="environment" data-file="${m.nombre}"></div></div>
+        <div class="row"><button class="btn primary" data-subir="${m.nombre}">Subir voucher</button></div>
+      </div>`);
+      box.appendChild(card);
+    });
+
+    $$('#mod-vouchers [data-subir]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const metodo = btn.dataset.subir;
+        const montoEl = $(`[data-monto="${metodo}"]`);
+        const tipoEl  = $(`[data-tipo="${metodo}"]`);
+        const fileEl  = $(`[data-file="${metodo}"]`);
+        const monto = parseFloat(montoEl.value||'0');
+        if(!isFinite(monto) || monto<=0){ toast('Monto inválido','err'); return; }
+        const file = fileEl.files?.[0];
+        if(!file){ toast('Selecciona una foto','err'); return; }
+
+        const path = `jornadas/${S.jornadaId}/${Date.now()}_${file.name}`;
+        const { error: upErr } = await S.supa.storage.from(CFG.bucket).upload(path, file, { upsert:false });
+        if(upErr){ toast('Upload: '+upErr.message,'err'); return; }
+
+        await rpc('comprobante_add_by_names', {
+          p_metodo: metodo, p_monto: monto, p_url: path, p_tipo: tipoEl.value, p_sucursal_id: null
+        }).catch(e=>toast('Comprobante: '+e.message,'err'));
+        toast('Voucher registrado');
+      };
+    });
+  }
+
+  /* ================================ PRECHECK ================================= */
+  async function renderPrecheck(){
+    const v = getContainer('mod-precheck'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Pre-chequeo</h2>';
+
+    const res = await rpc('cierre_precheck_resumen', { p_jornada: S.jornadaId })
+      .catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
+    const r = Array.isArray(res)? res?.[0] : res;
+    if(r){
+      v.appendChild(el(`<div class="row" style="gap:12px">
+        <div class="kpi"><small>Métodos con match</small><b>${r.metodos_con_match||0}</b></div>
+        <div class="kpi"><small>Descuadrados</small><b class="${(r.metodos_descuadrados||0)>0?'bad':'ok'}">${r.metodos_descuadrados||0}</b></div>
+        <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(r.deposito_sugerido)}</b></div>
+      </div>`));
+    }
+
+    const det = await rpc('cierre_precheck_detalle', { p_jornada: S.jornadaId })
+      .catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
+    S.precheck = det||[];
+
+    const table = el(`<div class="card"><table>
+      <thead><tr><th>Método</th><th>Total sistemas</th><th>Total vouchers</th><th>Diferencia</th><th>Estado</th></tr></thead>
+      <tbody id="preRows"></tbody></table></div>`);
+    v.appendChild(table);
+    const body = $('#preRows');
+    S.precheck.forEach(x=>{
+      body.appendChild(el(`<tr>
+        <td>${x.metodo_pago}</td>
+        <td>$${fmt(x.total_sistemas)}</td>
+        <td>${x.total_vouchers==null? '<span class="tag">(skip)</span>' : '$'+fmt(x.total_vouchers)}</td>
+        <td>${x.diferencia==null? '-' : ('$'+fmt(x.diferencia))}</td>
+        <td>${x.estado==='ok'? '<span class="ok">OK</span>' : (x.estado==='skip'? '<span class="muted">skip</span>' : '<span class="bad">'+x.estado+'</span>')}</td>
+      </tr>`));
+    });
+  }
+
+  /* ================================= DEPÓSITO ================================= */
+  async function renderDeposito(){
+    const v = getContainer('mod-deposito'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Depósito</h2>';
+    const data = await rpc('ui_deposito_sugerido', { p_jornada: S.jornadaId })
+      .catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
+    const d = Array.isArray(data)? data?.[0] : data;
+    if(!d){ v.appendChild(el('<div class="muted">Sin datos</div>')); return; }
+    S.deposito = d;
+
+    v.appendChild(el(`<div class="row" style="gap:12px">
+      <div class="kpi"><small>Total efectivo</small><b>$${fmt(d.total_efectivo)}</b></div>
+      <div class="kpi"><small>Saldo final</small><b>$${fmt(d.saldo_final)}</b></div>
+      <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(d.deposito_sugerido)}</b></div>
+    </div>`));
+    v.appendChild(el(`<div class="row"><button class="btn primary" id="btnDepOk">Aceptar depósito</button></div>`));
+    $('#btnDepOk').onclick = async ()=>{ await rpc('deposito_aceptar', { p_jornada: S.jornadaId }).catch(e=>toast('Depósito: '+e.message,'err')); toast('Depósito aceptado'); };
+  }
+
+  /* ================================== CIERRE ================================== */
+  async function renderCierre(){
+    const v = getContainer('mod-cierre'); if (!requireJornadaOrExplain(v)) return;
+    v.innerHTML = '<h2>Cierre de jornada</h2>';
+    const box = el(`<div class="row"><div class="col"><label>Comentario / Motivo</label><textarea id="cierreMotivo" placeholder="Obligatorio si cierre con error"></textarea></div></div>`);
+    v.appendChild(box);
+    v.appendChild(el(`<div class="row"><button class="btn primary" id="btnCerrarOk">Cerrar OK</button><button class="btn err" id="btnCerrarErr">Cerrar con error (solo admin)</button></div>`));
+    $('#btnCerrarOk').onclick = async ()=>{ await rpc('cierre_marcar', { p_jornada:S.jornadaId, p_ok:true, p_motivo:'OK' }).catch(e=>toast('Cierre: '+e.message,'err')); toast('Cierre OK guardado'); };
+    $('#btnCerrarErr').onclick = async ()=>{
+      if(!S.isAdmin){ toast('Solo admin puede cerrar con error','err'); return; }
+      const motivo=$('#cierreMotivo').value.trim(); if(motivo.length<3){ toast('Motivo requerido','err'); return; }
+      await rpc('cierre_marcar', { p_jornada:S.jornadaId, p_ok:false, p_motivo:motivo }).catch(e=>toast('Cierre: '+e.message,'err'));
+      toast('Cierre marcado con error');
+    };
+  }
+
+  /* ============================= PANEL (admin) ============================= */
+  async function renderPanel(){
+    const v = getContainer('mod-panel'); v.innerHTML = '<h2>Panel de jornadas por sucursal</h2>';
+    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
+
+    const pick = el(`<div class="row">
+      <div class="col"><label>Sucursal ID</label><input id="pSuc" placeholder="${S.sucursalId||''}" value="${S.sucursalId||''}"></div>
+      <div class="col"><label>Desde</label><input id="pFrom" type="date"></div>
+      <div class="col"><label>Hasta</label><input id="pTo" type="date"></div>
+      <div class="col" style="align-self:end"><button class="btn" id="btnLoadPanel">Cargar</button></div>
+    </div>`);
+    v.appendChild(pick);
+
+    const table = el(`<div class="card"><table>
+      <thead><tr><th>Fecha</th><th>Jornada</th><th>Abierto por</th><th>Estado</th><th>Depósito</th><th>Acciones</th></tr></thead>
+      <tbody id="panelRows"></tbody></table></div>`);
+    v.appendChild(table);
+
+    $('#btnLoadPanel').onclick = async ()=>{
+      const p = { p_sucursal_id: $('#pSuc').value || null, p_from: $('#pFrom').value || null, p_to: $('#pTo').value || null };
+      const data = await rpc('admin_jornadas_between', p).catch(e=>toast('Panel: '+e.message,'err'));
+      const rows = $('#panelRows'); rows.innerHTML = '';
+      (data||[]).forEach(j=>{
+        const tr = el(`<tr>
+          <td>${j.fecha}</td>
+          <td><code>${j.jornada_id}</code></td>
+          <td>${j.abierto_por_email||''}</td>
+          <td>${j.estado}${j.cierre_ok===false? ' (error)':''}</td>
+          <td>$${fmt(j.deposito_monto)}</td>
+          <td><button class="btn warn" data-cerrar="${j.jornada_id}">Cerrar con error</button></td>
+        </tr>`);
+        rows.appendChild(tr);
+      });
+      $$('#panelRows [data-cerrar]').forEach(b=> b.onclick = async ()=>{
+        const motivo = prompt('Motivo del cierre con error:');
+        if(!motivo) return;
+        await rpc('cierre_marcar', { p_jornada: b.dataset.cerrar, p_ok: false, p_motivo: motivo }).catch(e=>toast(e.message,'err'));
+        toast('Cierre con error enviado');
+      });
+    };
+  }
+
+  /* ============================= USUARIOS (admin) =============================
+
+     Qué hace este módulo:
+       - Crear usuario (email + contraseña temporal) SIN cerrar tu sesión.
+       - Asignar rol (admin / usuario) y sucursal.
+       - Listar / editar perfiles existentes.
+
+     Notas:
+       - Para crear usuario sin perder tu sesión, usamos S.supaNoPersist.signUp().
+       - Tras crear, hacemos upsert en "profiles" con id/email/rol/sucursal.
+       - Si RLS no permite upsert directo, usa tus RPC admin_* (ajusta nombres si difieren).
+  ============================================================================ */
+  async function renderUsuarios(){
+    const v = getContainer('mod-usuarios'); v.innerHTML = '<h2>Usuarios (admin)</h2>';
+    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
+
+    const sucursales = await listSucursales();
+    const optsSuc = (selId)=> `<option value="">(sin sucursal)</option>` + sucursales.map(s=>`<option value="${s.id}" ${selId===s.id?'selected':''}>${s.nombre}</option>`).join('');
+
+    // Crear usuario
+    const boxCreate = el(`<div class="card">
+      <h3>Crear usuario</h3>
+      <div class="row">
+        <div class="col"><label>Email</label><input id="uEmail" type="email" placeholder="usuario@dominio.com"></div>
+        <div class="col"><label>Contraseña temporal</label><input id="uPass" type="text" placeholder="min 6 caracteres" value="test123"></div>
+      </div>
+      <div class="row">
+        <div class="col"><label>Rol</label>
+          <select id="uRol">
+            <option value="usuario">usuario</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="col"><label>Sucursal</label>
+          <select id="uSuc">${optsSuc('')}</select>
+        </div>
+      </div>
+      <div class="row"><button class="btn primary" id="btnCreateUser">Crear</button></div>
+      <div class="muted">Se creará el usuario en Auth y se registrará/actualizará en <code>profiles</code>.</div>
+    </div>`);
+    v.appendChild(boxCreate);
+
+    $('#btnCreateUser').onclick = async ()=>{
+      const email = $('#uEmail').value.trim();
+      const password = $('#uPass').value;
+      const role = $('#uRol').value;
+      const suc = $('#uSuc').value || null;
+      if(!email || !password){ toast('Email y contraseña requeridos','err'); return; }
+      try{
+        // 1) Crear el usuario sin tocar tu sesión
+        const { data, error } = await S.supaNoPersist.auth.signUp({ email, password });
+        if(error) throw error;
+        const newUser = data?.user;
+        if(!newUser?.id){ toast('Usuario creado, pero no obtuve ID. Verifica Auth.', 'warn'); return; }
+
+        // 2) Upsert en profiles (id, email, role, sucursal_id)
+        const { error: upErr } = await S.supa.from('profiles').upsert({
+          id: newUser.id, email: email, role: role, sucursal_id: suc
+        });
+        if(upErr) throw upErr;
+
+        toast('Usuario creado y perfil actualizado');
+        renderUsuarios();
+      }catch(e){
+        toast('Crear usuario: ' + (e.message||e), 'err');
+      }
+    };
+
+    // Listado/edición de usuarios
+    const boxList = el(`<div class="card">
+      <h3>Perfiles</h3>
+      <div id="usersTable"></div>
+    </div>`);
+    v.appendChild(boxList);
+
+    async function loadUsers(){
+      // Intenta v_profiles si la tienes, si no, cae a profiles
+      let rows = [];
+      try{
+        const { data, error } = await S.supa.from('v_profiles').select('*').order('created_at', { ascending:false });
+        if (error) throw error; rows = data||[];
+      }catch{
+        const { data, error } = await S.supa.from('profiles').select('id,email,role,sucursal_id,created_at').order('created_at', { ascending:false });
+        rows = data||[];
+      }
+
+      const tbl = el(`<table>
+        <thead><tr><th>Email</th><th>Rol</th><th>Sucursal</th><th>Acción</th></tr></thead>
+        <tbody></tbody>
+      </table>`);
+      const tb = tbl.querySelector('tbody');
+
+      rows.forEach(r=>{
+        const tr = el(`<tr>
+          <td>${r.email||''}</td>
+          <td>
+            <select data-role="${r.id}">
+              <option value="usuario" ${r.role==='usuario'?'selected':''}>usuario</option>
+              <option value="admin"   ${r.role==='admin'  ?'selected':''}>admin</option>
+            </select>
+          </td>
+          <td>
+            <select data-suc="${r.id}">${optsSuc(r.sucursal_id||'')}</select>
+          </td>
+          <td>
+            <button class="btn" data-save="${r.id}">Guardar</button>
+          </td>
+        </tr>`);
+        tb.appendChild(tr);
+      });
+
+      const host = $('#usersTable'); host.innerHTML = ''; host.appendChild(tbl);
+
+      $$('#usersTable [data-save]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const uid = btn.dataset.save;
+          const role = $(`[data-role="${uid}"]`).value;
+          const suc  = $(`[data-suc="${uid}"]`).value || null;
+          try{
+            // Upsert directo al profiles
+            const { error } = await S.supa.from('profiles').upsert({ id: uid, role: role, sucursal_id: suc });
+            if(error) throw error;
+            toast('Perfil actualizado');
+            if (uid === S.user.id) await reloadPerfil(); // si te editaste a ti
+          }catch(e){
+            toast('Actualizar perfil: ' + e.message, 'err');
+          }
+        };
+      });
+    }
+    await loadUsers();
+  }
+
+  /* ============================== CONFIG (admin) ============================== */
+  async function renderConfig(){
+    const v = getContainer('mod-config'); v.innerHTML = '<h2>Configuración</h2>';
+    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
+
+    const box = el(`<div class="row" style="gap:16px;flex-wrap:wrap">
+      <div class="card" style="flex:1 1 320px">
+        <h3>Sucursales</h3>
+        <label>Nombre</label><input id="cfgSucNombre" placeholder="Sucursal X"/>
+        <div class="row"><button class="btn primary" id="btnAddSuc">Añadir</button></div>
+      </div>
+      <div class="card" style="flex:1 1 320px">
+        <h3>Sistemas</h3>
+        <label>Nombre</label><input id="cfgSisNombre" placeholder="Sistema X"/>
+        <div class="row"><button class="btn primary" id="btnAddSis">Añadir</button></div>
+      </div>
+      <div class="card" style="flex:1 1 320px">
+        <h3>Métodos de pago</h3>
+        <label>Nombre</label><input id="cfgMetNombre" placeholder="Cheque"/>
+        <div class="row">
+          <label><input type="checkbox" id="cfgMatch"/> Requiere match</label>
+          <label><input type="checkbox" id="cfgFoto"/> Requiere foto</label>
+        </div>
+        <div class="row"><button class="btn primary" id="btnAddMet">Añadir</button></div>
+      </div>
+    </div>`);
+    v.appendChild(box);
+
+    $('#btnAddSuc').onclick = async ()=>{
+      const nombre = $('#cfgSucNombre').value.trim(); if(!nombre) return;
+      await rpc('admin_add_sucursal', { p_nombre: nombre }).catch(e=>toast('Sucursal: '+e.message,'err'));
+      toast('Sucursal creada');
+    };
+    $('#btnAddSis').onclick = async ()=>{
+      const nombre = $('#cfgSisNombre').value.trim(); if(!nombre) return;
+      await rpc('admin_add_sistema', { p_nombre: nombre }).catch(e=>toast('Sistema: '+e.message,'err'));
+      toast('Sistema creado');
+    };
+    $('#btnAddMet').onclick = async ()=>{
+      const nombre = $('#cfgMetNombre').value.trim(); if(!nombre) return;
+      const m = $('#cfgMatch').checked; const f = $('#cfgFoto').checked;
+      await rpc('admin_add_metodo_pago', { p_nombre: nombre, p_match: m, p_foto: f }).catch(e=>toast('Método: '+e.message,'err'));
+      toast('Método de pago creado');
+    };
+  }
+  </script>
 </body>
 </html>
+
 
