@@ -211,19 +211,34 @@
     }
 
     function transformDesc(src, ev, resp){
-      let d = String(ev.description||'');
-      if(src==='fz'){
-        const low = d.toLowerCase().trim();
-        if(low==='miami') d='Doral - Miami';
-        if(low==='panama' || low==='panamá') d='Aduanas - Panama City';
-      }
-      if(src==='psc'){
-        const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
-        const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
-        d = 'Centro de Dist PSC - Peso(Aprox.)' + (lbs?` ${lbs} lbs`:'');
-      }
+    let d = String(ev.description||'');
+
+    if (src === 'fz') {
+      const low = d.toLowerCase().trim();
+      if (low === 'miami') d = 'Doral - Miami';
+      if (low === 'panama' || low === 'panamá') d = 'Aduanas - Panama City';
       return d;
     }
+
+    if (src === 'psc') {
+      // Peso desde la descripción o, si no, desde resp.weight_lbs
+      const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
+      const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
+
+      // Status de la DB (prioriza top-level db_status; fallback al nested de sources)
+      const dbStatus = (
+        resp?.db_status ??
+        resp?.sources?.db?.selected?.status ??
+        ''
+      ).toString().trim();
+
+      const label = dbStatus || 'Centro de Dist. PSC'; // fallback por si no viniera
+      d = `${label} - Peso(Aprox.)` + (lbs ? ` ${lbs} lbs` : '');
+      return d;
+    }
+
+    return d;
+  }
 
     function computeOrderedList(r){
       const all = Array.isArray(r.events) ? r.events : [];
