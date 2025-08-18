@@ -129,6 +129,88 @@
         sc.appendChild(d);
       });
     }
+
+    <script>
+  // ====== LISTADOS ======
+  async function loadMetodosPago() {
+    const cont = document.getElementById("metodosPago"); cont.innerHTML = "";
+    const { data, error } = await supabase.from("metodos_pago").select("*").order("orden",{ascending:true});
+    if (error) { cont.innerHTML = `<div class="hint">Error: ${error.message}</div>`; return; }
+    (data||[]).forEach(r=>{
+      const d = document.createElement("div"); d.className="item";
+      d.innerHTML = `<div><strong>${r.nombre}</strong> <span class="tag">orden ${r.orden}</span></div>
+                     <div><button class="ghost" data-type="mp-del" data-id="${r.id}">Eliminar</button></div>`;
+      cont.appendChild(d);
+    });
+  }
+
+  async function loadDenominaciones() {
+    const cont = document.getElementById("denominaciones"); cont.innerHTML = "";
+    const { data, error } = await supabase.from("denominaciones").select("*").order("orden",{ascending:true});
+    if (error) { cont.innerHTML = `<div class="hint">Error: ${error.message}</div>`; return; }
+    (data||[]).forEach(r=>{
+      const d = document.createElement("div"); d.className="item";
+      d.innerHTML = `<div><strong>${Number(r.valor).toFixed(2)}</strong> <span class="tag">${r.tipo}</span> <span class="tag">orden ${r.orden}</span></div>
+                     <div><button class="ghost" data-type="den-del" data-id="${r.id}">Eliminar</button></div>`;
+      cont.appendChild(d);
+    });
+  }
+
+  // Llama a tus loads existentes + estos dos
+  async function loadAll() {
+    await loadLists();           // <-- tu función que ya carga sucursales/sistemas
+    await loadMetodosPago();
+    await loadDenominaciones();
+  }
+
+  // ====== INSERTAR ======
+  document.getElementById("btnAddMP").onclick = async ()=>{
+    const nombre = document.getElementById("mpNombre").value.trim();
+    const orden  = parseInt(document.getElementById("mpOrden").value || "100", 10);
+    if (!nombre) return alert("Ingresa un nombre");
+    const { error } = await supabase.from("metodos_pago").insert({ nombre, orden });
+    if (error) return alert(error.message);
+    document.getElementById("mpNombre").value = ""; document.getElementById("mpOrden").value = "100";
+    await loadMetodosPago();
+  };
+
+  document.getElementById("btnAddDen").onclick = async ()=>{
+    const valor = parseFloat(document.getElementById("denValor").value);
+    const tipo  = document.getElementById("denTipo").value;
+    const orden = parseInt(document.getElementById("denOrden").value || "100", 10);
+    if (!valor || valor <= 0) return alert("Valor inválido");
+    const { error } = await supabase.from("denominaciones").insert({
+      valor: Number(valor.toFixed(2)), tipo, orden
+    });
+    if (error) return alert(error.message);
+    document.getElementById("denValor").value = ""; document.getElementById("denOrden").value = "100";
+    await loadDenominaciones();
+  };
+
+  // ====== ELIMINAR (delegado) ======
+  document.addEventListener("click", async (e)=>{
+    const t = e.target; if(!(t instanceof HTMLElement)) return;
+    const type = t.getAttribute("data-type"), id = t.getAttribute("data-id");
+    if (type === "mp-del" && id) {
+      if (!confirm("¿Eliminar método de pago?")) return;
+      const { error } = await supabase.from("metodos_pago").delete().eq("id", id);
+      if (error) return alert(error.message);
+      await loadMetodosPago();
+    }
+    if (type === "den-del" && id) {
+      if (!confirm("¿Eliminar denominación?")) return;
+      const { error } = await supabase.from("denominaciones").delete().eq("id", id);
+      if (error) return alert(error.message);
+      await loadDenominaciones();
+    }
+  });
+
+  // Llama loadAll() después de loguearte (donde antes llamabas refresh/loadLists)
+  // Por ejemplo, en tu flujo:
+  //   - tras login OK -> await loadAll();
+  //   - al entrar con sesión ya iniciada -> await loadAll();
+</script>
+
     // Sistemas
     const si = $("sistemas"); si.innerHTML="";
     let r2 = await supabase.from("sistemas").select("*").order("created_at",{ascending:true});
