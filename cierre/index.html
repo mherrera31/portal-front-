@@ -3,54 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PSC Cierre — Portal</title>
-
-  <!-- Favicon para evitar 404 -->
+  <title>PSC Cierre — Demo Front (v5 sin DB)</title>
   <link rel="icon" href="data:,">
-
-  <!-- ================== CONFIG & LIBS (orden importante) ================== -->
-  <!-- 1) Tu configuración: DEBE definir window.PSC_CONFIG (sin <script> adentro) -->
-  <script src="./config.js"></script>
-
-  <!-- 2) Supabase UMD -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2.45.1/dist/umd/supabase.js"></script>
-
-  <!-- 3) PATCH #1 — Interceptor de fetch para /rest/v1 (inyecta apikey + schema) -->
-  <script>
-  (function(){
-    const cfg = window.PSC_CONFIG || {};
-    const apiBase = cfg.url ? (cfg.url + '/rest/v1') : null;
-    const anon = cfg.anon;
-    const _fetch = window.fetch;
-    window.fetch = (url, opts = {}) => {
-      try {
-        if (apiBase && typeof url === 'string' && url.startsWith(apiBase)) {
-          const h = new Headers(opts.headers || {});
-          if (anon && !h.has('apikey')) h.set('apikey', anon);
-          if (!h.has('Accept-Profile'))  h.set('Accept-Profile',  'cierre');
-          if (!h.has('Content-Profile')) h.set('Content-Profile', 'cierre');
-          if (!h.has('Content-Type') && (!opts.method || opts.method.toUpperCase() !== 'GET')) {
-            h.set('Content-Type','application/json');
-          }
-          opts.headers = h;
-        }
-      } catch(e) { /* no-op */ }
-      return _fetch(url, opts);
-    };
-  })();
-  </script>
-
-  <!-- ============================== ESTILOS ============================== -->
   <style>
     :root{
       --bg:#f6f7fb; --bg2:#eef2f7; --card:#fff; --border:#e5e7eb; --muted:#6b7280; --fg:#111827;
       --accent:#10b981; --warn:#f59e0b; --err:#ef4444; --ok:#059669;
     }
     *{box-sizing:border-box} html,body{height:100%}
-    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--fg)}
-    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+        background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--fg)}
+    .wrap{max-width:1240px;margin:0 auto;padding:24px}
     h1,h2,h3{margin:0 0 12px} h1{font-size:22px} h2{font-size:18px;color:#1f2937}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);margin:14px 0}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);margin:14px 0}
     .row{display:flex;gap:12px;flex-wrap:wrap} .col{flex:1 1 260px}
     label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--fg);outline:0}
@@ -61,878 +26,1271 @@
     tr{background:#f9fafb;border-radius:10px;border:1px solid var(--border)}
     tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
     tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
-    .btn{appearance:none;border:1px solid var(--border);background:#fff;color:var(--fg);border-radius:12px;padding:10px 14px;cursor:pointer;transition:all .15s ease;font-weight:600}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;cursor:pointer;transition:all .15s ease;font-weight:600}
     .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.08)}
-    .btn.primary{background:linear-gradient(135deg,#10b981,#34d399);color:#fff;border:0}
-    .btn.warn{background:#fff7ed;border:1px solid #fcd34d;color:#92400e}
-    .btn.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
-    .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#f3f4f6;border:1px solid var(--border);color:#374151}
-    .muted{color:var(--muted);font-size:13px}
-    .hr{height:1px;background:var(--border);margin:16px 0}
-    .kpi{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#f9fafb;display:flex;justify-content:space-between;align-items:center}
-    .kpi small{color:#6b7280}
-    .brand{display:flex;align-items:center;gap:10px}
-    .brand img{width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.08))}
-    .brand .title{font-weight:800;letter-spacing:.2px}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn.danger{background:var(--err);border-color:var(--err);color:#fff}
+    .muted{color:var(--muted)} .ok{color:var(--ok)} .bad{color:var(--err)}
     .layout{display:grid;grid-template-columns:260px 1fr;gap:16px}
-    .menu a{display:block;padding:10px;border:1px solid var(--border);border-radius:10px;margin:6px 0;text-decoration:none;color:var(--fg);background:#fff}
-    .menu a.active{background:#10b9811a;border-color:#34d399;font-weight:700}
-    /* Overlay de errores para no quedar en blanco */
-    #errbox{position:fixed;left:16px;right:16px;bottom:16px;z-index:99999;background:#fff1f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:10px 12px;box-shadow:0 8px 24px rgba(15,23,42,.12);display:none;white-space:pre-wrap}
-  
-/* === Apertura (bonito) === */
-.apertura-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-.apertura-total-badge{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--card);box-shadow:0 2px 10px rgba(0,0,0,.04)}
-.apertura-total-badge strong{font-size:1.1rem}
-table.apertura{width:100%;border-collapse:separate;border-spacing:0 8px}
-table.apertura th, table.apertura td{background:#fff;border:1px solid var(--border)}
-table.apertura th{color:#4b5563;font-weight:600}
-table.apertura tr td:first-child, table.apertura tr th:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
-table.apertura tr td:last-child,  table.apertura tr th:last-child {border-top-right-radius:10px;border-bottom-right-radius:10px}
-.apSub{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
-.apertura-actions{display:flex;justify-content:flex-end;margin-top:12px}
-</style>
+    .menu a{display:block;padding:10px 12px;border:1px solid var(--border);border-radius:12px;margin:6px 0;text-decoration:none;color:#111827;background:#fff}
+    .menu a.active{outline:2px solid #a7f3d0;background:#f0fdf4}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .right{display:flex;align-items:center;gap:8px}
+    .tag{font-size:12px;color:#111827;padding:4px 8px;background:#f3f4f6;border:1px solid var(--border);border-radius:999px}
+    .kpi{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff;min-width:160px}
+    .kpi small{color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    .toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 10px 18px rgba(0,0,0,.2);z-index:999}
+    /* Apertura/Saldo Final layout */
+    .ap-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+    .ap-total{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+    .ap-total strong{font-size:1.1rem}
+    table.ap{width:100%}
+    .apSub{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+    .actions{display:flex;justify-content:flex-end;margin-top:12px}
+    .section-title{margin-top:6px;margin-bottom:4px;color:#6b7280;font-weight:600}
+    .pill{padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px}
+    .flex{display:flex;gap:8px;align-items:center}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px}
+    .right-align{text-align:right}
+    /* Estilo para los códigos de sección */
+    .code{font-size:11px;font-weight:normal;color:#9ca3af;margin-right:8px;user-select:none}
+  </style>
+
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="wrap"><div id="app"></div></div>
-  <div id="errbox"></div>
+<div class="wrap">
+  <div class="header">
+    <div class="flex">
+      <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="logo" style="width:28px;height:28px;border-radius:6px">
+      <div>
+        <div style="font-weight:800">PSC Cargas</div>
+        <div class="muted" style="font-size:12px">Portal de Cierre (demo sin DB)</div>
+      </div>
+    </div>
+    <div class="right" id="sessionBox"></div>
+  </div>
 
-  <!-- Overlay de errores (si algo rompe, lo vemos en pantalla) -->
-  <script>
-  (function(){
-    const box = document.getElementById('errbox');
-    function show(msg){ box.textContent = msg; box.style.display='block'; }
-    window.addEventListener('error',  e => show(String(e.error?.stack || e.message || e)));
-    window.addEventListener('unhandledrejection', e => show('Promise rejection: ' + (e.reason?.message || e.reason)));
-  })();
-  </script>
+  <div class="layout">
+    <aside class="card">
+      <h3><span class="code">[C-00]</span> Menú</h3>
+      <nav id="nav" class="menu">
+        <a href="#/mod-inicio">Inicio de jornada</a>
+        <a href="#/mod-apertura">Saldo inicial</a>
+        <a href="#/mod-ingresos">Ingresos (sistemas)</a>
+        <a href="#/mod-sfinal">Saldo final</a>
+        <a href="#/mod-vouchers">Vouchers</a>
+        <a href="#/mod-delivery">Delivery</a>
+        <a href="#/mod-gastos">Gastos</a>
+        <a href="#/mod-compras">Compras</a>
+        <a href="#/mod-precheck">Precheck</a>
+        <a href="#/mod-deposito">Depósito</a>
+        <a href="#/mod-cierre">Cierre</a>
+        <a href="#/mod-panel">Panel de jornadas</a>
+        <a href="#/mod-usuarios">Usuarios (admin)</a>
+        <a href="#/mod-config">Configuración</a>
+      </nav>
+    </aside>
+    <main id="content"></main>
+  </div>
+</div>
 
-  <!-- ============================ APP SCRIPT ============================ -->
-  <script>
-  /* --------- Validación de config --------- */
-  if (!window.PSC_CONFIG) {
-    document.getElementById('app').innerHTML =
-      '<div class="card">Falta <b>config.js</b> con <code>window.PSC_CONFIG</code>.</div>';
-    throw new Error('PSC_CONFIG missing');
-  }
-  const CFG = {...window.PSC_CONFIG};
-  if (!CFG.url && CFG.ref) CFG.url = `https://${CFG.ref}.supabase.co`;
-  if (!CFG.url || !CFG.anon) {
-    document.getElementById('app').innerHTML =
-      '<div class="card">En <b>config.js</b> falta <code>url</code> (o <code>ref</code>) y/o <code>anon</code>.</div>';
-    throw new Error('PSC_CONFIG incomplete');
-  }
-  CFG.bucket = CFG.bucket || 'cierre-comprobantes';
-  CFG.logo   = CFG.logo   || 'https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp';
+<script>
+/* ========================= Estado (localStorage) ========================= */
+const KEY = 'psc-cierre-demo';
+const S = {
+  currentUser: null,  // {id,email,role,sucursal_id}
+  jornada: null,      // jornada actual (obj)
+  data: null          // base completa
+};
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || null }catch{ return null } }
+function save(d){ localStorage.setItem(KEY, JSON.stringify(d)) }
+function uuid(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16)}) }
+function today(){ return new Date().toISOString().slice(0,10) }
 
-  /* --------- State y helpers --------- */
-  const S = {
-    supa:null,          // cliente principal
-    supaNoPersist:null, // cliente secundario sin persistencia (crear usuarios sin alterar tu sesión)
-    user:null,
-    isAdmin:false,
-    sucursalId:null,
-    jornadaId:null,
-    sistemas:[],
-    metodos:[],
-    denoms:[],
-    precheck:[],
-    deposito:null,
+function seed(){
+  const d = {
+    sucursales: [
+      {id: uuid(), nombre:'Central'},
+      {id: uuid(), nombre:'Sucursal 2'}
+    ],
+    sistemas: [
+      {id: uuid(), nombre:'Wix'},
+      {id: uuid(), nombre:'PSCCargas'}
+    ],
+    metodos: [
+      {id: uuid(), nombre:'efectivo',           requiere_match:false, requiere_foto:false, efectivo:true},
+      {id: uuid(), nombre:'tarjeta_clave',      requiere_match:true,  requiere_foto:true,  grupo:'tarjetas'},
+      {id: uuid(), nombre:'tarjeta_credito',    requiere_match:true,  requiere_foto:true,  grupo:'tarjetas'},
+      {id: uuid(), nombre:'yappy_comercial',    requiere_match:true,  requiere_foto:true,  grupo:'yappy'}
+    ],
+    denominaciones: [
+      {id:'c001', tipo:'moneda', valor:0.01, nombre:'1 centavo'},
+      {id:'c005', tipo:'moneda', valor:0.05, nombre:'5 centavos'},
+      {id:'c010', tipo:'moneda', valor:0.10, nombre:'10 centavos'},
+      {id:'c025', tipo:'moneda', valor:0.25, nombre:'25 centavos'},
+      {id:'c050', tipo:'moneda', valor:0.50, nombre:'50 centavos'},
+      {id:'d100', tipo:'moneda', valor:1.00, nombre:'1 dólar'},
+      {id:'b5',   tipo:'billete',valor:5,    nombre:'Billete 5'},
+      {id:'b10',  tipo:'billete',valor:10,   nombre:'Billete 10'},
+      {id:'b20',  tipo:'billete',valor:20,   nombre:'Billete 20'},
+      {id:'b50',  tipo:'billete',valor:50,   nombre:'Billete 50'},
+      {id:'b100', tipo:'billete',valor:100,  nombre:'Billete 100'}
+    ],
+    users: [
+      {id: uuid(), email:'admin@psc.test', role:'admin', sucursal_id:null},
+      {id: uuid(), email:'test@psc.test',  role:'operador', sucursal_id:null}
+    ],
+    jornadas: [],
+    aperturas: {},      // jornada_id -> [{denominacion_id, cantidad}]
+    sfinales: {},       // jornada_id -> [{denominacion_id, cantidad}]
+    ingresos: {},       // jornada_id -> [{sistema_id, metodo_id, monto, obs}]
+    comprobantes: {},   // jornada_id -> { tarjetas:{clave, credito, url}, yappy:{monto, url} }
+    depositos: {},      // jornada_id -> {monto, aceptado}
+    delivery: {},       // jornada_id -> [{cobrado, pagado, detalle, tipo, repartidor, empresa}]
+    gastos: {},         // jornada_id -> [{categoria, detalle, monto, tipo_pago, comprobante_url}]
+    compras: {}         // jornada_id -> [{detalle, precio_pagina, precio_calculado}]
   };
-  const el = (html) => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
-  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
-  const $  = (sel,root=document)=>root.querySelector(sel);
-  const fmt = (n)=> (n==null||isNaN(n))? '0.00' : Number(n).toFixed(2);
-  function toast(msg, type=''){
-    console.log(msg);
-    const div = el(`<div class="card" style="position:fixed;right:16px;bottom:16px;z-index:9999;border-color:${type==='err'?'#fecaca':'var(--border)'}">${msg}</div>`);
-    document.body.appendChild(div); setTimeout(()=>div.remove(), 2400);
-  }
-  const getContainer = (id)=> document.getElementById('content') || document.getElementById(id);
+  save(d); return d;
+}
+S.data = load() || seed();
 
-  /* --------- PATCH #3 — ÚNICO createClient (con headers globales) --------- */
-  S.supa = supabase.createClient(CFG.url, CFG.anon, {
-    db:   { schema: 'cierre' },
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl:false },
-    global: { headers: { apikey: CFG.anon, 'Accept-Profile': 'cierre', 'Content-Profile': 'cierre' } }
-  });
-  // Cliente Aux para signUp sin tocar tu sesión (no persiste)
-  S.supaNoPersist = supabase.createClient(CFG.url, CFG.anon, {
-    db:   { schema: 'cierre' },
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl:false },
-    global: { headers: { apikey: CFG.anon, 'Accept-Profile': 'cierre', 'Content-Profile': 'cierre' } }
-  });
-  window.addEventListener('focus', () => S.supa?.auth?.refreshSession());
-
-  /* --------- RPC "crudo" (siempre con apikey + bearer) --------- */
-  async function rpcRaw(name, params){
-    const { data: { session } } = await S.supa.auth.getSession();
-    const res = await fetch(`${CFG.url}/rest/v1/rpc/${name}`, {
-      method: 'POST',
-      headers: {
-        'apikey': CFG.anon,
-        'Authorization': `Bearer ${session?.access_token ?? CFG.anon}`,
-        'Content-Type': 'application/json',
-        'Accept-Profile': 'cierre',
-        'Content-Profile': 'cierre'
-      },
-      body: JSON.stringify(params||{})
+// --- Migración de datos de versiones anteriores ---
+(function migrate(){
+  const d = S.data;
+  // asegurar nuevas colecciones
+  d.delivery = d.delivery || {}; d.gastos = d.gastos || {}; d.compras = d.compras || {};
+  // separar 'tarjeta' en 'tarjeta_clave' y 'tarjeta_credito'
+  const oldTar = (d.metodos||[]).find(m=>m.nombre==='tarjeta');
+  const hasClave = (d.metodos||[]).some(m=>m.nombre==='tarjeta_clave');
+  const hasCred  = (d.metodos||[]).some(m=>m.nombre==='tarjeta_credito');
+  if(oldTar && (!hasClave || !hasCred)){
+    const clave = hasClave ? d.metodos.find(m=>m.nombre==='tarjeta_clave') : {id: uuid(), nombre:'tarjeta_clave', requiere_match:true, requiere_foto:true, grupo:'tarjetas'};
+    const credito = hasCred ? d.metodos.find(m=>m.nombre==='tarjeta_credito') : {id: uuid(), nombre:'tarjeta_credito', requiere_match:true, requiere_foto:true, grupo:'tarjetas'};
+    if(!hasClave) d.metodos.push(clave);
+    if(!hasCred)  d.metodos.push(credito);
+    Object.keys(d.ingresos||{}).forEach(jid=>{
+      d.ingresos[jid] = (d.ingresos[jid]||[]).map(it=> it.metodo_id===oldTar.id ? {...it, metodo_id: clave.id} : it);
     });
-    if(!res.ok){
-      const txt = await res.text();
-      throw new Error(txt || res.statusText);
-    }
-    return res.json();
+    d.metodos = d.metodos.filter(m=>m!==oldTar);
   }
-  // Forzamos todos los RPC a pasar por rpcRaw
-  async function rpc(name, params){ return rpcRaw(name, params); }
-
-  /* --------- Init auth --------- */
-  document.addEventListener('DOMContentLoaded', async () => {
-    const { data: { session } } = await S.supa.auth.getSession();
-    if(session){ S.user = session.user; await afterLogin(); } else { renderLogin(); }
-    S.supa.auth.onAuthStateChange(async (_evt, sess) => {
-      if(sess?.user){ S.user=sess.user; await afterLogin(); } else { S.user=null; renderLogin(); }
+  // renombrar 'yappy' a 'yappy_comercial'
+  const oldY = (d.metodos||[]).find(m=>m.nombre==='yappy');
+  const ycom = (d.metodos||[]).find(m=>m.nombre==='yappy_comercial');
+  if(oldY && !ycom){
+    const newY = {id: uuid(), nombre:'yappy_comercial', requiere_match:true, requiere_foto:true, grupo:'yappy'};
+    d.metodos.push(newY);
+    Object.keys(d.ingresos||{}).forEach(jid=>{
+      d.ingresos[jid] = (d.ingresos[jid]||[]).map(it=> it.metodo_id===oldY.id ? {...it, metodo_id: newY.id} : it);
     });
-  });
+    d.metodos = d.metodos.filter(m=>m!==oldY);
+  }
+  save(d);
+})();
 
-  /* ============================ UTILIDADES PERFIL ============================ */
-  async function reloadPerfil(){
-    try{
-      const { data: prof, error } = await S.supa.from('profiles').select('role,sucursal_id').eq('id', S.user.id).single();
-      if (error) throw error;
-      S.isAdmin    = (prof?.role === 'admin');
-      S.sucursalId = prof?.sucursal_id || null;
-      const labS = document.getElementById('labS'); if (labS) labS.textContent = S.sucursalId || '-';
-    }catch(e){ console.warn(e); S.isAdmin=false; S.sucursalId=null; }
-  }
-  async function listSucursales(){
-    const { data, error } = await S.supa.from('sucursales').select('id,nombre').order('nombre');
-    if (error) { toast('Sucursales: '+error.message, 'err'); return []; }
-    return data||[];
-  }
-  async function asignarmeSucursal(sucursalId){
-    try{
-      await rpc('admin_profile_set_sucursal', { p_user_id: S.user.id, p_sucursal_id: sucursalId });
-      toast('Sucursal asignada'); await reloadPerfil();
-    }catch(e){ toast('Asignar sucursal: ' + e.message, 'err'); }
-  }
+/* ========================= Util UI ========================= */
+const qs = s=>document.querySelector(s);
+const qsa = s=>Array.from(document.querySelectorAll(s));
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild }
+function money(n){ return Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'}) }
+function toast(msg, kind){ const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`); document.body.appendChild(d); setTimeout(()=>d.remove(), 2400) }
 
-  /* ============================== LOGIN / SIGNUP ============================== */
-  function renderLogin(){
-    $('#app').innerHTML = '';
-    const v = el(`
-      <div class="card">
-        <div class="brand" style="margin-bottom:8px">
-          <img src="${CFG.logo}" alt="PSC Cargas"/>
-          <div><div class="title">PSC Cargas</div><div class="muted">Cierre Diario</div></div>
-        </div>
-        <h1>Iniciar sesión</h1>
-        <div class="row">
-          <div class="col"><label>Email</label><input id="lEmail" type="email" placeholder="test@test.com"></div>
-          <div class="col"><label>Contraseña</label><input id="lPass" type="password" placeholder="••••••"></div>
-        </div>
-        <div class="row">
-          <button class="btn primary" id="btnLogin">Entrar</button>
-          <button class="btn" id="btnSignup">Crear cuenta</button>
-        </div>
-        <div class="muted" style="margin-top:8px">Ejemplo: test@test.com / test123</div>
-      </div>`);
-    $('#app').appendChild(v);
-    $('#btnLogin').onclick = login;
-    $('#btnSignup').onclick = signup;
+function setActive(href){ qsa('#nav a').forEach(a=> a.classList.toggle('active', a.getAttribute('href')===href)) }
+function renderSession(){
+  const box = qs('#sessionBox');
+  if(!S.currentUser){
+    box.innerHTML = '<span class="tag">No has iniciado sesión</span>';
+    return;
   }
-  async function login(){
-    const email = $('#lEmail').value.trim();
-    const password = $('#lPass').value;
-    const { error } = await S.supa.auth.signInWithPassword({ email, password });
-    if(error){ toast('Login: '+error.message, 'err'); }
-  }
-  async function signup(){
-    // OJO: este signup crea usuario y cambiará sesión si usas S.supa.
-    // Para no afectar tu login actual, usamos S.supaNoPersist y mostramos una nota.
-    const email = $('#lEmail').value.trim();
-    const password = $('#lPass').value || 'test123';
-    const { data, error } = await S.supaNoPersist.auth.signUp({ email, password });
-    if(error){ toast('SignUp: '+error.message, 'err'); return; }
-    toast('Usuario creado. Revisa tu correo si requiere verificación.');
-  }
+  const u = S.currentUser;
+  const role = u.role?.[0]?.toUpperCase()+u.role?.slice(1);
+  const suc = S.data.sucursales.find(s=>s.id===u.sucursal_id)?.nombre || '—';
+  box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span> · <span class="tag">${u.email}</span> · <span class="tag">Sucursal: ${suc}</span>
+                      <button class="btn" id="btnReset">Reset demo</button>
+                      <button class="btn" id="btnLogout">Salir</button>`;
+  qs('#btnReset').onclick = ()=>{ localStorage.removeItem(KEY); location.reload() };
+  qs('#btnLogout').onclick = async ()=>{ try{ await window._sb?.auth?.signOut?.() }catch{}; S.currentUser=null; S.jornada=null; location.hash='#/login' };
+}
 
-  /* ============================== PORTAL & ROUTER ============================== */
-  async function afterLogin(){
-    await reloadPerfil();
-    renderPortal();
+/* ========================= Router ========================= */
+window.addEventListener('hashchange', route);
+function route(){
+  const hash = location.hash || '#/login';
+  setActive(hash);
+  if(hash==='#/login') return renderLogin();
+  if(!S.currentUser) return renderLogin();
+  switch(hash){
+    case '#/mod-inicio': return renderInicio();
+    case '#/mod-apertura': return renderApertura();
+    case '#/mod-ingresos': return renderIngresos();
+    case '#/mod-sfinal': return renderSFinal();
+    case '#/mod-vouchers': return renderVouchers();
+    case '#/mod-delivery': return renderDelivery();
+    case '#/mod-gastos': return renderGastos();
+    case '#/mod-compras': return renderCompras();
+    case '#/mod-precheck': return renderPrecheck();
+    case '#/mod-deposito': return renderDeposito();
+    case '#/mod-cierre': return renderCierre();
+    case '#/mod-panel': return renderPanel();
+    case '#/mod-usuarios': return renderUsuarios();
+    case '#/mod-config': return renderConfig();
+    default: return renderInicio();
   }
-  function topBar(){
-    const u = S.user?.email || S.user?.id;
-    return el(`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <div class="brand"><img src="${CFG.logo}" alt="PSC Cargas"/><div><div class="title">PSC Cargas</div><div class="muted">Portal de Cierre</div></div></div>
-      <div class="row" style="align-items:center"><span class="muted">${S.isAdmin?'Rol: Admin':'Rol: Usuario'} • ${u||''}</span><button class="btn warn" id="btnLogout">Salir</button></div>
-    </div>`);
-  }
-  function renderPortal(){
-    $('#app').innerHTML = '';
-    $('#app').appendChild(topBar());
-    $('#btnLogout').onclick = async ()=>{ await S.supa.auth.signOut(); };
+}
 
-    const layout = el(`
-      <div class="layout">
-        <aside class="card">
-          <h3>Menú</h3>
-          <nav id="nav" class="menu">
-            <a href="#/mod-inicio">Inicio de jornada</a>
-            <a href="#/mod-apertura">Saldo inicial</a>
-            <a href="#/mod-ingresos">Ingresos (sistemas)</a>
-            <a href="#/mod-sfinal">Saldo final</a>
-            <a href="#/mod-vouchers">Vouchers</a>
-            <a href="#/mod-precheck">Precheck</a>
-            <a href="#/mod-deposito">Depósito</a>
-            <a href="#/mod-cierre">Cierre</a>
-            ${S.isAdmin? '<a href="#/mod-panel">Panel de jornadas</a>' : ''}
-            ${S.isAdmin? '<a href="#/mod-usuarios">Usuarios (admin)</a>' : ''}
-            ${S.isAdmin? '<a href="#/mod-config">Configuración</a>' : ''}
-          </nav>
-          <div class="hr"></div>
-          <div class="muted">Sucursal: <span id="labS">${S.sucursalId||'-'}</span><br>Jornada: <span id="labJ">${S.jornadaId||'-'}</span></div>
-        </aside>
-        <main id="content" class="card"></main>
-      </div>`);
-    $('#app').appendChild(layout);
+/* ========================= Login ========================= */
 
-    const applyActive = ()=> $$('#nav a').forEach(a=> a.classList.toggle('active', a.getAttribute('href')===location.hash));
-    window.addEventListener('hashchange', ()=>{ applyActive(); show(location.hash.slice(2) || 'mod-inicio'); });
-    if (!location.hash) location.hash = '#/mod-inicio';
-    applyActive();
-    show(location.hash.slice(2));
-  }
-  function show(id){
-    const main = document.getElementById('content'); if(!main) return;
-    main.innerHTML = '';
-    if(id==='mod-inicio')      renderInicio();
-    if(id==='mod-apertura')    renderApertura();
-    if(id==='mod-ingresos')    renderIngresos();
-    if(id==='mod-sfinal')      renderSaldoFinal();
-    if(id==='mod-vouchers')    renderVouchers();
-    if(id==='mod-precheck')    renderPrecheck();
-    if(id==='mod-deposito')    renderDeposito();
-    if(id==='mod-cierre')      renderCierre();
-    if(id==='mod-panel')       renderPanel();
-    if(id==='mod-usuarios')    renderUsuarios();
-    if(id==='mod-config')      renderConfig();
-  }
+function renderLogin(){
+  renderSession();
+  const v = qs('#content');
+  const options = S.data.users.map(u=>`<option value="${u.id}">${u.email} (${u.role})</option>`).join('');
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-01]</span> Entrar</h2>
+    <div class="row">
+      <div class="col">
+        <label>Selecciona usuario (demo)</label>
+        <select id="selUser">${options}</select>
+      </div>
+      <div class="col">
+        <label>Sucursal (opcional)</label>
+        <select id="selSuc"><option value="">—</option>${S.data.sucursales.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;"><button class="btn" id="btnLogin">Entrar (demo)</button></div>
 
-  /* ======================== GUARD: jornada requerida ======================== */
-  function requireJornadaOrExplain(containerEl){
-    if (!S.jornadaId) {
-      containerEl.innerHTML = `
-        <h2>Módulo no disponible</h2>
-        <div class="card">
-          <p class="muted">No hay una jornada activa. Ve a <b>Inicio de jornada</b> y pulsa <b>Marcar inicio</b>.</p>
-        </div>`;
-      return false;
+    <div class="section-title">o usar autenticación</div>
+    <div class="row">
+      <div class="col"><label>Email</label><input id="authEmail" placeholder="tu@correo.com" autocomplete="username"></div>
+      <div class="col"><label>Contraseña</label><input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="col" style="align-self:flex-end;"><button class="btn primary" id="btnLoginAuth">Entrar (Supabase)</button></div>
+    </div>
+  </div>`;
+
+  qs('#btnLogin').onclick = ()=>{
+    const id = qs('#selUser').value;
+    const u = S.data.users.find(x=>x.id===id);
+    const suc = qs('#selSuc').value || u.sucursal_id || null;
+    S.currentUser = {...u, sucursal_id:suc };
+    renderSession();
+    location.hash = '#/mod-inicio';
+  };
+
+  qs('#btnLoginAuth').onclick = async ()=>{
+    if(!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient){
+      window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
     }
-    return true;
-  }
-
-  /* ============================ JORNADA (inicio) ============================ */
-  async function ensureJornada(){
-    const data = await rpc('ensure_jornada_hoy', { p_sucursal_id: null }).catch(e=>toast(e.message,'err'));
-    const id = Array.isArray(data)? (data[0]?.ensure_jornada_hoy||data[0]) : (data?.ensure_jornada_hoy||data);
-    if(id){ S.jornadaId = id; const labJ=document.getElementById('labJ'); if(labJ) labJ.textContent=id; }
-  }
-  async function marcarInicio(){ await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{}); await ensureJornada(); }
-
-  function renderInicio(){
-    const v = getContainer('mod-inicio'); v.innerHTML = '';
-
-    v.appendChild(el(`<div>
-      <h2>Inicio de jornada</h2>
-      <div class="muted">Usuario: ${S.user?.email||S.user?.id||'-'}</div>
-      <div class="muted">Sucursal actual: <b>${S.sucursalId||'-'}</b></div>
-      <div class="muted">Jornada actual: <b>${S.jornadaId||'-'}</b></div>
-      <div class="hr"></div>
-    </div>`));
-
-    if (!S.sucursalId) {
-      const box = el(`<div class="card">
-        <h3>No tienes una sucursal asignada</h3>
-        <p class="muted">Para poder iniciar jornada debes tener una sucursal.</p>
-        ${S.isAdmin ? `
-          <div class="row">
-            <div class="col"><label>Asignarme sucursal</label><select id="selMisSuc"></select></div>
-            <div class="col" style="align-self:end"><button class="btn primary" id="btnAsignar">Asignar a mi perfil</button></div>
-          </div>
-        ` : `<div class="muted">Pídele a un administrador que te asigne una sucursal.</div>`}
-      </div>`);
-      v.appendChild(box);
-
-      if (S.isAdmin) {
-        listSucursales().then(list=>{
-          const sel = document.getElementById('selMisSuc');
-          sel.innerHTML = list.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
-        });
-        document.getElementById('btnAsignar').onclick = async ()=>{
-          const val = document.getElementById('selMisSuc').value;
-          if(!val) return; await asignarmeSucursal(val); renderInicio();
-        };
+    if(!window._sb){ toast('Config de Supabase faltante en config.js', 'err'); return; }
+    const email = (qs('#authEmail').value||'').trim();
+    const password = qs('#authPass').value||'';
+    if(!email || !password){ toast('Ingresa email y contraseña', 'err'); return; }
+    const { data, error } = await window._sb.auth.signInWithPassword({ email, password });
+    if(error){ toast(error.message || 'No se pudo iniciar sesión', 'err'); return; }
+    // Obtener perfil (role, sucursal) desde función segura (a implementar en Supabase)
+    try{
+      const { data: sess } = await window._sb.auth.getSession();
+      const token = sess?.session?.access_token;
+      let prof = null;
+      if(token && window.PSC_CONFIG?.functionsBase){
+        const { data: profRow } = await window._sb.from('app_users').select('id,role,sucursal_id').eq('id', data.user.id).maybeSingle();
+        const prof = profRow || null;
       }
-      return; // sin sucursal no mostramos botones de jornada
-    }
+      S.currentUser = {
+        id: data.user.id,
+        email: data.user.email,
+        role: (prof?.role || 'operador'),
+        sucursal_id: (prof?.sucursal_id || null)
+      };
+      save(S.data); renderSession(); location.hash='#/mod-inicio';
+    }catch(e){ console.error(e); toast('Sesión iniciada, pero faltó perfil', 'warn'); }
+  };
+}
+/* ========================= Helpers de Jornada ========================= */
+function ensureJornadaHoy(){
+  if(!S.currentUser?.sucursal_id){ toast('Asigna sucursal al usuario','err'); return null }
+  const fecha = today();
+  let j = S.data.jornadas.find(x=> x.fecha===fecha && x.sucursal_id===S.currentUser.sucursal_id);
+  if(!j){
+    j = { id: uuid(), fecha, sucursal_id: S.currentUser.sucursal_id, estado:'creada',
+          abierto_por:null, abierto_at:null, cerrado_por:null, cerrado_at:null,
+          deposito_monto:0, deposito_aceptado:false, cierre_ok:null, cierre_obs:null };
+    S.data.jornadas.push(j); save(S.data);
+  }
+  S.jornada = j;
+  return j;
+}
+function marcarInicio(){
+  const j = ensureJornadaHoy(); if(!j) return;
+  if(j.abierto_por && j.abierto_por!==S.currentUser.id){ toast('La jornada ya fue iniciada por otro usuario','err'); return; }
+  if(j.abierto_por===S.currentUser.id){ toast('Ya habías iniciado la jornada'); return; }
+  j.abierto_por = S.currentUser.id;
+  j.abierto_at = new Date().toISOString();
+  j.estado = 'abierta';
+  save(S.data); toast('Inicio de jornada marcado');
+}
 
-    const actions = el(`<div class="row" style="margin-top:10px">
+/* ========================= Pantalla Inicio ========================= */
+function renderInicio(){
+  renderSession();
+  const v = qs('#content'); v.innerHTML = '';
+  const u = S.currentUser;
+  const suc = S.data.sucursales.find(s=>s.id===u.sucursal_id)?.nombre || '—';
+  const j = ensureJornadaHoy();
+  const jid = j?.id || '—';
+  v.appendChild(el(`<div class="card">
+    <h2><span class="code">[C-02]</span> Inicio de jornada</h2>
+    <div class="muted">Usuario: <b>${u.email}</b> · Rol: <b>${u.role}</b></div>
+    <div class="muted">Sucursal actual: <b>${suc}</b></div>
+    <div class="muted">Jornada hoy: <b id="labJ">${jid}</b></div>
+    <div class="row" style="margin-top:10px">
       <button class="btn primary" id="btnStart">Marcar inicio de jornada</button>
       <button class="btn" id="btnEnsure">Refrescar jornada</button>
+    </div>
+  </div>`));
+  qs('#btnStart').onclick = ()=>{ marcarInicio(); qs('#labJ').textContent=S.jornada.id };
+  qs('#btnEnsure').onclick = ()=>{ ensureJornadaHoy(); qs('#labJ').textContent=S.jornada.id; toast('Jornada refrescada') };
+}
+
+/* =================== Catálogos básicos en memoria =================== */
+function denomLabel(d){ return (d.tipo==='moneda' ? (d.valor<1?`¢ ${Math.round(d.valor*100)}`: `$ ${d.valor}`) : `$ ${d.valor}`) }
+function requireJornadaOrExplain(v){
+  ensureJornadaHoy();
+  if(!S.jornada){ v.innerHTML = '<div class="card">Asigna sucursal y marca inicio de jornada.</div>'; return false }
+  return true;
+}
+
+/* ========================= Apertura ========================= */
+function renderApertura(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  v.innerHTML = `<div class="card">
+    <div class="ap-head">
+      <h2><span class="code">[C-03]</span> Saldo inicial (Apertura)</h2>
+      <div class="ap-total"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
+    </div>
+    <table class="ap"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
+    <tbody id="apRows"></tbody>
+    <tfoot><tr><td colspan="2" class="right-align" style="font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>
+    </table>
+    <div class="actions"><button class="btn primary" id="btnApSave">Guardar</button></div>
+  </div>`;
+
+  const body = qs('#apRows'); body.innerHTML='';
+  const detalle = S.data.aperturas[S.jornada.id] || [];
+  const prevById = Object.fromEntries(detalle.map(x=>[x.denominacion_id, x.cantidad]));
+  S.data.denominaciones.sort((a,b)=>a.valor-b.valor).forEach(d=>{
+    const qty = prevById[d.id] || '';
+    body.appendChild(el(`<tr data-id="${d.id}" data-valor="${d.valor}">
+      <td>${denomLabel(d)}</td>
+      <td><input type="number" min="0" step="1" value="${qty}" style="width:120px"></td>
+      <td class="apSub">$0.00</td>
+    </tr>`));
+  });
+
+  function recalc(){
+    let total=0;
+    qsa('#apRows tr').forEach(tr=>{
+      const valor = Number(tr.dataset.valor||0);
+      const qty = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+      const sub = valor*qty;
+      tr.querySelector('.apSub').textContent = money(sub);
+      total += sub;
+    });
+    qs('#apTotal').textContent = money(total);
+    qs('#apTotalFoot').textContent = money(total);
+  }
+  recalc();
+  qs('#apRows').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') recalc() });
+
+  qs('#btnApSave').onclick = ()=>{
+    const items = qsa('#apRows tr').map(tr=>{
+      const id=tr.dataset.id, qty=Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+      return { denominacion_id:id, cantidad:qty };
+    });
+    S.data.aperturas[S.jornada.id] = items;
+    save(S.data); toast('Apertura guardada');
+  };
+}
+
+/* ========================= Ingresos ========================= */
+function renderIngresos(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-04]</span> Ingresos — Totales del día</h2>
+    <div class="section-title">Por sistema × método</div>
+    <div id="ingGrid"></div>
+    <div class="actions"><button class="btn primary" id="btnIngSave">Guardar</button></div>
+  </div>`;
+
+  const grid = qs('#ingGrid'); grid.innerHTML='';
+
+  const order = ['efectivo','tarjeta_clave','tarjeta_credito','yappy_comercial'];
+  const friendly = (name)=> ({
+    efectivo:'Efectivo',
+    tarjeta_clave:'Tarjeta CLAVE',
+    tarjeta_credito:'Tarjeta Crédito',
+    yappy_comercial:'Yappy Comercial'
+  }[name] || name);
+
+  const metodosOrd = [...S.data.metodos].sort((a,b)=>{
+    const ia = order.indexOf(a.nombre); const ib = order.indexOf(b.nombre);
+    return (ia<0?99:ia) - (ib<0?99:ib) || a.nombre.localeCompare(b.nombre);
+  });
+
+  S.data.sistemas.forEach((sys, index)=>{
+    const subCode = String.fromCharCode(65 + index); // A, B, C...
+    const tbl = el(`<div class="card"><h3><span class="code">[C-04-${subCode}]</span> ${sys.nombre}</h3>
+      <table><thead><tr><th>Método</th><th style="width:160px">Monto</th><th>Obs.</th></tr></thead><tbody></tbody></table>
     </div>`);
-    v.appendChild(actions);
-    $('#btnStart').onclick = async ()=>{ try{ await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }); await ensureJornada(); toast('Jornada iniciada'); renderInicio(); }catch(e){ toast('Inicio de jornada: '+e.message,'err'); } };
-    $('#btnEnsure').onclick = async ()=>{ await ensureJornada(); toast('Jornada refrescada'); renderInicio(); };
-  }
-
-  /* =================== Catálogos (sistemas, métodos, denoms) =================== */
-  async function ensureCatalogos(){
-    if(!S.sistemas.length){ try{ S.sistemas = await rpc('ui_list_sistemas') || []; }catch(e){ console.warn(e); } }
-    if(!S.metodos.length){  try{ S.metodos  = await rpc('ui_list_metodos_pago') || []; }catch(e){ console.warn(e); } }
-    if(!S.denoms.length){   try{ S.denoms   = await rpc('ui_list_denominaciones') || []; }catch(e){ console.warn(e); } }
-  }
-
-  /* ========================= APERTURA — Saldo inicial ========================= */
-  async function renderApertura(){
-    const v = getContainer('mod-apertura'); if (!requireJornadaOrExplain(v)) return;
-    // UI
-    v.innerHTML = `<div class="apertura-head">
-        <h2>Saldo inicial (Apertura)</h2>
-        <div class="apertura-total-badge"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
-      </div>
-      <table class="apertura"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
-      <tbody id="apRows"></tbody>
-      <tfoot><tr><td colspan="2" style="text-align:right;font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>
-      </table>
-      <div class="apertura-actions"><button class="btn primary" id="btnApSave" disabled>Guardar</button></div>`;
-
-    await ensureJornada();
-    await rpc('jornada_marcaje_inicio', { p_sucursal_id: null }).catch(()=>{});
-
-    // Denominaciones/Detalle
-    await ensureCatalogos();
-    if(!S.denoms || !S.denoms.length){
-      try{ const { data:den } = await S.supa.from('denominaciones').select('id, valor, tipo, nombre'); S.denoms = den||[]; }catch(e){ console.warn('denoms fallback', e); }
-    }
-
-    let detalle = [];
-    try{ detalle = await rpc('ui_apertura_get_items') || []; }catch{}
-
-    // Build items with valor/label/cantidad
-    const denById = Object.fromEntries((S.denoms||[]).map(d=>[String(d.id), d]));
-    let items = [];
-
-    if(Array.isArray(detalle) && detalle.length){
-      items = detalle.map(d => {
-        const id = String(d.denominacion_id ?? d.id);
-        const base = denById[id] || {};
-        const valor = Number(d.valor ?? d.denominacion_valor ?? base.valor ?? 0);
-        const tipo  = d.tipo ?? base.tipo;
-        const label = d.label ?? d.nombre ?? (valor ? ((tipo==='moneda'?'¢ ':'$ ') + valor) : (base.nombre || String(valor)));
-        return { id, valor, label, cantidad: Number(d.cantidad||0) };
-      });
-    } else {
-      items = (S.denoms||[]).map(d=>({ id:String(d.id), valor:Number(d.valor), label:(d.tipo==='moneda'?'¢ ':'$ ')+d.valor, cantidad:0 }));
-    }
-
-    // Render rows
-    const body = $('#apRows'); body.innerHTML='';
-    items.sort((a,b)=>a.valor-b.valor).forEach(it=>{
-      body.appendChild(el(`<tr data-id="${it.id}" data-valor="${it.valor}">
-        <td>${it.label}</td>
-        <td><input type="number" step="1" min="0" value="${it.cantidad||0}" style="width:120px"></td>
-        <td class="apSub">$0.00</td>
+    const tbody = tbl.querySelector('tbody');
+    metodosOrd.forEach(m=>{
+      const prev = (S.data.ingresos[S.jornada.id]||[]).find(x=>x.sistema_id===sys.id && x.metodo_id===m.id);
+      const chips = [
+        m.requiere_match ? '<span class="chip">match</span>' : '',
+        m.efectivo ? '<span class="chip">efectivo</span>' : '',
+        m.nombre==='tarjeta_clave' ? '<span class="chip">CLAVE</span>' : '',
+        m.nombre==='tarjeta_credito' ? '<span class="chip">Crédito</span>' : '',
+      ].join(' ');
+      tbody.appendChild(el(`<tr data-sis="${sys.id}" data-met="${m.id}">
+        <td>${friendly(m.nombre)} ${chips}</td>
+        <td><input type="number" min="0" step="0.01" value="${prev?.monto || ''}" style="width:140px"></td>
+        <td><input type="text" value="${prev?.obs||''}"></td>
       </tr>`));
     });
+    grid.appendChild(tbl);
+  });
 
-    const fmt = (n)=> Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'});
-    function recalc(){
-      let total = 0;
-      $$('#apRows tr').forEach(tr=>{
-        const valor = Number(tr.dataset.valor||0);
-        const qty   = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
-        const sub   = valor * qty;
-        tr.querySelector('.apSub').textContent = fmt(sub);
-        total += sub;
-      });
-      $('#apTotal').textContent = fmt(total);
-      $('#apTotalFoot').textContent = fmt(total);
-      const hasJ = !!(window.APP && APP.jornada_id);
-      $('#btnApSave').disabled = !hasJ;
-    }
-    recalc();
-    $('#apRows').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') recalc(); });
-
-    $('#btnApSave').onclick = async ()=>{
-      const items = $$('#apRows tr').map(tr=>{
-        const id = tr.dataset.id, qty = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
-        return { denominacion_id:id, cantidad: qty };
-      });
-      await rpc('apertura_save_counts', { p_items: items }).catch(e=>toast('apertura_save: '+friendlyError(e),'err'));
-      toast('Apertura guardada');
-    };
-  }
-/* ========================= INGRESOS — Totales del día ========================= */
-  async function renderIngresos(){
-    const v = getContainer('mod-ingresos'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Ingresos — Totales del día</h2>';
-    await ensureCatalogos();
-
-    const grid = el('<div class="row" id="ingGrid" style="gap:16px;flex-wrap:wrap"></div>');
-    v.appendChild(grid);
-
-    S.sistemas.forEach(sys=>{
-      const box = el(`<div class="card" style="flex:1 1 320px">
-        <h3>${sys.nombre}</h3>
-        ${S.metodos.map(m=>`
-          <div style="margin:10px 0">
-            <label>${m.nombre}</label>
-            <input type="number" step="0.01" min="0" placeholder="0.00" data-sis="${sys.nombre}" data-met="${m.nombre}" />
-          </div>`).join('')}
-        <button class="btn primary" data-save="${sys.nombre}">Guardar ${sys.nombre}</button>
-      </div>`);
-      grid.appendChild(box);
+  qs('#btnIngSave').onclick = ()=>{
+    const items = [];
+    qsa('#ingGrid tr').forEach(tr=>{
+      const sistema_id = tr.dataset.sis, metodo_id = tr.dataset.met;
+      const monto = Number(tr.querySelector('td:nth-child(2) input').value||0);
+      const obs = tr.querySelector('td:nth-child(3) input').value||'';
+      if(monto>0 || obs) items.push({sistema_id, metodo_id, monto, obs});
     });
+    S.data.ingresos[S.jornada.id] = items;
+    save(S.data); toast('Ingresos guardados');
+  };
+}
 
-    $$('#ingGrid [data-save]').forEach(btn=>{
-      btn.onclick = async ()=>{
-        const sis = btn.dataset.save;
-        const inputs = $$(`input[data-sis="${sis}"]`, $('#ingGrid'));
-        for(const i of inputs){
-          const val = parseFloat(i.value||'0');
-          if(!isFinite(val) || val<=0) continue;
-          await rpc('ingreso_set_total_by_names', { p_sistema: sis, p_metodo: i.dataset.met, p_monto: val, p_sucursal_id: null, p_obs: null })
-            .catch(e=>{ toast(`Ingreso ${sis}/${i.dataset.met}: ${e.message}`,'err'); throw e; });
+/* ========================= Saldo final (Efectivo) ========================= */
+function renderSFinal(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  v.innerHTML = `<div class="card">
+    <div class="ap-head">
+      <h2><span class="code">[C-05]</span> Saldo final (Efectivo)</h2>
+      <div class="ap-total"><span>Total</span> <strong id="sfTotal">$0.00</strong></div>
+    </div>
+    <table class="ap"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
+    <tbody id="sfRows"></tbody>
+    <tfoot><tr><td colspan="2" class="right-align" style="font-weight:600">Total</td><td class="apSub" id="sfTotalFoot">$0.00</td></tr></tfoot>
+    </table>
+    <div class="actions"><button class="btn primary" id="btnSfSave">Guardar</button></div>
+  </div>`;
+
+  const body = qs('#sfRows'); body.innerHTML='';
+  const detalle = S.data.sfinales[S.jornada.id] || [];
+  const prevById = Object.fromEntries(detalle.map(x=>[x.denominacion_id, x.cantidad]));
+  S.data.denominaciones.sort((a,b)=>a.valor-b.valor).forEach(d=>{
+    const qty = prevById[d.id] || '';
+    body.appendChild(el(`<tr data-id="${d.id}" data-valor="${d.valor}">
+      <td>${denomLabel(d)}</td>
+      <td><input type="number" min="0" step="1" value="${qty}" style="width:120px"></td>
+      <td class="apSub">$0.00</td>
+    </tr>`));
+  });
+
+  function recalc(){
+    let total=0;
+    qsa('#sfRows tr').forEach(tr=>{
+      const valor = Number(tr.dataset.valor||0);
+      const qty = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+      const sub = valor*qty;
+      tr.querySelector('.apSub').textContent = money(sub);
+      total += sub;
+    });
+    qs('#sfTotal').textContent = money(total);
+    qs('#sfTotalFoot').textContent = money(total);
+  }
+  recalc();
+  qs('#sfRows').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') recalc() });
+
+  qs('#btnSfSave').onclick = ()=>{
+    const items = qsa('#sfRows tr').map(tr=>{
+      const id=tr.dataset.id, qty=Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
+      return { denominacion_id:id, cantidad:qty };
+    });
+    S.data.sfinales[S.jornada.id] = items;
+    save(S.data); toast('Saldo final guardado');
+  };
+}
+
+/* ========================= Vouchers ========================= */
+function renderVouchers(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+  const comp = S.data.comprobantes[j.id] || { tarjetas:{clave:0, credito:0, url:''}, yappy:{monto:0, url:''} };
+    const gastosEf = (S.data.gastos[j.id]||[]).filter(g=> (g.tipo_pago||'').toLowerCase()==='efectivo').reduce((a,b)=>a+Number(b.monto||0),0);
+
+  S.data.comprobantes[j.id] = comp; save(S.data);
+
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-06]</span> Vouchers</h2>
+    <div class="muted">Se suben mínimo <b>2 fotos por día</b>: 1) voucher de <b>Tarjetas (CLAVE + Crédito)</b> y 2) voucher de <b>Yappy Comercial</b>.</div>
+  </div>
+  <div class="card">
+    <h3><span class="code">[C-06-A]</span> Tarjetas (CLAVE + Crédito)</h3>
+    <div class="row">
+      <div class="col"><label>Monto CLAVE</label><input id="vcClave" type="number" min="0" step="0.01" value="${comp.tarjetas.clave||''}"></div>
+      <div class="col"><label>Monto Crédito</label><input id="vcCred" type="number" min="0" step="0.01" value="${comp.tarjetas.credito||''}"></div>
+      <div class="col"><label>Foto / URL</label><input id="vcUrl" type="text" placeholder="URL de voucher" value="${comp.tarjetas.url||''}"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span class="code">[C-06-B]</span> Yappy Comercial</h3>
+    <div class="row">
+      <div class="col"><label>Monto</label><input id="vyMonto" type="number" min="0" step="0.01" value="${comp.yappy.monto||''}"></div>
+      <div class="col"><label>Foto / URL</label><input id="vyUrl" type="text" placeholder="URL de voucher" value="${comp.yappy.url||''}"></div>
+    </div>
+  </div>
+  <div class="actions"><button class="btn primary" id="btnSaveV">Guardar vouchers</button></div>`;
+
+  qs('#btnSaveV').onclick = ()=>{
+    comp.tarjetas.clave   = Number(qs('#vcClave').value||0);
+    comp.tarjetas.credito = Number(qs('#vcCred').value||0);
+    comp.tarjetas.url     = qs('#vcUrl').value||'';
+    comp.yappy.monto      = Number(qs('#vyMonto').value||0);
+    comp.yappy.url        = qs('#vyUrl').value||'';
+    S.data.comprobantes[j.id] = comp; save(S.data);
+    toast('Vouchers guardados');
+  };
+}
+
+/* ========================= Delivery (mensajería) ========================= */
+function renderDelivery(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+  const list = S.data.delivery[j.id] || (S.data.delivery[j.id]=[]);
+
+  function totals(){
+    const carga = list.length;
+    const cobrado = list.reduce((a,b)=>a+Number(b.cobrado||0),0);
+    const pagado  = list.reduce((a,b)=>a+Number(b.pagado||0),0);
+    const ganancia = +(cobrado - pagado).toFixed(2);
+    return {carga, cobrado, pagado, ganancia};
+  }
+  const T = totals();
+
+  v.innerHTML = `<div class="card">
+    <h2><span class="code">[C-07]</span> Delivery — Carga recibida y Total facturado</h2>
+    <div class="row" style="gap:12px">
+      <div class="kpi"><small>Carga recibida</small><b>${T.carga}</b></div>
+      <div class="kpi"><small>Total facturado (cobrado)</small><b>${money(T.cobrado)}</b></div>
+      <div class="kpi"><small>Pagado a repartidor</small><b>${money(T.pagado)}</b></div>
+      <div class="kpi"><small>Ganancia</small><b>${money(T.ganancia)}</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span class="code">[C-07-A]</span> Agregar envío</h3>
+    <div class="row">
+      <div class="col"><label>Tipo</label><select id="dlTipo"><option>Entrega</option><option>Recogida</option></select></div>
+      <div class="col"><label>Empresa</label><select id="dlEmpresa"><option>PSC</option><option>CARGAS N.</option></select></div>
+      <div class="col"><label>Repartidor</label><input id="dlRep" placeholder="Nombre"></div>
+      <div class="col"><label>Cobrado al cliente</label><input id="dlCob" type="number" min="0" step="0.01" value="" placeholder="0.00"></div>
+      <div class="col"><label>Pagado al repartidor</label><input id="dlPag" type="number" min="0" step="0.01" value="" placeholder="0.00"></div>
+    </div>
+    <div class="row">
+      <div class="col"><label>Detalle</label><input id="dlDet" placeholder="observaciones"></div>
+      <div class="col"><label>&nbsp;</label><button class="btn primary" id="btnDlAdd">Añadir</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Tipo</th><th>Empresa</th><th>Repartidor</th><th>Cobrado</th><th>Pagado</th><th>Ganancia</th><th>Detalle</th><th></th></tr></thead>
+      <tbody id="dlRows"></tbody>
+    </table>
+  </div>`;
+
+  function draw(){
+    const tb = qs('#dlRows'); tb.innerHTML='';
+    list.forEach((r,i)=>{
+      const gan = +(Number(r.cobrado||0)-Number(r.pagado||0)).toFixed(2);
+      tb.appendChild(el(`<tr>
+        <td>${r.tipo||''}</td>
+        <td>${r.empresa||''}</td>
+        <td>${r.repartidor||''}</td>
+        <td>${money(r.cobrado||0)}</td>
+        <td>${money(r.pagado||0)}</td>
+        <td>${money(gan)}</td>
+        <td>${r.detalle||''}</td>
+        <td><button class="btn" data-i="${i}">Borrar</button></td>
+      </tr>`));
+    });
+  }
+  draw();
+
+  qs('#btnDlAdd').onclick = ()=>{
+    list.push({
+      tipo: qs('#dlTipo').value,
+      empresa: qs('#dlEmpresa').value,
+      repartidor: qs('#dlRep').value||'',
+      cobrado: Number(qs('#dlCob').value||0),
+      pagado: Number(qs('#dlPag').value||0),
+      detalle: qs('#dlDet').value||''
+    });
+    save(S.data); renderDelivery();
+  };
+  qs('#dlRows').addEventListener('click', e=>{
+    if(e.target.matches('button[data-i]')){
+      const i = +e.target.getAttribute('data-i'); list.splice(i,1); save(S.data); renderDelivery();
+    }
+  });
+}
+
+/* ========================= Gastos ========================= */
+function renderGastos(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+  const list = S.data.gastos[j.id] || (S.data.gastos[j.id]=[]);
+
+  const total = list.reduce((a,b)=>a+Number(b.monto||0),0);
+
+  v.innerHTML = `<div class="card">
+    <h2><span class="code">[C-08]</span> Gastos</h2>
+    <div class="kpi"><small>Total de gastos</small><b>${money(total)}</b></div>
+  </div>
+  <div class="card">
+    <h3><span class="code">[C-08-A]</span> Agregar gasto</h3>
+    <div class="row">
+      <div class="col">
+        <label>Categoría</label>
+        <select id="gCat">
+          <option>Gasolina</option>
+          <option>Quincena</option>
+          <option>Alquiler</option>
+          <option>Servicios</option>
+          <option>Otros</option>
+        </select>
+      </div>
+       <div class="col">
+        <label>Tipo de Pago</label>
+        <select id="gTipoPago">
+          <option>Efectivo</option>
+          <option>Otro Metodo</option>
+        </select>
+      </div>
+      <div class="col"><label>Monto</label><input id="gMonto" type="number" min="0" step="0.01" value="" placeholder="0.00"></div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <div class="col"><label>Detalle</label><input id="gDet" placeholder="Descripción"></div>
+      <div class="col"><label>Foto / URL Comprobante</label><input id="gComp" placeholder="https://ejemplo.com/foto.jpg"></div>
+      <div class="col" style="align-self:flex-end;"><button class="btn primary" id="btnGAdd">Añadir</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Categoría</th><th>Detalle</th><th>Tipo de Pago</th><th>Monto</th><th></th></tr></thead>
+      <tbody id="gRows"></tbody>
+    </table>
+  </div>`;
+
+  function draw(){
+    const tb = qs('#gRows'); tb.innerHTML='';
+    list.forEach((r,i)=>{
+      tb.appendChild(el(`<tr>
+        <td>${r.categoria||''}</td>
+        <td>${r.detalle||''}</td>
+        <td>${r.tipo_pago||''}</td>
+        <td>${money(r.monto||0)}</td>
+        <td><button class="btn" data-i="${i}">Borrar</button></td>
+      </tr>`));
+    });
+  }
+  draw();
+
+  qs('#btnGAdd').onclick = ()=>{
+    const categoria = qs('#gCat').value;
+    const tipo_pago = qs('#gTipoPago').value;
+    const monto = Number(qs('#gMonto').value||0);
+    const detalle = qs('#gDet').value.trim();
+    const comprobante_url = qs('#gComp').value.trim();
+
+    if(!detalle || !comprobante_url || monto <= 0){
+      return toast('Todos los campos son obligatorios y el monto debe ser mayor a cero.', 'err');
+    }
+
+    list.push({ categoria, detalle, monto, tipo_pago, comprobante_url });
+    save(S.data); renderGastos();
+  };
+  qs('#gRows').addEventListener('click', e=>{
+    if(e.target.matches('button[data-i]')){
+      const i = +e.target.getAttribute('data-i'); list.splice(i,1); save(S.data); renderGastos();
+    }
+  });
+}
+
+/* ========================= Compras ========================= */
+function renderCompras(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+  const list = S.data.compras[j.id] || (S.data.compras[j.id]=[]);
+
+  const totalPag  = list.reduce((a,b)=>a+Number(b.precio_pagina||0),0);
+  const totalCalc = list.reduce((a,b)=>a+Number(b.precio_calculado||0),0);
+  const gan = +(totalCalc - totalPag).toFixed(2);
+
+  v.innerHTML = `<div class="card">
+    <h2><span class="code">[C-09]</span> Compras</h2>
+    <div class="row" style="gap:12px">
+      <div class="kpi"><small>Precio página</small><b>${money(totalPag)}</b></div>
+      <div class="kpi"><small>Precio calculado</small><b>${money(totalCalc)}</b></div>
+      <div class="kpi"><small>Ganancia</small><b>${money(gan)}</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span class="code">[C-09-A]</span> Agregar compra</h3>
+    <div class="row">
+      <div class="col"><label>Detalle</label><input id="cDet" placeholder="Descripción"></div>
+      <div class="col"><label>Precio página</label><input id="cPag" type="number" min="0" step="0.01" value="" placeholder="0.00"></div>
+      <div class="col"><label>Precio calculado</label><input id="cCal" type="number" min="0" step="0.01" value="" placeholder="0.00"></div>
+      <div class="col"><label>&nbsp;</label><button class="btn primary" id="btnCAdd">Añadir</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Detalle</th><th>Precio página</th><th>Precio calculado</th><th>Ganancia</th><th></th></tr></thead>
+      <tbody id="cRows"></tbody>
+    </table>
+  </div>`;
+
+  function draw(){
+    const tb = qs('#cRows'); tb.innerHTML='';
+    list.forEach((r,i)=>{
+      const g = +(Number(r.precio_calculado||0) - Number(r.precio_pagina||0)).toFixed(2);
+      tb.appendChild(el(`<tr>
+        <td>${r.detalle||''}</td><td>${money(r.precio_pagina||0)}</td><td>${money(r.precio_calculado||0)}</td><td>${money(g)}</td>
+        <td><button class="btn" data-i="${i}">Borrar</button></td>
+      </tr>`));
+    });
+  }
+  draw();
+
+  qs('#btnCAdd').onclick = ()=>{
+    list.push({ detalle: qs('#cDet').value||'', precio_pagina: Number(qs('#cPag').value||0), precio_calculado: Number(qs('#cCal').value||0) });
+    save(S.data); renderCompras();
+  };
+  qs('#cRows').addEventListener('click', e=>{
+    if(e.target.matches('button[data-i]')){
+      const i = +e.target.getAttribute('data-i'); list.splice(i,1); save(S.data); renderCompras();
+    }
+  });
+}
+
+/* ========================= Totales auxiliares ========================= */
+function totalEfectivoFrom(det){
+  const map = Object.fromEntries(S.data.denominaciones.map(d=>[d.id, d.valor]));
+  return (det||[]).reduce((acc,it)=> acc + (map[it.denominacion_id]||0) * (it.cantidad||0), 0);
+}
+
+/* ========================= Precheck ========================= */
+function renderPrecheck(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+
+  const aperturaEf = totalEfectivoFrom(S.data.aperturas[j.id]);
+  const sfinalEf   = totalEfectivoFrom(S.data.sfinales[j.id]);
+  const ingresosJ  = (S.data.ingresos[j.id]||[]);
+  const comp       = S.data.comprobantes[j.id] || { tarjetas:{clave:0, credito:0, url:''}, yappy:{monto:0, url:''} };
+
+    const gastosEf = (S.data.gastos[j.id]||[]).filter(g=> (g.tipo_pago||'').toLowerCase()==='efectivo').reduce((a,b)=>a+Number(b.monto||0),0);
+
+
+  const mClave   = S.data.metodos.find(m=>m.nombre==='tarjeta_clave');
+  const mCredito = S.data.metodos.find(m=>m.nombre==='tarjeta_credito');
+  const mYappy   = S.data.metodos.find(m=>m.nombre==='yappy_comercial');
+  const mEfec    = S.data.metodos.find(m=>m.efectivo);
+
+  const totClave   = ingresosJ.filter(i=>i.metodo_id===mClave?.id).reduce((a,b)=>a+b.monto,0);
+  const totCredito = ingresosJ.filter(i=>i.metodo_id===mCredito?.id).reduce((a,b)=>a+b.monto,0);
+  const totYappy   = ingresosJ.filter(i=>i.metodo_id===mYappy?.id).reduce((a,b)=>a+b.monto,0);
+  const ingresosEf = ingresosJ.filter(i=>i.metodo_id===mEfec?.id).reduce((a,b)=>a+b.monto,0);
+
+  const det = [
+    { metodo:'Tarjeta CLAVE',   total_sistemas: totClave,   total_vouchers: comp.tarjetas?.clave||0 },
+    { metodo:'Tarjeta Crédito', total_sistemas: totCredito, total_vouchers: comp.tarjetas?.credito||0 },
+    { metodo:'Yappy Comercial', total_sistemas: totYappy,   total_vouchers: comp.yappy?.monto||0 }
+  ].map(r=>{
+    const diff = +(r.total_sistemas - r.total_vouchers).toFixed(2);
+    const estado = diff===0 ? 'ok' : (diff>0 ? 'falta' : 'sobra');
+    return {...r, diferencia: diff, estado};
+  });
+
+  const depositoSugerido = +(aperturaEf + ingresosEf - sfinalEf - gastosEf).toFixed(2);
+  const depGuardado = S.data.depositos[j.id]?.monto ?? null;
+  const depEstado = (depGuardado===null) ? 'pendiente' : (Math.abs(depositoSugerido - depGuardado) < 0.01 ? 'ok' : 'descuadre');
+
+  v.innerHTML = `<div class="card">
+    <h2><span class="code">[C-10]</span> Precheck</h2>
+    <div class="muted">Si algo no cuadra, presiona <b>Reset demo</b> para limpiar datos viejos.</div>
+    <div class="row" style="gap:12px">
+      <div class="kpi"><small>Apertura efectivo</small><b>${money(aperturaEf)}</b></div>
+      <div class="kpi"><small>Ingresos efectivo</small><b>${money(ingresosEf)}</b></div>
+      <div class="kpi"><small>Saldo final efectivo</small><b>${money(sfinalEf)}</b></div>
+      <div class="kpi"><small>Depósito sugerido</small><b>${money(depositoSugerido)}</b></div>
+      <div class="kpi"><small>Depósito guardado</small><b>${depGuardado===null?'—':money(depGuardado)}</b></div>
+      <div class="kpi"><small>Estado efectivo</small><b class="${depEstado==='ok'?'ok':'bad'}">${depEstado}</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Método</th><th>Total sistemas</th><th>Total vouchers</th><th>Diferencia</th><th>Estado</th><th>Fotos</th></tr></thead>
+      <tbody id="preRows"></tbody>
+    </table>
+  </div>`;
+
+  const tbody = qs('#preRows');
+  det.forEach(r=>{
+    const fotos = r.metodo.startsWith('Tarjeta')
+      ? (comp.tarjetas?.url ? '1/1' : '0/1')
+      : (r.metodo==='Yappy Comercial' ? (comp.yappy?.url ? '1/1' : '0/1') : '—');
+    tbody.appendChild(el(`<tr>
+      <td>${r.metodo}</td>
+      <td>${money(r.total_sistemas)}</td>
+      <td>${money(r.total_vouchers)}</td>
+      <td>${money(r.diferencia)}</td>
+      <td class="${r.estado==='ok'?'ok':'bad'}">${r.estado}</td>
+      <td>${fotos}</td>
+    </tr>`));
+  });
+}
+
+/* ========================= Depósito ========================= */
+function renderDeposito(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+  const aperturaEf = totalEfectivoFrom(S.data.aperturas[j.id]);
+  const sfinalEf   = totalEfectivoFrom(S.data.sfinales[j.id]);
+  const mEf = S.data.metodos.find(m=>m.efectivo);
+  const ingresosEf  = (S.data.ingresos[j.id]||[]).filter(i=> i.metodo_id===mEf?.id).reduce((a,b)=>a+Number(b.monto||0),0);
+  const gastosEf = (S.data.gastos[j.id]||[]).filter(g=> (g.tipo_pago||'').toLowerCase()==='efectivo').reduce((a,b)=>a+Number(b.monto||0),0);
+  const depositoSugerido = +(aperturaEf + ingresosEf - sfinalEf - gastosEf).toFixed(2);
+
+  const dep = S.data.depositos[j.id] || {monto: depositoSugerido, aceptado:false};
+  const depMontoValue = dep.monto ?? depositoSugerido;
+
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-11]</span> Depósito</h2>
+    <div class="row">
+      <div class="kpi"><small>Depósito sugerido</small><b>${money(depositoSugerido)}</b></div>
+      <div class="kpi"><small>Depósito guardado</small><b>${money(dep.monto||0)}</b></div>
+      <div class="kpi"><small>Estado</small><b>${dep.aceptado? 'Aceptado' : 'Pendiente'}</b></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="col"><label>Monto a depositar</label><input id="depMonto" type="number" min="0" step="0.01" value="${depMontoValue || ''}"></div>
+      <div class="col"><label>&nbsp;</label><button class="btn primary" id="btnDep">Aceptar depósito</button></div>
+    </div>
+  </div>`;
+  qs('#btnDep').onclick = ()=>{
+    const monto = Number(qs('#depMonto').value||0);
+    S.data.depositos[j.id] = {monto, aceptado:true}; save(S.data); toast('Depósito aceptado');
+    renderDeposito();
+  };
+}
+
+/* ========================= Cierre ========================= */
+function renderCierre(){
+  const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
+  const j = S.jornada;
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-12]</span> Cierre</h2>
+    <div class="row">
+      <button class="btn primary" id="btnOk">Cerrar OK</button>
+      <button class="btn danger" id="btnErr">Cerrar con error</button>
+    </div>
+    <div id="cerrarErr" class="row" style="display:none; margin-top:12px;">
+      <div class="col"><label>Motivo de error</label><textarea id="cerrMotivo"></textarea></div>
+      <div class="col" style="align-self: flex-end;"><button class="btn danger" id="btnConfErr">Confirmar cierre con error</button></div>
+    </div>
+  </div>`;
+  qs('#btnOk').onclick = ()=>{ j.estado='cerrada'; j.cierre_ok=true; j.cerrado_por=S.currentUser.id; j.cerrado_at=new Date().toISOString(); save(S.data); toast('Jornada cerrada OK') };
+  qs('#btnErr').onclick = ()=>{ qs('#cerrarErr').style.display='flex' };
+  qs('#btnConfErr').onclick = ()=>{
+    const motivo = qs('#cerrMotivo').value.trim(); if(!motivo) return toast('Indica motivo','err');
+    j.estado='cerrada'; j.cierre_ok=false; j.cierre_obs=motivo; j.cerrado_por=S.currentUser.id; j.cerrado_at=new Date().toISOString(); save(S.data); toast('Cierre con error registrado');
+  };
+}
+
+/* ========================= Panel de jornadas (admin) ========================= */
+function renderPanel(){
+  const v = qs('#content');
+  if(!S.currentUser || S.currentUser.role!=='admin'){ v.innerHTML = '<div class="card">Solo admin.</div>'; return }
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-13]</span> Panel de jornadas</h2>
+    <table>
+      <thead><tr><th>Fecha</th><th>Sucursal</th><th>Estado</th><th>Abierto por</th><th>Cerrado por</th><th>Acciones</th></tr></thead>
+      <tbody id="tJ"></tbody>
+    </table>
+  </div>`;
+  const tb = qs('#tJ'); tb.innerHTML='';
+  S.data.jornadas
+    .sort((a,b)=> a.fecha<b.fecha?1:-1)
+    .forEach(j=>{
+      const suc = S.data.sucursales.find(s=>s.id===j.sucursal_id)?.nombre || '—';
+      const abierto = S.data.users.find(u=>u.id===j.abierto_por)?.email || '—';
+      const cerrado = S.data.users.find(u=>u.id===j.cerrado_por)?.email || '—';
+      const act = j.estado!=='cerrada' ? `<button class="btn" data-id="${j.id}">Tomar</button>` : '';
+      tb.appendChild(el(`<tr><td>${j.fecha}</td><td>${suc}</td><td>${j.estado}</td><td>${abierto}</td><td>${cerrado}</td><td>${act}</td></tr>`));
+    });
+  tb.addEventListener('click', e=>{
+    if(e.target.matches('button[data-id]')){
+      const id = e.target.getAttribute('data-id');
+      const j = S.data.jornadas.find(x=>x.id===id);
+      S.jornada = j; toast('Tomaste la jornada '+j.id); location.hash = '#/mod-precheck';
+    }
+  });
+}
+
+/* ========================= Usuarios (admin) ========================= */
+function renderUsuarios(){
+  const v = qs('#content');
+  if(!S.currentUser || S.currentUser.role!=='admin'){ v.innerHTML = '<div class="card">Solo admin.</div>'; return }
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-14]</span> Usuarios</h2>
+    <div class="row">
+      <div class="col"><label>Email</label><input id="uEmail" placeholder="usuario@psc.test"></div>
+      <div class="col"><label>Rol</label><select id="uRol"><option>operador</option><option>admin</option></select></div>
+      <div class="col"><label>Sucursal</label><select id="uSuc"><option value="">—</option>${S.data.sucursales.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('')}</select></div>
+      <div class="col" style="align-self: flex-end;"><button class="btn" id="btnAddU">Crear</button></div>
+    </div>
+    <table style="margin-top:10px"><thead><tr><th>Email</th><th>Rol</th><th>Sucursal</th></tr></thead><tbody id="tU"></tbody></table>
+  </div>`;
+  qs('#btnAddU').onclick = async ()=>{
+    const email = qs('#uEmail').value.trim(); if(!email) return;
+    const role = qs('#uRol').value; const suc = qs('#uSuc').value||null;
+    try{ const r = await API.admin.upsertUser({ email, role, sucursal_id:suc }); if(!r.ok) toast('No se pudo crear usuario en backend','warn'); }catch(e){}
+    S.data.users.push({id:uuid(), email, role, sucursal_id:suc}); save(S.data); renderUsuarios();
+  };
+  const tb = qs('#tU'); tb.innerHTML='';
+  S.data.users.forEach(u=>{
+    const suc = S.data.sucursales.find(s=>s.id===u.sucursal_id)?.nombre || '—';
+    tb.appendChild(el(`<tr><td>${u.email}</td><td>${u.role}</td><td>${suc}</td></tr>`));
+  });
+}
+
+/* ========================= Config ========================= */
+function renderConfig(){
+  const v = qs('#content');
+  if(!S.currentUser || S.currentUser.role!=='admin'){ v.innerHTML = '<div class="card">Solo admin.</div>'; return }
+  v.innerHTML = `<div class="card"><h2><span class="code">[C-15]</span> Configuración</h2>
+    <div class="section-title">Sucursales</div>
+    <div class="row">
+      <div class="col"><input id="sucNom" placeholder="Nombre sucursal"></div>
+      <div class="col" style="flex: 0 1 auto;"><button class="btn" id="addSuc">Añadir</button></div>
+    </div>
+    <div class="row" id="sucList" style="margin-top:8px;"></div>
+
+    <div class="section-title" style="margin-top:16px;">Sistemas</div>
+    <div class="row">
+      <div class="col"><input id="sisNom" placeholder="Nombre sistema"></div>
+      <div class="col" style="flex: 0 1 auto;"><button class="btn" id="addSis">Añadir</button></div>
+    </div>
+    <div class="row" id="sisList" style="margin-top:8px;"></div>
+
+    <div class="section-title" style="margin-top:16px;">Métodos de pago</div>
+    <div class="row">
+      <div class="col"><input id="metNom" placeholder="Nombre método (ej. yappy_comercial)"></div>
+      <div class="col" style="flex: 0 1 auto;"><label class="flex"><input type="checkbox" id="metMatch"> requiere_match</label></div>
+      <div class="col" style="flex: 0 1 auto;"><label class="flex"><input type="checkbox" id="metFoto"> requiere_foto</label></div>
+      <div class="col" style="flex: 0 1 auto;"><label class="flex"><input type="checkbox" id="metEfec"> efectivo</label></div>
+      <div class="col" style="flex: 0 1 auto;"><button class="btn" id="addMet">Añadir</button></div>
+    </div>
+    <div class="row" id="metList" style="margin-top:8px;"></div>
+  </div>`;
+
+  function redraw(){
+    const sucList = qs('#sucList'); sucList.innerHTML = S.data.sucursales.map(s=> `<span class="pill">${s.nombre}</span>`).join(' ');
+    const sisList = qs('#sisList'); sisList.innerHTML = S.data.sistemas.map(s=> `<span class="pill">${s.nombre}</span>`).join(' ');
+    const metList = qs('#metList'); metList.innerHTML = S.data.metodos.map(m=> `<span class="pill">${m.nombre}${m.efectivo?' (efectivo)':''}${m.requiere_match?' [match]':''}</span>`).join(' ');
+  }
+  redraw();
+
+  qs('#addSuc').onclick = ()=>{ const n=qs('#sucNom').value.trim(); if(!n) return; S.data.sucursales.push({id:uuid(), nombre:n}); save(S.data); redraw(); qs('#sucNom').value=''; }
+  qs('#addSis').onclick = ()=>{ const n=qs('#sisNom').value.trim(); if(!n) return; S.data.sistemas.push({id:uuid(), nombre:n}); save(S.data); redraw(); qs('#sisNom').value=''; }
+  qs('#addMet').onclick = ()=>{
+    const n=qs('#metNom').value.trim(); if(!n) return;
+    const m={id:uuid(), nombre:n, requiere_match:qs('#metMatch').checked, requiere_foto:qs('#metFoto').checked, efectivo:qs('#metEfec').checked};
+    S.data.metodos.push(m); save(S.data); redraw();
+  }
+}
+
+
+/* ========================= API Layer (Supabase + Edge Functions) ========================= */
+const API = {
+  ready: false,
+  init(){
+    try{
+      if(window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient){
+        window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+      }
+      this.ready = !!window._sb;
+    }catch(e){ console.warn('Supabase init skipped', e); }
+  },
+  async token(){
+    try{ const { data } = await window._sb.auth.getSession(); return data?.session?.access_token || null }catch{ return null }
+  },
+  async call(path, body){
+    if(!window.PSC_CONFIG?.functionsBase) return { ok:false, message:'functionsBase no configurado' };
+    const headers = { 'Content-Type':'application/json' };
+    const t = await this.token(); if(t) headers['Authorization'] = `Bearer ${t}`;
+    const res = await fetch(`${window.PSC_CONFIG.functionsBase}/${path}`, { method:'POST', headers, body: JSON.stringify(body||{}) });
+    let json=null; try{ json = await res.json() }catch{};
+    return { ok: res.ok, status: res.status, data: json };
+  },
+  day: {
+    async saveApertura(items){
+      return API.call('day/save-apertura', { jornada_id: S.jornada?.id, fecha: today(), accepted_by_user:true, version: 1, items });
+    },
+    async saveSistemas(items, comment){
+      return API.call('day/save-sistemas', { jornada_id: S.jornada?.id, fecha: today(), accepted_by_user:true, version: 1, ingresos: items, comment });
+    },
+    async saveSaldoFinal(items){
+      return API.call('day/save-saldo-final', { jornada_id: S.jornada?.id, fecha: today(), accepted_by_user:true, version: 1, items });
+    },
+    async saveVouchers(comp){
+      // comp debe mapearse a estructura { totals, files } en backend
+      return API.call('day/save-vouchers', { jornada_id: S.jornada?.id, fecha: today(), vouchers: comp });
+    },
+    async addGasto(gasto){
+      return API.call('day/save-gasto', { jornada_id: S.jornada?.id, ...gasto });
+    },
+    async lockGastos(){
+      return API.call('day/lock-gastos', { jornada_id: S.jornada?.id, accepted_by_user:true, version: 1 });
+    },
+    async depositPrecheck(){
+      return API.call('day/deposit-precheck', { jornada_id: S.jornada?.id });
+    },
+    async saveDeposito(){
+      return API.call('day/save-deposito', { jornada_id: S.jornada?.id, user_confirms_expected:true, version: 1 });
+    }
+  },
+  admin: {
+    async upsertUser({ email, role, sucursal_id }){
+      return API.call('admin/upsert-user', { email, role, sucursal_id });
+    },
+    async listUsers(){
+      return API.call('admin/list-users', {});
+    }
+  }
+};
+
+/* ========================= Hook: enviar datos al backend en cada Guardar ========================= */
+document.addEventListener('click', async (e)=>{
+  // Apertura
+  if(e.target && e.target.id==='btnApSave'){
+    const ok = confirm('Confirmo que la APERTURA es correcta y deseo guardarla.');
+    if(!ok) return;
+    try{
+      const items = (S.data.aperturas[S.jornada.id]||[]);
+      const r = await API.day.saveApertura(items);
+      if(!r.ok) toast('No se pudo guardar en Supabase (apertura)', 'warn');
+    }catch(err){ console.warn(err) }
+  }
+  // Ingresos
+  if(e.target && e.target.id==='btnIngSave'){
+    const ok = confirm('Confirmo que los INGRESOS son correctos y deseo guardarlos.');
+    if(!ok) return;
+    try{
+      const items = (S.data.ingresos[S.jornada.id]||[]);
+      let comment = null;
+      // Si ya existían ingresos previamente en esta jornada, pedimos comentario
+      if(window._lastIngresosSaved){ comment = prompt('Comentario por modificación (obligatorio si ya guardaste antes):',''); }
+      const r = await API.day.saveSistemas(items, comment||undefined);
+      window._lastIngresosSaved = true;
+      if(!r.ok) toast('No se pudo guardar en Supabase (ingresos)', 'warn');
+    }catch(err){ console.warn(err) }
+  }
+  // Saldo final
+  if(e.target && e.target.id==='btnSfSave'){
+    const ok = confirm('Confirmo que el SALDO FINAL es correcto y deseo guardarlo.');
+    if(!ok) return;
+    try{
+      const items = (S.data.sfinales[S.jornada.id]||[]);
+      const r = await API.day.saveSaldoFinal(items);
+      if(!r.ok) toast('No se pudo guardar en Supabase (saldo final)', 'warn');
+    }catch(err){ console.warn(err) }
+  }
+  // Vouchers
+  if(e.target && e.target.id==='btnSaveV'){
+    const ok = confirm('Confirmo que los VOUCHERS son correctos y deseo guardarlos.');
+    if(!ok) return;
+    try{
+      const comp = (S.data.comprobantes[S.jornada.id]||{});
+      const r = await API.day.saveVouchers(comp);
+      if(!r.ok) toast('No se pudo guardar en Supabase (vouchers)', 'warn');
+    }catch(err){ console.warn(err) }
+  }
+  // Gastos: cuando se añade uno, también lo enviamos
+  if(e.target && e.target.id==='btnGAdd'){
+    setTimeout(async ()=>{
+      try{
+        const list = (S.data.gastos[S.jornada.id]||[]);
+        const last = list[list.length-1];
+        if(last){
+          const r = await API.day.addGasto({
+            fecha_gasto: today(),
+            metodo_id: null, // backend mapeará desde texto si hace falta
+            categoria_id: null,
+            detalle: last.detalle,
+            monto: last.monto,
+            comprobante_url: last.comprobante_url,
+            tipo_pago: last.tipo_pago
+          });
+          if(!r.ok) toast('No se pudo guardar en Supabase (gasto)', 'warn');
         }
-        toast(`Ingresos de ${sis} guardados`);
-      };
-    });
+      }catch(err){ console.warn(err) }
+    }, 50);
   }
-
-  /* ============================= SALDO FINAL — Caja ============================= */
-  async function renderSaldoFinal(){
-    const v = getContainer('mod-sfinal'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = `<div class="apertura-head">
-        <h2>Saldo final (Efectivo)</h2>
-        <div class="apertura-total-badge"><span>Total</span> <strong id="sfTotal">$0.00</strong></div>
-      </div>
-      <table class="apertura"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
-      <tbody id="sfRows"></tbody>
-      <tfoot><tr><td colspan="2" style="text-align:right;font-weight:600">Total</td><td class="apSub" id="sfTotalFoot">$0.00</td></tr></tfoot>
-      </table>
-      <div class="apertura-actions"><button class="btn primary" id="btnSfSave" disabled>Guardar</button></div>`;
-
-    (async()=>{
-      await ensureJornada();
-      await ensureCatalogos();
-      if(!S.denoms || !S.denoms.length){
-        try{ const { data:den } = await S.supa.from('denominaciones').select('id, valor, tipo, nombre'); S.denoms = den||[]; }catch(e){}
+  // Depósito
+  if(e.target && e.target.id==='btnDep'){
+    e.preventDefault();
+    try{
+      const pre = await API.day.depositPrecheck();
+      if(pre.ok && pre.data && pre.data.buckets){
+        const allOk = pre.data.all_ok!==false;
+        if(!allOk){ toast('Precheck NO OK. Revisa diferencias por método.', 'err'); return; }
       }
+    }catch(err){ /* si no hay backend aún, seguimos local */ }
+    const ok = confirm('Confirmo que el DEPÓSITO esperado coincide con el efectivo real.');
+    if(!ok) return;
+    try{
+      const r = await API.day.saveDeposito();
+      if(!r.ok) toast('No se pudo guardar en Supabase (depósito)', 'warn');
+    }catch(err){ console.warn(err) }
+  }
+});
 
-      let detalle = [];
-      try{ detalle = await rpc('ui_saldofinal_get_items') || []; }catch{}
-      const denById = Object.fromEntries((S.denoms||[]).map(d=>[String(d.id), d]));
+/* ========================= Admin: Usuarios (usa backend si existe) ========================= */
+async function backendRenderUsuariosTable(){
+  const t = qs('#tU'); if(!t) return;
+  try{
+    const r = await API.admin.listUsers();
+    if(r.ok && Array.isArray(r.data)){
+      t.innerHTML = r.data.map(u=>{
+        const suc = (u.sucursal_nombre||'—');
+        return `<tr><td>${u.email}</td><td>${u.role}</td><td>${suc}</td></tr>`;
+      }).join('');
+    }
+  }catch(err){ console.warn(err) }
+}
+document.addEventListener('DOMContentLoaded', ()=>{ API.init();
+  renderSession();
+  route();
+});
+</script>
 
-      let items = [];
-      if(Array.isArray(detalle) && detalle.length){
-        items = detalle.map(d => {
-          const id = String(d.denominacion_id ?? d.id);
-          const base = denById[id] || {};
-          const valor = Number(d.valor ?? d.denominacion_valor ?? base.valor ?? 0);
-          const tipo  = d.tipo ?? base.tipo;
-          const label = d.label ?? d.nombre ?? (valor ? ((tipo==='moneda'?'¢ ':'$ ') + valor) : (base.nombre || String(valor)));
-          return { id, valor, label, cantidad: Number(d.cantidad||0) };
-        });
-      } else {
-        items = (S.denoms||[]).map(d=>({ id:String(d.id), valor:Number(d.valor), label:(d.tipo==='moneda'?'¢ ':'$ ')+d.valor, cantidad:0 }));
-      }
+<script type="module">
+// === Compat Layer for Supabase Edge Functions & data mapping ===
 
-      const body = $('#sfRows'); body.innerHTML='';
-      items.sort((a,b)=>a.valor-b.valor).forEach(it=>{
-        body.appendChild(el(`<tr data-id="${it.id}" data-valor="${it.valor}">
-          <td>${it.label}</td>
-          <td><input type="number" step="1" min="0" value="${it.cantidad||0}" style="width:120px"></td>
-          <td class="apSub">$0.00</td>
-        </tr>`));
-      });
+// Ensure Supabase client exists
+if (!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient) {
+  window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+}
 
-      const fmt = (n)=> Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'});
-      function recalc(){
-        let total = 0;
-        $$('#sfRows tr').forEach(tr=>{
-          const valor = Number(tr.dataset.valor||0);
-          const qty   = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
-          const sub   = valor * qty;
-          tr.querySelector('.apSub').textContent = fmt(sub);
-          total += sub;
-        });
-        $('#sfTotal').textContent = fmt(total);
-        $('#sfTotalFoot').textContent = fmt(total);
-        const hasJ = !!(window.APP && APP.jornada_id);
-        $('#btnSfSave').disabled = !hasJ;
-      }
-      recalc();
-      $('#sfRows').addEventListener('input', e=>{ if(e.target.tagName==='INPUT') recalc(); });
+// Normalize function path: turn "day/xyz" -> "day-xyz", "admin/xyz" -> "admin-xyz"
+function mapPath(p){
+  if (p === 'day/save-vouchers') return 'day-save-comprobantes';
+  if (p.startsWith('day/')) return 'day-' + p.slice(4);
+  if (p.startsWith('admin/')) return 'admin-' + p.slice(6);
+  return p;
+}
 
-      $('#btnSfSave').onclick = async ()=>{
-        const items = $$('#sfRows tr').map(tr=>{
-          const id = tr.dataset.id, qty = Math.max(0, parseInt(tr.querySelector('input').value||'0',10));
-          return { denominacion_id:id, cantidad: qty };
-        });
-        await rpc('saldofinal_save_counts', { p_items: items, p_obs: null }).catch(e=>toast('saldofinal_save: '+friendlyError(e),'err'));
-        toast('Saldo final guardado');
-      };
+// Override API.call to use mapped path and robust fetch
+if (window.API) {
+  API.call = async function(path, body){
+    if(!window.PSC_CONFIG?.functionsBase) return { ok:false, message:'functionsBase no configurado' };
+    const headers = { 'Content-Type':'application/json' };
+    try {
+      const { data } = await window._sb.auth.getSession();
+      const t = data?.session?.access_token;
+      if (t) headers['Authorization'] = `Bearer ${t}`;
+    } catch {}
+    const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
+    const res = await fetch(url, { method:'POST', headers, body: JSON.stringify(body||{}) });
+    let json=null; try{ json = await res.json() }catch{};
+    return { ok: res.ok, status: res.status, data: json };
+  };
+}
+
+// Override ensureJornadaHoy to create jornada via backend if missing
+if (typeof ensureJornadaHoy === 'function') {
+  const _ensure = ensureJornadaHoy;
+  window.ensureJornadaHoy = function(){
+    if(!S.currentUser?.sucursal_id){ toast('Asigna sucursal al usuario','err'); return null }
+    const fecha = today();
+    let j = S.data.jornadas.find(x=> x.fecha===fecha && x.sucursal_id===S.currentUser.sucursal_id);
+    if(j){ S.jornada = j; return j; }
+    // Crear en backend
+    return (async ()=>{
+      try{
+        const r = await API.call('day/open-jornada', { sucursal_id: S.currentUser.sucursal_id, fecha });
+        if(!r.ok){ toast('No se pudo abrir jornada en Supabase','err'); return null; }
+        const bj = r.data?.jornada || r.data; // { id, fecha, sucursal_id, ... }
+        // sincroniza en memoria
+        const newJ = { id: bj.id, fecha: bj.fecha || fecha, sucursal_id: bj.sucursal_id, estado: (bj.estado||'abierta') };
+        S.data.jornadas.push(newJ);
+        S.jornada = newJ;
+        save(S.data);
+        return newJ;
+      }catch(e){ console.warn(e); toast('Error al abrir jornada','err'); return null; }
     })();
-  }
-/* ================================ VOUCHERS ================================= */
-  async function renderVouchers(){
-    const v = getContainer('mod-vouchers'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Vouchers</h2>';
-    await ensureCatalogos();
+  };
+}
 
-    const mMatch = S.metodos.filter(m=> m.requiere_match);
-    const box = el(`<div class="row" style="gap:16px;flex-wrap:wrap"></div>`);
-    v.appendChild(box);
+// Remap vouchers save to day-save-comprobantes using current in-memory structure
+if (window.API && API.day) {
+  API.day.saveVouchers = async function(comp){
+    // comp: { tarjetas:{clave, credito, url}, yappy:{monto, url} }
+    const totals = {};
+    const files = [];
+    const sum = n => Number(n||0);
 
-    mMatch.forEach(m=>{
-      const card = el(`<div class="card" style="flex:1 1 360px">
-        <h3>${m.nombre}</h3>
-        <div class="row">
-          <div class="col"><label>Monto</label><input type="number" step="0.01" min="0" placeholder="0.00" data-monto="${m.nombre}"></div>
-          <div class="col"><label>Tipo</label>
-            <select data-tipo="${m.nombre}">
-              <option value="POS">POS</option>
-              <option value="YAPPY">YAPPY</option>
-              <option value="OTRO">OTRO</option>
-            </select>
-          </div>
-        </div>
-        <div class="row"><div class="col"><label>Foto del voucher</label><input type="file" accept="image/*" capture="environment" data-file="${m.nombre}"></div></div>
-        <div class="row"><button class="btn primary" data-subir="${m.nombre}">Subir voucher</button></div>
-      </div>`);
-      box.appendChild(card);
+    const tClave = sum(comp?.tarjetas?.clave);
+    const tCred  = sum(comp?.tarjetas?.credito);
+    const yMonto = sum(comp?.yappy?.monto);
+
+    // buckets tentativos (ajústalos en metodos_cfg si usas otros nombres)
+    if (tClave + tCred > 0) totals['TARJETA'] = +(tClave + tCred).toFixed(2);
+    if (yMonto > 0) totals['YAPPY'] = +yMonto.toFixed(2);
+
+    const uTar = (comp?.tarjetas?.url||'').trim();
+    const uYap = (comp?.yappy?.url||'').trim();
+    if (uTar) files.push({ bucket: 'TARJETA', url: uTar, name: 'tarjeta' });
+    if (uYap) files.push({ bucket: 'YAPPY',   url: uYap, name: 'yappy' });
+
+    return API.call('day/save-vouchers', {
+      jornada_id: S.jornada?.id,
+      accepted_by_user: true,
+      totals,
+      files,
+      mode: 'merge'
     });
+  };
+}
 
-    $$('#mod-vouchers [data-subir]').forEach(btn=>{
-      btn.onclick = async ()=>{
-        const metodo = btn.dataset.subir;
-        const montoEl = $(`[data-monto="${metodo}"]`);
-        const tipoEl  = $(`[data-tipo="${metodo}"]`);
-        const fileEl  = $(`[data-file="${metodo}"]`);
-        const monto = parseFloat(montoEl.value||'0');
-        if(!isFinite(monto) || monto<=0){ toast('Monto inválido','err'); return; }
-        const file = fileEl.files?.[0];
-        if(!file){ toast('Selecciona una foto','err'); return; }
-
-        const path = `jornadas/${S.jornadaId}/${Date.now()}_${file.name}`;
-        const { error: upErr } = await S.supa.storage.from(CFG.bucket).upload(path, file, { upsert:false });
-        if(upErr){ toast('Upload: '+upErr.message,'err'); return; }
-
-        await rpc('comprobante_add_by_names', {
-          p_metodo: metodo, p_monto: monto, p_url: path, p_tipo: tipoEl.value, p_sucursal_id: null
-        }).catch(e=>toast('Comprobante: '+e.message,'err'));
-        toast('Voucher registrado');
-      };
-    });
-  }
-
-  /* ================================ PRECHECK ================================= */
-  async function renderPrecheck(){
-    const v = getContainer('mod-precheck'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Pre-chequeo</h2>';
-
-    const res = await rpc('cierre_precheck_resumen', { p_jornada: S.jornadaId })
-      .catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
-    const r = Array.isArray(res)? res?.[0] : res;
-    if(r){
-      v.appendChild(el(`<div class="row" style="gap:12px">
-        <div class="kpi"><small>Métodos con match</small><b>${r.metodos_con_match||0}</b></div>
-        <div class="kpi"><small>Descuadrados</small><b class="${(r.metodos_descuadrados||0)>0?'bad':'ok'}">${r.metodos_descuadrados||0}</b></div>
-        <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(r.deposito_sugerido)}</b></div>
-      </div>`));
-    }
-
-    const det = await rpc('cierre_precheck_detalle', { p_jornada: S.jornadaId })
-      .catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
-    S.precheck = det||[];
-
-    const table = el(`<div class="card"><table>
-      <thead><tr><th>Método</th><th>Total sistemas</th><th>Total vouchers</th><th>Diferencia</th><th>Estado</th></tr></thead>
-      <tbody id="preRows"></tbody></table></div>`);
-    v.appendChild(table);
-    const body = $('#preRows');
-    S.precheck.forEach(x=>{
-      body.appendChild(el(`<tr>
-        <td>${x.metodo_pago}</td>
-        <td>$${fmt(x.total_sistemas)}</td>
-        <td>${x.total_vouchers==null? '<span class="tag">(skip)</span>' : '$'+fmt(x.total_vouchers)}</td>
-        <td>${x.diferencia==null? '-' : ('$'+fmt(x.diferencia))}</td>
-        <td>${x.estado==='ok'? '<span class="ok">OK</span>' : (x.estado==='skip'? '<span class="muted">skip</span>' : '<span class="bad">'+x.estado+'</span>')}</td>
-      </tr>`));
-    });
-  }
-
-  /* ================================= DEPÓSITO ================================= */
-  async function renderDeposito(){
-    const v = getContainer('mod-deposito'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Depósito</h2>';
-    const data = await rpc('ui_deposito_sugerido', { p_jornada: S.jornadaId })
-      .catch(e=> v.appendChild(el(`<div class="muted">${e.message}</div>`)));
-    const d = Array.isArray(data)? data?.[0] : data;
-    if(!d){ v.appendChild(el('<div class="muted">Sin datos</div>')); return; }
-    S.deposito = d;
-
-    v.appendChild(el(`<div class="row" style="gap:12px">
-      <div class="kpi"><small>Total efectivo</small><b>$${fmt(d.total_efectivo)}</b></div>
-      <div class="kpi"><small>Saldo final</small><b>$${fmt(d.saldo_final)}</b></div>
-      <div class="kpi"><small>Depósito sugerido</small><b>$${fmt(d.deposito_sugerido)}</b></div>
-    </div>`));
-    v.appendChild(el(`<div class="row"><button class="btn primary" id="btnDepOk">Aceptar depósito</button></div>`));
-    $('#btnDepOk').onclick = async ()=>{ await rpc('deposito_aceptar', { p_jornada: S.jornadaId }).catch(e=>toast('Depósito: '+e.message,'err')); toast('Depósito aceptado'); };
-  }
-
-  /* ================================== CIERRE ================================== */
-  async function renderCierre(){
-    const v = getContainer('mod-cierre'); if (!requireJornadaOrExplain(v)) return;
-    v.innerHTML = '<h2>Cierre de jornada</h2>';
-    const box = el(`<div class="row"><div class="col"><label>Comentario / Motivo</label><textarea id="cierreMotivo" placeholder="Obligatorio si cierre con error"></textarea></div></div>`);
-    v.appendChild(box);
-    v.appendChild(el(`<div class="row"><button class="btn primary" id="btnCerrarOk">Cerrar OK</button><button class="btn err" id="btnCerrarErr">Cerrar con error (solo admin)</button></div>`));
-    $('#btnCerrarOk').onclick = async ()=>{ await rpc('cierre_marcar', { p_jornada:S.jornadaId, p_ok:true, p_motivo:'OK' }).catch(e=>toast('Cierre: '+e.message,'err')); toast('Cierre OK guardado'); };
-    $('#btnCerrarErr').onclick = async ()=>{
-      if(!S.isAdmin){ toast('Solo admin puede cerrar con error','err'); return; }
-      const motivo=$('#cierreMotivo').value.trim(); if(motivo.length<3){ toast('Motivo requerido','err'); return; }
-      await rpc('cierre_marcar', { p_jornada:S.jornadaId, p_ok:false, p_motivo:motivo }).catch(e=>toast('Cierre: '+e.message,'err'));
-      toast('Cierre marcado con error');
-    };
-  }
-
-  /* ============================= PANEL (admin) ============================= */
-  async function renderPanel(){
-    const v = getContainer('mod-panel'); v.innerHTML = '<h2>Panel de jornadas por sucursal</h2>';
-    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
-
-    const pick = el(`<div class="row">
-      <div class="col"><label>Sucursal ID</label><input id="pSuc" placeholder="${S.sucursalId||''}" value="${S.sucursalId||''}"></div>
-      <div class="col"><label>Desde</label><input id="pFrom" type="date"></div>
-      <div class="col"><label>Hasta</label><input id="pTo" type="date"></div>
-      <div class="col" style="align-self:end"><button class="btn" id="btnLoadPanel">Cargar</button></div>
-    </div>`);
-    v.appendChild(pick);
-
-    const table = el(`<div class="card"><table>
-      <thead><tr><th>Fecha</th><th>Jornada</th><th>Abierto por</th><th>Estado</th><th>Depósito</th><th>Acciones</th></tr></thead>
-      <tbody id="panelRows"></tbody></table></div>`);
-    v.appendChild(table);
-
-    $('#btnLoadPanel').onclick = async ()=>{
-      const p = { p_sucursal_id: $('#pSuc').value || null, p_from: $('#pFrom').value || null, p_to: $('#pTo').value || null };
-      const data = await rpc('admin_jornadas_between', p).catch(e=>toast('Panel: '+e.message,'err'));
-      const rows = $('#panelRows'); rows.innerHTML = '';
-      (data||[]).forEach(j=>{
-        const tr = el(`<tr>
-          <td>${j.fecha}</td>
-          <td><code>${j.jornada_id}</code></td>
-          <td>${j.abierto_por_email||''}</td>
-          <td>${j.estado}${j.cierre_ok===false? ' (error)':''}</td>
-          <td>$${fmt(j.deposito_monto)}</td>
-          <td><button class="btn warn" data-cerrar="${j.jornada_id}">Cerrar con error</button></td>
-        </tr>`);
-        rows.appendChild(tr);
-      });
-      $$('#panelRows [data-cerrar]').forEach(b=> b.onclick = async ()=>{
-        const motivo = prompt('Motivo del cierre con error:');
-        if(!motivo) return;
-        await rpc('cierre_marcar', { p_jornada: b.dataset.cerrar, p_ok: false, p_motivo: motivo }).catch(e=>toast(e.message,'err'));
-        toast('Cierre con error enviado');
-      });
-    };
-  }
-
-  /* ============================= USUARIOS (admin) =============================
-
-     Qué hace este módulo:
-       - Crear usuario (email + contraseña temporal) SIN cerrar tu sesión.
-       - Asignar rol (admin / usuario) y sucursal.
-       - Listar / editar perfiles existentes.
-
-     Notas:
-       - Para crear usuario sin perder tu sesión, usamos S.supaNoPersist.signUp().
-       - Tras crear, hacemos upsert en "profiles" con id/email/rol/sucursal.
-       - Si RLS no permite upsert directo, usa tus RPC admin_* (ajusta nombres si difieren).
-  ============================================================================ */
-  async function renderUsuarios(){
-    const v = getContainer('mod-usuarios'); v.innerHTML = '<h2>Usuarios (admin)</h2>';
-    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
-
-    const sucursales = await listSucursales();
-    const optsSuc = (selId)=> `<option value="">(sin sucursal)</option>` + sucursales.map(s=>`<option value="${s.id}" ${selId===s.id?'selected':''}>${s.nombre}</option>`).join('');
-
-    // Crear usuario
-    const boxCreate = el(`<div class="card">
-      <h3>Crear usuario</h3>
-      <div class="row">
-        <div class="col"><label>Email</label><input id="uEmail" type="email" placeholder="usuario@dominio.com"></div>
-        <div class="col"><label>Contraseña temporal</label><input id="uPass" type="text" placeholder="min 6 caracteres" value="test123"></div>
-      </div>
-      <div class="row">
-        <div class="col"><label>Rol</label>
-          <select id="uRol">
-            <option value="usuario">usuario</option>
-            <option value="admin">admin</option>
-          </select>
-        </div>
-        <div class="col"><label>Sucursal</label>
-          <select id="uSuc">${optsSuc('')}</select>
-        </div>
-      </div>
-      <div class="row"><button class="btn primary" id="btnCreateUser">Crear</button></div>
-      <div class="muted">Se creará el usuario en Auth y se registrará/actualizará en <code>profiles</code>.</div>
-    </div>`);
-    v.appendChild(boxCreate);
-
-    $('#btnCreateUser').onclick = async ()=>{
-      const email = $('#uEmail').value.trim();
-      const password = $('#uPass').value;
-      const role = $('#uRol').value;
-      const suc = $('#uSuc').value || null;
-      if(!email || !password){ toast('Email y contraseña requeridos','err'); return; }
-      try{
-        // 1) Crear el usuario sin tocar tu sesión
-        const { data, error } = await S.supaNoPersist.auth.signUp({ email, password });
-        if(error) throw error;
-        const newUser = data?.user;
-        if(!newUser?.id){ toast('Usuario creado, pero no obtuve ID. Verifica Auth.', 'warn'); return; }
-
-        // 2) Upsert en profiles (id, email, role, sucursal_id)
-        const { error: upErr } = await S.supa.from('profiles').upsert({
-          id: newUser.id, email: email, role: role, sucursal_id: suc
-        });
-        if(upErr) throw upErr;
-
-        toast('Usuario creado y perfil actualizado');
-        renderUsuarios();
-      }catch(e){
-        toast('Crear usuario: ' + (e.message||e), 'err');
+// Ensure gastos have metodo_id when missing (map from text "Efectivo")
+if (window.API && API.day) {
+  const _addGasto = API.day.addGasto;
+  API.day.addGasto = function(gasto){
+    try{
+      if (!gasto.metodo_id) {
+        const ef = (S.data.metodos||[]).find(m=>m.efectivo);
+        if (ef) gasto.metodo_id = ef.id;
       }
-    };
+    }catch{}
+    return _addGasto.call(API.day, gasto);
+  };
+}
 
-    // Listado/edición de usuarios
-    const boxList = el(`<div class="card">
-      <h3>Perfiles</h3>
-      <div id="usersTable"></div>
-    </div>`);
-    v.appendChild(boxList);
+// Optional: map admin endpoints with hyphen automatically via API.call(mapPath)
+</script>
 
-    async function loadUsers(){
-      // Intenta v_profiles si la tienes, si no, cae a profiles
-      let rows = [];
-      try{
-        const { data, error } = await S.supa.from('v_profiles').select('*').order('created_at', { ascending:false });
-        if (error) throw error; rows = data||[];
-      }catch{
-        const { data, error } = await S.supa.from('profiles').select('id,email,role,sucursal_id,created_at').order('created_at', { ascending:false });
-        rows = data||[];
-      }
-
-      const tbl = el(`<table>
-        <thead><tr><th>Email</th><th>Rol</th><th>Sucursal</th><th>Acción</th></tr></thead>
-        <tbody></tbody>
-      </table>`);
-      const tb = tbl.querySelector('tbody');
-
-      rows.forEach(r=>{
-        const tr = el(`<tr>
-          <td>${r.email||''}</td>
-          <td>
-            <select data-role="${r.id}">
-              <option value="usuario" ${r.role==='usuario'?'selected':''}>usuario</option>
-              <option value="admin"   ${r.role==='admin'  ?'selected':''}>admin</option>
-            </select>
-          </td>
-          <td>
-            <select data-suc="${r.id}">${optsSuc(r.sucursal_id||'')}</select>
-          </td>
-          <td>
-            <button class="btn" data-save="${r.id}">Guardar</button>
-          </td>
-        </tr>`);
-        tb.appendChild(tr);
-      });
-
-      const host = $('#usersTable'); host.innerHTML = ''; host.appendChild(tbl);
-
-      $$('#usersTable [data-save]').forEach(btn=>{
-        btn.onclick = async ()=>{
-          const uid = btn.dataset.save;
-          const role = $(`[data-role="${uid}"]`).value;
-          const suc  = $(`[data-suc="${uid}"]`).value || null;
-          try{
-            // Upsert directo al profiles
-            const { error } = await S.supa.from('profiles').upsert({ id: uid, role: role, sucursal_id: suc });
-            if(error) throw error;
-            toast('Perfil actualizado');
-            if (uid === S.user.id) await reloadPerfil(); // si te editaste a ti
-          }catch(e){
-            toast('Actualizar perfil: ' + e.message, 'err');
-          }
-        };
-      });
-    }
-    await loadUsers();
-  }
-
-  /* ============================== CONFIG (admin) ============================== */
-  async function renderConfig(){
-    const v = getContainer('mod-config'); v.innerHTML = '<h2>Configuración</h2>';
-    if(!S.isAdmin){ v.appendChild(el('<div class="muted">Solo admin</div>')); return; }
-
-    const box = el(`<div class="row" style="gap:16px;flex-wrap:wrap">
-      <div class="card" style="flex:1 1 320px">
-        <h3>Sucursales</h3>
-        <label>Nombre</label><input id="cfgSucNombre" placeholder="Sucursal X"/>
-        <div class="row"><button class="btn primary" id="btnAddSuc">Añadir</button></div>
-      </div>
-      <div class="card" style="flex:1 1 320px">
-        <h3>Sistemas</h3>
-        <label>Nombre</label><input id="cfgSisNombre" placeholder="Sistema X"/>
-        <div class="row"><button class="btn primary" id="btnAddSis">Añadir</button></div>
-      </div>
-      <div class="card" style="flex:1 1 320px">
-        <h3>Métodos de pago</h3>
-        <label>Nombre</label><input id="cfgMetNombre" placeholder="Cheque"/>
-        <div class="row">
-          <label><input type="checkbox" id="cfgMatch"/> Requiere match</label>
-          <label><input type="checkbox" id="cfgFoto"/> Requiere foto</label>
-        </div>
-        <div class="row"><button class="btn primary" id="btnAddMet">Añadir</button></div>
-      </div>
-    </div>`);
-    v.appendChild(box);
-
-    $('#btnAddSuc').onclick = async ()=>{
-      const nombre = $('#cfgSucNombre').value.trim(); if(!nombre) return;
-      await rpc('admin_add_sucursal', { p_nombre: nombre }).catch(e=>toast('Sucursal: '+e.message,'err'));
-      toast('Sucursal creada');
-    };
-    $('#btnAddSis').onclick = async ()=>{
-      const nombre = $('#cfgSisNombre').value.trim(); if(!nombre) return;
-      await rpc('admin_add_sistema', { p_nombre: nombre }).catch(e=>toast('Sistema: '+e.message,'err'));
-      toast('Sistema creado');
-    };
-    $('#btnAddMet').onclick = async ()=>{
-      const nombre = $('#cfgMetNombre').value.trim(); if(!nombre) return;
-      const m = $('#cfgMatch').checked; const f = $('#cfgFoto').checked;
-      await rpc('admin_add_metodo_pago', { p_nombre: nombre, p_match: m, p_foto: f }).catch(e=>toast('Método: '+e.message,'err'));
-      toast('Método de pago creado');
-    };
-  }
-  </script>
 </body>
 </html>
+
+
 
 
 
