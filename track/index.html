@@ -1,254 +1,402 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>Solicitud ML — PSC</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📦</text></svg>"
-    />
-    <style>
-      :root{
-        --bg:#ffffff;--fg:#111114;--muted:#6c6d75;--border:#e5e5ea;--card:#ffffff;
-        --shadow:0 6px 24px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
-        --blue:#007aff;--blue-press:#0062d6;--warn:#b26c00;--ok:#00a34a;--err:#d70015;
-        --radius:16px;--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif
-      }
-      *{box-sizing:border-box}
-      html,body{height:100%}
-      body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);display:flex;align-items:flex-start;justify-content:center;padding:32px}
-      .wrap{width:100%;max-width:700px;display:grid;gap:18px}
-      .title{font-size:28px;font-weight:700;letter-spacing:-.01em;margin:0;text-align:center}
-      .subtitle{color:var(--muted);margin:0;text-align:center}
-      .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 20px}
-      .row{display:flex;gap:14px;flex-wrap:wrap}
-      .field{flex:1;min-width:220px}
-      .label{display:block;font-weight:600;font-size:14px;margin-bottom:8px}
-      input[type="text"]{width:100%;height:48px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--fg);font-size:16px;transition:border-color .2s,box-shadow .2s}
-      input[type="text"]:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,122,255,.25)}
-      .hint{font-size:12px;color:var(--muted);margin-top:6px}
-      .btn{height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--border);background:#fff;color:var(--fg);cursor:pointer;font-weight:600;transition:transform .04s,box-shadow .2s,border-color .2s}
-      .btn:hover{box-shadow:0 3px 10px rgba(0,0,0,.06)}
-      .btn:active{transform:translateY(1px)}
-      .btn[disabled]{opacity:.5;cursor:not-allowed}
-      .btn.primary{background:var(--blue);border-color:transparent;color:#fff}
-      .btn.primary:hover{box-shadow:0 6px 16px rgba(0,122,255,.25)}
-      .btn.primary:active{background:var(--blue-press)}
-      .status{font-size:13px;color:var(--muted)}
-      .status.ok{color:var(--ok)}
-      .status.err{color:var(--err)}
-      .status.warn{color:var(--warn)}
-      .actions{display:flex;gap:10px;align-items:center;justify-content:flex-end}
-      @media (max-width:640px){body{padding:18px}.title{font-size:24px}}
-      .psc-back-main{
-        position:fixed;top:16px;left:16px;z-index:9999;display:inline-flex;align-items:center;gap:8px;
-        padding:10px 12px;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px;
-        border:1px solid var(--border);background:#ffffff;color:#111827;
-        box-shadow:0 8px 24px rgba(0,0,0,.12);transition:transform .15s,box-shadow .15s,border-color .15s
-      }
-      .psc-back-main:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(0,0,0,.18);border-color:#d1d5db}
-      .psc-back-main:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(0,122,255,.35),0 12px 32px rgba(0,0,0,.2)}
-    </style>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PSC – Historial de Seguimiento</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --card:#fbfbfd;
+      --ink:#1c1c1e;
+      --muted:#6e6e73;
+      --line:#e7e7ed;
+      --accent:#0a84ff;
+      --warn:#ffd60a;
+      --orange:#ff9500;
+      --blue:#007aff;
+      --ok:#34c759;
+      --err:#ff3b30;
+      --shadow:0 1px 2px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.04);
+      --radius:16px;
+      --chip:#f5f5f7;
+      --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%;padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)}
+    .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 
-    <link rel="stylesheet" href="portal.css" />
-    <script src="config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="guard.js"></script>
-  </head>
-  <body>
-    <a class="psc-back-main" href="/" aria-label="Volver al portal">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M15 18l-6-6 6-6" />
-      </svg>
-      <span>Volver</span>
-    </a>
+    /* Botón volver */
+    .toolbar{display:flex;align-items:center;padding:12px 18px 0}
+    .back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff;color:var(--ink);font-weight:700}
+    .back svg{width:16px;height:16px}
+    .back:active{transform:translateY(1px)}
 
-    <main class="wrap">
-      <section class="card">
-        <h1 class="title">Solicitar ML PSC</h1>
-        <p class="subtitle">Ingresa los datos y presiona <strong>Solicitar</strong>.</p>
+    /* Header */
+    .head{
+      display:grid;
+      grid-template-columns:minmax(360px,1fr) 320px;
+      gap:16px;
+      align-items:start;
+      padding:18px;
+      border-bottom:1px solid var(--line);
+    }
+    @media (max-width:900px){
+      .head{grid-template-columns:1fr}
+      .qsum{text-align:left}
+    }
 
-        <form id="form" novalidate style="margin-top: 16px">
-          <div class="row">
-            <div class="field">
-              <label class="label" for="tracking">Tracking *</label>
-              <input id="tracking" name="tracking" type="text" inputmode="latin" autocomplete="off" required minlength="5" placeholder="Ej. 1Z999AA10123456784" />
-              <div class="hint">Mínimo 5 caracteres. Se usará como original y corregido.</div>
-            </div>
-            <div class="field">
-              <label class="label" for="casillero">N.º de casillero *</label>
-              <input id="casillero" name="casillero" type="text" autocomplete="off" required placeholder="Ej. 1234" />
-            </div>
-            <div class="field">
-              <label class="label" for="nombre">Nombre *</label>
-              <input id="nombre" name="nombre" type="text" autocomplete="name" required placeholder="Ej. Juan Pérez" />
-            </div>
+    .searchBox{position:relative;max-width:660px}
+    .searchBox label{display:block;font-size:18px;color:var(--ink);font-weight:800;margin-bottom:10px}
+    .inputRow{position:relative}
+    .searchBox input{
+      width:100%;
+      appearance:none;-webkit-appearance:none;
+      border:1px solid var(--line);
+      background:#fff;color:#1c1c1e;
+      border-radius:14px;
+      padding:12px 152px 12px 14px;
+      outline:none;
+      transition:border .2s ease, box-shadow .2s ease;
+      font-size:16px; height:50px;
+    }
+    .searchBox input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(10,132,255,.12)}
+    .inputRow button{
+      position:absolute;top:50%;right:10px;transform:translateY(-50%);
+      height:44px;padding:0 18px;border:none;border-radius:999px;
+      background:#111;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)
+    }
+    .help{font-size:12px;color:var(--muted);margin-top:6px}
+
+    /* Resumen (columna derecha) */
+    .qsum{display:grid;grid-template-columns:1fr;gap:6px;align-content:start;text-align:right}
+    .qrow{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;font-size:14px}
+    .qrow span{color:var(--muted);min-width:100px;padding-top:2px}
+    .qrow b{font-weight:700}
+
+    /* Chips alternos */
+    .alts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .altChip{
+      display:inline-flex;align-items:center;gap:6px;
+      background:#fff;border:1px solid var(--line);
+      border-radius:999px;padding:6px 10px;font-size:12px;
+      box-shadow:0 1px 3px rgba(0,0,0,.04)
+    }
+    .altChip code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:12px}
+    .altChip button{
+      border:none;background:#111;color:#fff;border-radius:999px;
+      padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer
+    }
+    @media (max-width:900px){
+      .alts{justify-content:flex-start}
+    }
+
+    /* Estado */
+    .state{display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px dashed var(--line)}
+    .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--line)}
+    .dot.ok{background:var(--ok);border-color:var(--ok)}
+    .dot.err{background:var(--err);border-color:var(--err)}
+    .dot.warn{background:var(--accent);border-color:var(--accent)}
+    .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--ink);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Grid */
+    .grid{display:grid;grid-template-columns:1fr;gap:18px;padding:18px}
+
+    /* Panel */
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 14px 16px}
+    .panel .titleRow{display:flex;justify-content:space-between;align-items:center;margin:4px 6px 12px}
+    .panel .titleRow h3{margin:0;font-size:16px}
+    .pill{background:var(--chip);border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px;color:#000}
+
+    /* Timeline */
+    .timeline{position:relative;padding-left:22px}
+    .timeline::before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#e9e9ee,#dcdcde)}
+    .event{position:relative;margin:0 0 14px 0;padding:12px 12px 12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 0 0 rgba(0,0,0,0);transition:box-shadow .2s ease, background .2s ease}
+    .event:hover{background:#fafafa;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+    .event::before{content:"";position:absolute;left:-6px;top:18px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--line)}
+    .event .desc{font-weight:700;margin-bottom:6px}
+    .event .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px;flex-wrap:wrap}
+    .icon{display:inline-flex;width:18px;height:18px;border-radius:6px;align-items:center;justify-content:center;border:1px solid var(--line);background:#fff}
+    .src-pn .icon{border-color:rgba(255,149,0,.35);background:rgba(255,149,0,.10)}
+    .src-fz .icon{border-color:rgba(255,214,10,.45);background:rgba(255,214,10,.16)}
+    .src-psc .icon{border-color:rgba(10,132,255,.35);background:rgba(10,132,255,.12)}
+    .src-pn{border-left:3px solid var(--orange)}
+    .src-fz{border-left:3px solid var(--warn)}
+    .src-psc{border-left:3px solid var(--blue)}
+    .event.src-pn::before{background:var(--orange);border-color:var(--orange)}
+    .event.src-fz::before{background:var(--warn);border-color:var(--warn)}
+    .event.src-psc::before{background:var(--blue);border-color:var(--blue)}
+
+    .more{display:flex;justify-content:center;margin-top:8px}
+    .more button{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-weight:600;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="toolbar">
+        <a class="back" href="/" aria-label="Volver al inicio">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="#1c1c1e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Volver</span>
+        </a>
+      </div>
+      <!-- Header -->
+      <div class="head">
+        <div class="searchBox">
+          <label>Ingrese Tracking</label>
+          <div class="inputRow">
+            <input id="trk" type="text" placeholder="Ej. 1Z48537W0441418748" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" />
+            <button id="go">BUSCAR</button>
           </div>
-
-          <div class="actions" style="margin-top: 16px">
-            <div id="status" class="status">Listo.</div>
-            <button id="btnSubmit" type="submit" class="btn primary">Solicitar</button>
-            <button id="btnClear" type="button" class="btn">Limpiar</button>
+          <div class="help">Seguimiento en vivo de tus paquetes.</div>
+        </div>
+        <div class="qsum">
+          <div class="qrow"><span>Tracking:</span><b id="qsTracking">—</b></div>
+          <div class="qrow"><span>Status:</span><b id="qsStatus">—</b></div>
+          <div class="qrow"><span>Courier:</span><b id="qsCourier">—</b></div>
+          <div class="qrow"><span>Peso:</span><b id="qsPeso">—</b></div>
+          <div class="qrow">
+            <span>Alterno(s):</span>
+            <div id="qsAlt" class="alts">—</div>
           </div>
-        </form>
-      </section>
-    </main>
+        </div>
+      </div>
 
-    <script>
-      // ==== ENDPOINTS ====
-      const PUT_URL   = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/put-tracking";
-      const CHECK_URL = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/check-ml";
+      <div class="state">
+        <div id="stateDot" class="dot"></div>
+        <div id="stateSpin" class="spin" style="display:none"></div>
+        <div id="stateMsg">Listo.</div>
+      </div>
 
-      // ==== UI ====
-      const ui = {
-        form: document.getElementById("form"),
-        tracking: document.getElementById("tracking"),
-        casillero: document.getElementById("casillero"),
-        nombre: document.getElementById("nombre"),
-        btnSubmit: document.getElementById("btnSubmit"),
-        btnClear: document.getElementById("btnClear"),
-        status: document.getElementById("status"),
-      };
-      const setStatus = (msg, type = "") => { ui.status.textContent = msg; ui.status.className = "status " + (type || ""); };
-      const trimv = (s) => (s || "").trim();
+      <div class="grid">
+        <div class="panel">
+          <div class="titleRow">
+            <h3>Historial de seguimiento</h3>
+            <span class="pill">Eventos: <b id="evCount">0</b></span>
+          </div>
+          <div class="timeline" id="events"></div>
+          <div class="more"><button id="toggleMore" style="display:none">Mostrar más</button></div>
+        </div>
+      </div>
 
-      // ==== SUPABASE CLIENT para fallback REST (case-sensitive) ====
-      let sbClient = window.supabase || (window.PSC_CONFIG?.url && window.PSC_CONFIG?.anon
-        ? supabase.createClient(window.PSC_CONFIG.url, window.PSC_CONFIG.anon, { auth: { persistSession: true } })
-        : null
-      );
-      async function getAuthHeaders() {
-        const headers = { "Content-Type": "application/json" };
-        if (window.PSC_CONFIG?.anon) headers["apikey"] = window.PSC_CONFIG.anon;
-        try {
-          if (sbClient?.auth) {
-            const { data: { session } } = await sbClient.auth.getSession();
-            const token = session?.access_token;
-            if (token) headers["Authorization"] = "Bearer " + token;
-            else if (window.PSC_CONFIG?.anon) headers["Authorization"] = "Bearer " + window.PSC_CONFIG.anon;
-          } else if (window.PSC_CONFIG?.anon) {
-            headers["Authorization"] = "Bearer " + window.PSC_CONFIG.anon;
-          }
-        } catch {}
-        return headers;
+      <div class="footer" style="text-align:center;color:var(--muted);font-size:12px;margin:18px 0">PSC - Panama Shipping Co.</div>
+    </div>
+  </div>
+
+  <script>
+    const ENDPOINT = "https://ztdkaxbgpogudtrdgzic.functions.supabase.co/track";
+    const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
+    const SAVED_ENDPOINT = (()=>{ try{ return localStorage.getItem('psc:url') || '' }catch{ return '' } })();
+    const SAVED_TOKEN   = (()=>{ try{ return localStorage.getItem('psc:anon') || '' }catch{ return '' } })();
+
+    const $ = (s)=>document.querySelector(s);
+    const trk = $('#trk');
+    const go = $('#go');
+    const dot = $('#stateDot');
+    const spin = $('#stateSpin');
+    const msg = $('#stateMsg');
+    const eventsEl = $('#events');
+    const evCountEl = $('#evCount');
+    const qsTracking = $('#qsTracking');
+    const qsStatus = $('#qsStatus');
+    const qsCourier = $('#qsCourier');
+    const qsPeso = $('#qsPeso');
+    const qsAlt = $('#qsAlt');
+    const toggleMoreBtn = $('#toggleMore');
+
+    try{ const last = localStorage.getItem('psc_last_tracking'); if(last) trk.value = last; }catch{}
+
+    function setState(kind, text, loading=false){
+      dot.className = 'dot ' + (kind||'');
+      msg.textContent = text || '';
+      spin.style.display = loading ? 'inline-block' : 'none';
+      try{ go.disabled = !!loading; }catch{}
+    }
+    function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso); return new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(d); }
+    function esc(s){ return String(s??'').replace(/[<>&]/g, m=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[m])) }
+
+    function iconSVG(kind){
+      if(kind==='pn') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="#a64f00"/><path d="M3 7v10l9 4 9-4V7" stroke="#a64f00"/></svg>';
+      if(kind==='fz') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 10h18v8H3z" stroke="#7a5c00"/><path d="M7 10V6h10v4" stroke="#7a5c00"/></svg>';
+      return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 16h11v-6H3v6z" stroke="#0752a0"/><path d="M14 14h4l3 3v-7h-7v4z" stroke="#0752a0"/><circle cx="7" cy="19" r="2" stroke="#0752a0"/><circle cx="18" cy="19" r="2" stroke="#0752a0"/></svg>';
+    }
+
+    function eventSource(ev, resp){
+      try{
+        if((ev.location||'').toUpperCase()==='DB') return 'psc';
+        const fz = resp.sources && resp.sources.fuzion && Array.isArray(resp.sources.fuzion.events) ? resp.sources.fuzion.events : [];
+        const matchFz = fz.some((e)=> e.time_iso===ev.time_iso && e.description===ev.description && (e.location||'')===(ev.location||''));
+        return matchFz ? 'fz' : 'pn';
+      }catch{ return 'pn' }
+    }
+
+    // Mostrar status de DB en eventos PSC antes de "Peso(Aprox.)"
+    function transformDesc(src, ev, resp){
+      let d = String(ev.description||'');
+
+      if(src==='fz'){
+        const low = d.toLowerCase().trim();
+        if(low==='miami') d='Doral - Miami';
+        if(low==='panama' || low==='panamá') d='Aduanas - Panama City';
+        return d;
       }
+      if(src==='psc'){
+        const m = d.match(/peso\s*=?\s*(\d+(?:\.\d+)?)\s*lb/i);
+        const lbs = m ? m[1] : (resp && resp.weight_lbs ? resp.weight_lbs : null);
 
-      // ==== CHECKS ====
-      async function checkViaEdge(tracking) {
-        try {
-          const res = await fetch(CHECK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tracking }), // Edge debe responder { ok:true, exists:boolean }
+        const dbStatus = (resp && resp.db_status) || (resp && resp.sources && resp.sources.db && resp.sources.db.selected && resp.sources.db.selected.status) || '';
+        const label = String(dbStatus).trim() || 'Centro de Dist. PSC';
+        d = `${label} - Peso(Aprox.)` + (lbs ? ` ${lbs} lbs` : '');
+        return d;
+      }
+      return d;
+    }
+
+    function computeOrderedList(r){
+      const all = Array.isArray(r.events) ? r.events : [];
+      const groups = { psc: [], fz: [], pn: [] };
+      for(const ev of all){
+        const s = eventSource(ev, r);
+        if(s==='psc') groups.psc.push(ev); else if(s==='fz') groups.fz.push(ev); else groups.pn.push(ev);
+      }
+      groups.pn.sort((a,b)=> String(b.time_iso||'').localeCompare(String(a.time_iso||'')));
+      return [...groups.psc, ...groups.fz, ...groups.pn];
+    }
+
+    function getAltList(r){
+      const a1 = Array.isArray(r.alt_trackings) ? r.alt_trackings : [];
+      const a2 = (r.sources && r.sources.postal_ninja && Array.isArray(r.sources.postal_ninja.alt_trackings))
+                  ? r.sources.postal_ninja.alt_trackings : [];
+      const all = [...a1, ...a2].map(v=>String(v||'').trim()).filter(Boolean);
+      const primary = String(r.tracking||'').toUpperCase();
+      const seen = new Set();
+      const out = [];
+      for(const x of all){
+        const key = x.toUpperCase();
+        if(!key || key===primary || seen.has(key)) continue;
+        seen.add(key); out.push(x);
+      }
+      return out;
+    }
+
+    function renderAltTrackings(r){
+      const alts = getAltList(r);
+      if(!alts.length){ qsAlt.textContent='—'; return; }
+      qsAlt.innerHTML='';
+      // hasta 6 alternos
+      alts.slice(0,6).forEach(code=>{
+        const chip = document.createElement('div');
+        chip.className = 'altChip';
+        chip.innerHTML = `<code>${esc(code)}</code><button type="button">Buscar</button>`;
+        const btn = chip.querySelector('button');
+        if (btn) {
+          btn.addEventListener('click', ()=>{
+            trk.value = code;      // ← sin TypeScript, puro JS
+            doSearch();
           });
-          if (!res.ok) return { ok:false, exists:false };
-          const data = await res.json().catch(() => ({}));
-          return { ok:true, exists: !!data.exists };
-        } catch {
-          return { ok:false, exists:false };
         }
+        qsAlt.appendChild(chip);
+      });
+      if(alts.length>6){
+        const more = document.createElement('div');
+        more.className = 'altChip';
+        more.textContent = `+${alts.length-6} más`;
+        qsAlt.appendChild(more);
       }
+    }
 
-      // Fallback REST: existe fila con tracking_original == tracking OR tracking_corrected == tracking (case-sensitive con eq)
-      async function checkViaRest(tracking) {
-        if (!window.PSC_CONFIG?.url) return { ok:false, exists:false };
-        try {
-          const url = new URL(`${window.PSC_CONFIG.url}/rest/v1/trackings`);
-          url.searchParams.set("select", "id");
-          url.searchParams.set("limit", "1");
-          url.searchParams.append("or", `(tracking_original.eq.${tracking},tracking_corrected.eq.${tracking})`);
-          const headers = await getAuthHeaders();
-          const r = await fetch(url, { headers });
-          if (!r.ok) throw new Error("REST no OK");
-          const rows = await r.json();
-          return { ok:true, exists: Array.isArray(rows) && rows.length > 0 };
-        } catch {
-          return { ok:false, exists:false };
-        }
-      }
+    // Resumen: prioriza status desde DB
+    function renderTopSummary(r){
+      qsTracking.textContent = r.tracking || '—';
 
-      // VALIDADOR principal: usa Edge y si falla, REST
-      async function isDuplicate(tracking) {
-        const a = await checkViaEdge(tracking);
-        if (a.ok) return a.exists;        // confiar en la Edge si respondió
-        const b = await checkViaRest(tracking);
-        if (b.ok) return b.exists;        // fallback REST
-        return undefined;                 // no se pudo validar
-      }
-
-      // ==== SUBMIT (valida duplicado al apretar Solicitar) ====
-      ui.form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const tracking  = trimv(ui.tracking.value); // case-sensitive (solo trim)
-        const casillero = trimv(ui.casillero.value);
-        const nombre    = trimv(ui.nombre.value);
-
-        if (!tracking || tracking.length < 5) { setStatus("Tracking inválido (mínimo 5).", "warn"); ui.tracking.focus(); return; }
-        if (!casillero) { setStatus("N.º de casillero es requerido.", "warn"); ui.casillero.focus(); return; }
-        if (!nombre) { setStatus("Nombre es requerido.", "warn"); ui.nombre.focus(); return; }
-
-        ui.btnSubmit.disabled = true;
-        setStatus("Validando…", "warn");
-
-        // 1) Duplicado obligatorio (Edge -> REST)
-        const dup = await isDuplicate(tracking);
-        if (dup === true) {
-          setStatus("Ya Fue Solicitado", "warn");
-          ui.btnSubmit.disabled = false;
-          return;
-        }
-        if (dup === undefined) {
-          setStatus("No se pudo validar duplicado. Intenta nuevamente.", "err");
-          ui.btnSubmit.disabled = false;
-          return;
-        }
-
-        // 2) Enviar a put-tracking
-        setStatus("Solicitando…", "warn");
-        try {
-          const payload = {
-            tracking_original: tracking,
-            tracking_corrected: tracking,
-            status: "ML",
-            ML: true,
-            num_casillero: casillero,
-            name: nombre,
-          };
-          const res = await fetch(PUT_URL, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const txt = await res.text().catch(() => "");
-          let json = {};
-          try { json = JSON.parse(txt || "{}"); } catch {}
-
-          if (!res.ok || json?.ok !== true) {
-            const msg = json?.error || json?.detail || res.statusText || `HTTP ${res.status}`;
-            throw new Error(msg);
+      const dbStatus = (r.db_status || (r.sources && r.sources.db && r.sources.db.selected && r.sources.db.selected.status)) || null;
+      if (dbStatus && String(dbStatus).trim().length > 0) {
+        qsStatus.textContent = String(dbStatus).trim();
+      } else {
+        const list = computeOrderedList(r);
+        const chosen = list[0];
+        if (chosen){
+          const src = eventSource(chosen, r);
+          let label='';
+          if(src==='psc') {
+            label='Centro de Dist. PSC';
+          } else if(src==='fz'){
+            const td = transformDesc(src, chosen, r);
+            label = /Aduanas - Panama City/i.test(td) ? 'Aduanas' : td;
+          } else {
+            const d = String(chosen.description||'');
+            label = /delivered/i.test(d) ? 'Delivered' : 'In transit';
           }
-
-          setStatus("Solicitado ✔️", "ok");
-          ui.form.reset();
-        } catch (err) {
-          setStatus("Error: " + (err?.message || err), "err");
-        } finally {
-          ui.btnSubmit.disabled = false;
+          qsStatus.textContent = label || '—';
+        } else {
+          qsStatus.textContent = '—';
         }
-      });
+      }
 
-      ui.btnClear.addEventListener("click", () => {
-        ui.form.reset();
-        setStatus("Listo.");
-      });
-    </script>
+      qsCourier.textContent = r.detected_courier || r.courier_detected || '—';
+      qsPeso.textContent    = r.weight_lbs ? `${r.weight_lbs} lbs` : '—';
 
-    <script src="portal.js"></script>
-  </body>
+      renderAltTrackings(r);
+    }
+
+    function renderTimeline(r){
+      eventsEl.innerHTML='';
+      const list = computeOrderedList(r);
+      evCountEl.textContent = list.length || 0;
+      if(!list.length){ const empty=document.createElement('div'); empty.style.color='var(--muted)'; empty.textContent='Sin eventos.'; eventsEl.appendChild(empty); return; }
+      const MAX=5;
+      list.forEach((ev,idx)=>{
+        const src = eventSource(ev,r);
+        const item=document.createElement('div');
+        item.className=`event src-${src}` + (idx>=MAX?' hiddenEvt':'');
+        const desc=transformDesc(src,ev,r);
+        const loc=(ev.location||'—');
+        const when=fmtDate(ev.time_iso);
+        item.innerHTML=`<div class="desc">${esc(desc)}</div><div class="meta"><span class="icon">${iconSVG(src==='pn'?'pn':src==='fz'?'fz':'psc')}</span><span>${esc(loc)}</span><span>•</span><span>${when}</span></div>`;
+        if(idx>=MAX) item.style.display='none';
+        eventsEl.appendChild(item);
+      });
+      const hidden=eventsEl.querySelectorAll('.hiddenEvt');
+      toggleMoreBtn.style.display = hidden.length ? 'inline-block' : 'none';
+      toggleMoreBtn.textContent = 'Mostrar más';
+    }
+
+    async function doSearch(){
+      try{ localStorage.setItem('psc_last_tracking', trk.value.trim()); }catch{}
+      const code = trk.value.trim();
+      if(!code){ setState('err','Ingresa un tracking.'); return; }
+      const endpoint=(SAVED_ENDPOINT||ENDPOINT).trim();
+      const token=(SAVED_TOKEN||ANON_KEY).trim();
+      if(!endpoint || !token){ setState('err','Falta ENDPOINT o ANON. (psc:url / psc:anon)'); return; }
+      setState('warn','Buscando…',true);
+      try{
+        const res = await fetch(endpoint,{
+          method:'POST', mode:'cors', cache:'no-store',
+          headers:{ 'Content-Type':'application/json', 'Accept':'application/json', Authorization:`Bearer ${token}`, apikey: token },
+          body: JSON.stringify({ tracking: code })
+        });
+        if(!res.ok){ setState('err',`Error HTTP ${res.status}`); return; }
+        const data = await res.json();
+        setState('ok','Listo.');
+        renderTopSummary(data);
+        renderTimeline(data);
+      }catch(e){ console.error(e); setState('err','Fallo de red o CORS.'); }
+    }
+
+    go.addEventListener('click', doSearch);
+    trk.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+    toggleMoreBtn.addEventListener('click', ()=>{
+      const hidden = eventsEl.querySelectorAll('.hiddenEvt');
+      const expanding = hidden.length && hidden[0].style.display==='none';
+      hidden.forEach(el=> el.style.display = expanding ? 'block' : 'none');
+      toggleMoreBtn.textContent = expanding ? 'Mostrar menos' : 'Mostrar más';
+    });
+  </script>
+</body>
 </html>
-
 
 
 
