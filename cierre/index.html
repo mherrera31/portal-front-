@@ -289,10 +289,8 @@
       }
     </style>
 
-    
-    <script src="./config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-
+    <script src="./config.js"></script>
   </head>
   <body>
     <div class="wrap">
@@ -341,18 +339,18 @@
       /* ========================= Util UI ========================= */
 
       /* ============= Estado global (sin demo) ============= */
-     /* ============= Estado global (sin demo) ============= */
-window.S = window.S || {
-  currentUser: null,
-  config: { 
-    sucursales: [], 
-    metodos: [], 
-    gasto_categorias: [], 
-    metodos_cfg: [], 
-    denominaciones: []   // ← importante para Saldo inicial
-  },
-  jornada: null,
-};
+      /* ============= Estado global (sin demo) ============= */
+      window.S = window.S || {
+        currentUser: null,
+        config: {
+          sucursales: [],
+          metodos: [],
+          gasto_categorias: [],
+          metodos_cfg: [],
+          denominaciones: [], // ← importante para Saldo inicial
+        },
+        jornada: null,
+      };
       // NO-OP: mientras migramos módulos que aún llaman save(...)
       window.save =
         window.save ||
@@ -384,64 +382,217 @@ window.S = window.S || {
         setTimeout(() => d.remove(), 2400);
       }
       function setActive(href) {
-        qsa("#nav a").forEach((a) =>
-          a.classList.toggle("active", a.getAttribute("href") === href)
+        var links = Array.prototype.slice.call(
+          document.querySelectorAll("#nav a")
         );
+        links.forEach(function (a) {
+          var eq = a.getAttribute("href") === href;
+          a.classList.toggle("active", eq);
+        });
       }
+
+      function route() {
+        var hash = location.hash || "#/login";
+        setActive(hash);
+
+        // si no hay usuario, manda al login
+        if (hash === "#/login") {
+          renderLogin();
+          return;
+        }
+        if (!window.S || !window.S.currentUser) {
+          renderLogin();
+          return;
+        }
+
+        switch (hash) {
+          case "#/mod-inicio":
+            renderInicio();
+            return;
+          case "#/mod-apertura":
+            renderApertura();
+            return;
+          case "#/mod-ingresos":
+            renderIngresos();
+            return;
+          case "#/mod-sfinal":
+            renderSFinal();
+            return;
+          case "#/mod-vouchers":
+            renderVouchers();
+            return;
+          case "#/mod-delivery":
+            renderDelivery();
+            return;
+          case "#/mod-gastos":
+            renderGastos();
+            return;
+          case "#/mod-compras":
+            renderCompras();
+            return;
+          case "#/mod-precheck":
+            renderPrecheck();
+            return;
+          case "#/mod-deposito":
+            renderDeposito();
+            return;
+          case "#/mod-cierre":
+            renderCierre();
+            return;
+          case "#/mod-panel":
+            renderPanel();
+            return;
+          case "#/mod-usuarios":
+            renderUsuarios();
+            return;
+          case "#/mod-config":
+            renderConfig();
+            return;
+          default:
+            renderInicio();
+            return;
+        }
+      }
+
+      // init/boot: una sola vez, sin crear cliente duplicado
+      function boot() {
+        // si no existe _sb, créalo aquí (o ya quedó creado en config.js)
+        if (
+          !window._sb &&
+          window.supabase &&
+          window.PSC_CONFIG &&
+          window.PSC_CONFIG.supabaseUrl
+        ) {
+          try {
+            window._sb = window.supabase.createClient(
+              window.PSC_CONFIG.supabaseUrl,
+              window.PSC_CONFIG.supabaseAnonKey,
+              { auth: { persistSession: true, storageKey: "psc_cierre_auth" } }
+            );
+          } catch (e) {
+            console.warn("Supabase init skipped", e);
+          }
+        }
+
+        window.addEventListener("hashchange", route);
+
+        // si hay sesión previa, puedes precargar config (opcional)
+        (async function () {
+          try {
+            if (window._sb && window._sb.auth && window._sb.auth.getSession) {
+              var ses = await window._sb.auth.getSession();
+              var hasToken =
+                ses &&
+                ses.data &&
+                ses.data.session &&
+                ses.data.session.access_token;
+              if (hasToken) {
+                // intenta cargar config para que las vistas tengan catálogos
+                await ensureConfig();
+              }
+            }
+          } catch (e) {
+            /* noop */
+          }
+          route();
+        })();
+      }
+
+      // llama a boot() una vez al final de tu script principal
+      // boot();
 
       /* ========================= Session Box ========================= */
       function renderSession() {
-        const box = qs("#sessionBox");
+        var box = document.querySelector("#sessionBox");
         if (!box) return;
-        if (!S.currentUser) {
+
+        if (!window.S || !window.S.currentUser) {
           box.innerHTML = '<span class="tag">No has iniciado sesión</span>';
           return;
         }
-        const u = S.currentUser;
-        const role = u.role?.[0]?.toUpperCase() + u.role?.slice(1);
-        const suc = u.sucursal || "—";
 
+        var u = window.S.currentUser;
+        var role =
+          u && u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : "—";
+        var suc = u && u.sucursal ? u.sucursal : "—";
+
+        // admin: selector de sucursal
         if (u.role === "admin") {
-          const opts = (S.config?.sucursales || [])
-            .map(
-              (s) =>
-                `<option value="${s.id}" ${
-                  s.id === u.sucursal_id ? "selected" : ""
-                }>${s.nombre}</option>`
-            )
+          var list =
+            window.S.config && window.S.config.sucursales
+              ? window.S.config.sucursales
+              : [];
+          var opts = list
+            .map(function (s) {
+              var sel =
+                u.sucursal_id && s.id === u.sucursal_id ? "selected" : "";
+              return (
+                '<option value="' +
+                s.id +
+                '" ' +
+                sel +
+                ">" +
+                s.nombre +
+                "</option>"
+              );
+            })
             .join("");
-          box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span>
-                       <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
-                       <label style="margin-left:8px" class="muted">Sucursal</label>
-                       <select id="selSucursal" style="padding:6px 8px;border-radius:10px;border:1px solid var(--border)">${opts}</select>
-                       <button class="btn" id="btnLogout">Salir</button>`;
-          qs("#selSucursal").onchange = async (ev) => {
-            const id = ev.target.value || null;
-            try {
-              await openJornadaForToday(id);
-              S.currentUser.sucursal_id = id;
-              const ss = (S.config?.sucursales || []).find((x) => x.id === id);
-              S.currentUser.sucursal = ss?.nombre || "—";
-              renderSession();
-              toast("Sucursal cambiada");
-            } catch (e) {
-              toast(e.message || String(e), "err");
-            }
-          };
+
+          box.innerHTML =
+            '<span class="muted">Rol:</span> <span class="tag">' +
+            role +
+            "</span> " +
+            '<span class="muted">Usuario:</span> <span class="tag">' +
+            u.email +
+            "</span> " +
+            '<label style="margin-left:8px" class="muted">Sucursal</label>' +
+            '<select id="selSucursal" style="padding:6px 8px;border-radius:10px;border:1px solid var(--border)">' +
+            opts +
+            "</select> " +
+            '<button class="btn" id="btnLogout">Salir</button>';
+
+          var sel = document.querySelector("#selSucursal");
+          if (sel)
+            sel.onchange = async function (ev) {
+              var id = ev && ev.target ? ev.target.value : null;
+              try {
+                await openJornadaForToday(id);
+                window.S.currentUser.sucursal_id = id;
+                var ss = list.find(function (x) {
+                  return x.id === id;
+                });
+                window.S.currentUser.sucursal = ss ? ss.nombre : "—";
+                renderSession();
+                toast("Sucursal cambiada");
+              } catch (e) {
+                toast(e && e.message ? e.message : String(e), "err");
+              }
+            };
         } else {
-          box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span>
-                       <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
-                       <span class="muted">Sucursal:</span> <span class="tag">${suc}</span>
-                       <button class="btn" id="btnLogout">Salir</button>`;
+          box.innerHTML =
+            '<span class="muted">Rol:</span> <span class="tag">' +
+            role +
+            "</span> " +
+            '<span class="muted">Usuario:</span> <span class="tag">' +
+            u.email +
+            "</span> " +
+            '<span class="muted">Sucursal:</span> <span class="tag">' +
+            suc +
+            "</span> " +
+            '<button class="btn" id="btnLogout">Salir</button>';
         }
-        qs("#btnLogout").onclick = async () => {
-          try {
-            await window._sb?.auth?.signOut();
-          } catch {}
-          S.currentUser = null;
-          S.jornada = null;
-          location.hash = "#/login";
-        };
+
+        var btnLogout = document.querySelector("#btnLogout");
+        if (btnLogout)
+          btnLogout.onclick = async function () {
+            try {
+              if (window._sb && window._sb.auth && window._sb.auth.signOut)
+                await window._sb.auth.signOut();
+            } catch {}
+            window.S.currentUser = null;
+            window.S.jornada = null;
+            location.hash = "#/login";
+          };
       }
 
       /* ========================= Router ========================= */
@@ -489,99 +640,117 @@ window.S = window.S || {
 
       /* ========================= Login ========================= */
       function renderLogin() {
-        renderSession(); // pinta "No has iniciado sesión"
-        const v = qs("#content");
-        if (!v) return console.error("No existe #content en el DOM.");
+        // NO llames renderSession() aquí; el router la pinta cuando hay usuario
+        var v = document.querySelector("#content");
+        if (!v) {
+          console.error("No existe #content en el DOM.");
+          return;
+        }
 
-        v.innerHTML = `
-      <div class="card">
-        <h2><span class="code">[C-01]</span> Entrar</h2>
-        <div class="row">
-          <div class="col">
-            <label>Email</label>
-            <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">
-            <label>Contraseña</label>
-            <input id="lgPass" type="password" placeholder="••••••••">
-            <div style="margin-top:12px">
-              <button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button>
-            </div>
-            <div class="muted" id="loginMsg" style="margin-top:8px"></div>
-          </div>
-          <div class="col">
-            <div class="muted">Inicia sesión con tu usuario de PSC. Si olvidaste tu contraseña, un admin puede restablecerla.</div>
-          </div>
-        </div>
-      </div>
-    `;
+        v.innerHTML = [
+          '<div class="card"><h2><span class="code">[C-01]</span> Entrar</h2>',
+          '  <div class="row">',
+          '    <div class="col">',
+          "      <label>Email</label>",
+          '      <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">',
+          "      <label>Contraseña</label>",
+          '      <input id="lgPass" type="password" placeholder="••••••••">',
+          '      <div style="margin-top:12px"><button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button></div>',
+          '      <div class="muted" id="loginMsg" style="margin-top:8px"></div>',
+          "    </div>",
+          '    <div class="col"><div class="muted">Inicia sesión con tu usuario de PSC. Si olvidaste tu contraseña, un admin puede restablecerla.</div></div>',
+          "  </div>",
+          "</div>",
+        ].join("");
 
-        const btn = qs("#btnLogin", v);
-        const pass = qs("#lgPass", v);
-        const emailEl = qs("#lgEmail", v);
-        const msg = qs("#loginMsg", v);
+        var btn = v.querySelector("#btnLogin");
+        var pass = v.querySelector("#lgPass");
+        var emailEl = v.querySelector("#lgEmail");
+        var msg = v.querySelector("#loginMsg");
 
-        pass.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") btn.click();
-        });
+        if (pass) {
+          pass.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && btn) btn.click();
+          });
+        }
 
-        btn.onclick = async () => {
-          const email = emailEl.value.trim().toLowerCase();
-          const password = pass.value;
-          msg.textContent = "";
+        if (btn)
+          btn.onclick = async function () {
+            var email = (emailEl && emailEl.value ? emailEl.value : "")
+              .trim()
+              .toLowerCase();
+            var password = pass && pass.value ? pass.value : "";
+            if (msg) msg.textContent = "";
 
-          if (!email || !password)
-            return (msg.textContent = "Ingresa correo y contraseña.");
-          if (!window._sb?.auth)
-            return (msg.textContent = "Supabase no inicializado.");
-
-          btn.disabled = true;
-          try {
-            const { error } = await window._sb.auth.signInWithPassword({
-              email,
-              password,
-            });
-            if (error) throw error;
-
-            const {
-              data: { session },
-            } = await window._sb.auth.getSession();
-            const token = session?.access_token;
-            if (!token) throw new Error("No se obtuvo token de sesión.");
-
-            // Perfil
-            const pr = await fetch(
-              `${window.PSC_CONFIG.functionsBase}/get-profile`,
-              {
-                headers: { Authorization: "Bearer " + token },
-              }
-            );
-            const prof = await pr.json();
-            if (!pr.ok)
-              throw new Error(prof?.error || "No se pudo leer perfil");
-
-            S.currentUser = {
-              id: prof.id,
-              email: prof.email,
-              role: prof.role,
-              sucursal_id: prof.sucursal_id,
-              sucursal: prof.sucursal,
-            };
-
-            // Config básica (sucursales, métodos, gasto_categorias)
-            await ensureConfig();
-
-            // Jornada del día si tiene sucursal
-            if (S.currentUser.sucursal_id) {
-              await openJornadaForToday(S.currentUser.sucursal_id);
+            if (!email || !password) {
+              if (msg) msg.textContent = "Ingresa correo y contraseña.";
+              return;
+            }
+            if (
+              !window._sb ||
+              !window._sb.auth ||
+              !window._sb.auth.signInWithPassword
+            ) {
+              if (msg) msg.textContent = "Supabase no inicializado.";
+              return;
             }
 
-            renderSession();
-            location.hash = "#/mod-inicio";
-          } catch (e) {
-            msg.textContent = e.message || String(e);
-          } finally {
-            btn.disabled = false;
-          }
-        };
+            btn.disabled = true;
+            try {
+              var r = await window._sb.auth.signInWithPassword({
+                email: email,
+                password: password,
+              });
+              if (r && r.error) throw r.error;
+
+              var ses = await window._sb.auth.getSession();
+              var token =
+                ses && ses.data && ses.data.session
+                  ? ses.data.session.access_token
+                  : null;
+              if (!token) throw new Error("No se obtuvo token de sesión.");
+
+              // traer perfil
+              var pr = await fetch(
+                (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase
+                  ? window.PSC_CONFIG.functionsBase
+                  : "") + "/get-profile",
+                {
+                  headers: { Authorization: "Bearer " + token },
+                }
+              );
+              var prof = {};
+              try {
+                prof = await pr.json();
+              } catch {}
+              if (!pr.ok)
+                throw new Error(
+                  (prof && prof.error) || "No se pudo leer perfil"
+                );
+
+              window.S.currentUser = {
+                id: prof.id,
+                email: prof.email,
+                role: prof.role,
+                sucursal_id: prof.sucursal_id,
+                sucursal: prof.sucursal,
+              };
+
+              // cargar config básica
+              await ensureConfig();
+
+              // asegurar jornada del día en la sucursal actual (si tiene)
+              if (window.S.currentUser && window.S.currentUser.sucursal_id) {
+                await openJornadaForToday(window.S.currentUser.sucursal_id);
+              }
+
+              location.hash = "#/mod-inicio";
+            } catch (e) {
+              if (msg) msg.textContent = e && e.message ? e.message : String(e);
+            } finally {
+              btn.disabled = false;
+            }
+          };
       }
 
       /* ========================= Boot (arranque) ========================= */
@@ -589,7 +758,7 @@ window.S = window.S || {
       async function boot() {
         // Si no hay hash, fuerza login
         if (!location.hash) location.hash = "#/login";
-        
+
         // Hidratar sesión si existe y preparar UI
         try {
           const { data: { session } = {} } =
@@ -639,12 +808,16 @@ window.S = window.S || {
       /* ========================= Helpers de Jornada ========================= */
 
       async function ensureJornadaHoy() {
-        if (!S.currentUser?.sucursal_id) {
+        if (
+          !window.S ||
+          !window.S.currentUser ||
+          !window.S.currentUser.sucursal_id
+        ) {
           toast("Asigna sucursal al usuario", "err");
           return null;
         }
-        await openJornadaForToday(S.currentUser.sucursal_id);
-        return S.jornada;
+        await openJornadaForToday(window.S.currentUser.sucursal_id);
+        return window.S.jornada;
       }
 
       function marcarInicio() {
@@ -1790,39 +1963,52 @@ window.S = window.S || {
       };
 
       async function ensureConfig() {
-  var token = null;
-  try {
-    if (window._sb && window._sb.auth && window._sb.auth.getSession) {
-      var ses = await window._sb.auth.getSession();
-      token = ses && ses.data && ses.data.session ? ses.data.session.access_token : null;
-    }
-  } catch {}
+        var token = null;
+        try {
+          if (window._sb && window._sb.auth && window._sb.auth.getSession) {
+            var ses = await window._sb.auth.getSession();
+            token =
+              ses && ses.data && ses.data.session
+                ? ses.data.session.access_token
+                : null;
+          }
+        } catch {}
 
-  var headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = "Bearer " + token;
+        var headers = { "Content-Type": "application/json" };
+        if (token) headers.Authorization = "Bearer " + token;
 
-  var base = (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
-  var res = await fetch(base + "/get-config", {
-    method: "POST",
-    headers: headers,
-    body: "{}"
-  });
+        var base = (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
+        var res = await fetch(base + "/get-config", {
+          method: "POST",
+          headers: headers,
+          body: "{}",
+        });
 
-  var js = {};
-  try { js = await res.json(); } catch {}
-  if (!res.ok) throw new Error((js && js.error) || ("get-config fallo (" + res.status + ")"));
+        var js = {};
+        try {
+          js = await res.json();
+        } catch {}
+        if (!res.ok)
+          throw new Error(
+            (js && js.error) || "get-config fallo (" + res.status + ")"
+          );
 
-  // Inicializa S.config con claves esperadas
-  S.config = {
-    sucursales:       js.sucursales       || [],
-    metodos:          js.metodos          || [],
-    gasto_categorias: js.gasto_categorias || [],
-    metodos_cfg:      js.metodos_cfg      || [],
-    denominaciones:   (js.denominaciones  || []).map(function(d){
-      return { id: d.id, nombre: d.nombre, tipo: d.tipo, valor: Number(d.valor) };
-    })
-  };
-}
+        // Inicializa S.config con claves esperadas
+        S.config = {
+          sucursales: js.sucursales || [],
+          metodos: js.metodos || [],
+          gasto_categorias: js.gasto_categorias || [],
+          metodos_cfg: js.metodos_cfg || [],
+          denominaciones: (js.denominaciones || []).map(function (d) {
+            return {
+              id: d.id,
+              nombre: d.nombre,
+              tipo: d.tipo,
+              valor: Number(d.valor),
+            };
+          }),
+        };
+      }
 
       async function openJornadaForToday(sucursal_id) {
         if (!sucursal_id) throw new Error("Sucursal requerida");
@@ -1841,64 +2027,83 @@ window.S = window.S || {
       }
 
       const API = {
-  ready: false,
-  init() {
-    try {
-      if (!window._sb && window.PSC_CONFIG && window.PSC_CONFIG.supabaseUrl && window.supabase && window.supabase.createClient) {
-        window._sb = window.supabase.createClient(
-          window.PSC_CONFIG.supabaseUrl,
-          window.PSC_CONFIG.supabaseAnonKey,
-          { auth: { persistSession: true, storageKey: "psc_cierre_auth" } }
-        );
-      }
-      this.ready = !!window._sb;
-    } catch (e) {
-      console.warn("Supabase init skipped", e);
-    }
-  },
-  async token() {
-    try {
-      if (!window._sb || !window._sb.auth || !window._sb.auth.getSession) return null;
-      const { data } = await window._sb.auth.getSession();
-      return data && data.session ? data.session.access_token : null;
-    } catch {
-      return null;
-    }
-  },
-  async call(path, body) {
-    const headers = {
-      "Content-Type": "application/json",
-      apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || ""
-    };
-    try {
-      const t = await this.token();
-      if (t) headers["Authorization"] = "Bearer " + t;
-    } catch {}
-    const base = (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
-    const url = base + "/" + mapPath(path);
-    let res;
-    try {
-      res = await fetch(url, {
-        method: "POST",
-        mode: "cors",
-        headers: headers,
-        body: JSON.stringify(body || {})
-      });
-    } catch (e) {
-      throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e)));
-    }
-    let json = null;
-    try { json = await res.json(); } catch {}
-    return { ok: res.ok, status: res.status, data: json };
-  },
-  day: {
-    async saveAperturaTotal(total) {
-      return API.call("day/save-apertura-total", {
-        jornada_id: S.jornada ? S.jornada.id : null,
-        total: Number((total || 0).toFixed ? total.toFixed(2) : Number(total).toFixed(2)),
-        accepted_by_user: true
-      });
-    },
+        ready: false,
+        init() {
+          try {
+            if (
+              !window._sb &&
+              window.PSC_CONFIG &&
+              window.PSC_CONFIG.supabaseUrl &&
+              window.supabase &&
+              window.supabase.createClient
+            ) {
+              window._sb = window.supabase.createClient(
+                window.PSC_CONFIG.supabaseUrl,
+                window.PSC_CONFIG.supabaseAnonKey,
+                {
+                  auth: { persistSession: true, storageKey: "psc_cierre_auth" },
+                }
+              );
+            }
+            this.ready = !!window._sb;
+          } catch (e) {
+            console.warn("Supabase init skipped", e);
+          }
+        },
+        async token() {
+          try {
+            if (!window._sb || !window._sb.auth || !window._sb.auth.getSession)
+              return null;
+            const { data } = await window._sb.auth.getSession();
+            return data && data.session ? data.session.access_token : null;
+          } catch {
+            return null;
+          }
+        },
+        async call(path, body) {
+          const headers = {
+            "Content-Type": "application/json",
+            apikey:
+              (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || "",
+          };
+          try {
+            const t = await this.token();
+            if (t) headers["Authorization"] = "Bearer " + t;
+          } catch {}
+          const base =
+            (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
+          const url = base + "/" + mapPath(path);
+          let res;
+          try {
+            res = await fetch(url, {
+              method: "POST",
+              mode: "cors",
+              headers: headers,
+              body: JSON.stringify(body || {}),
+            });
+          } catch (e) {
+            throw new Error(
+              "Network/CORS error: " + (e && e.message ? e.message : String(e))
+            );
+          }
+          let json = null;
+          try {
+            json = await res.json();
+          } catch {}
+          return { ok: res.ok, status: res.status, data: json };
+        },
+        day: {
+          async saveAperturaTotal(total) {
+            return API.call("day/save-apertura-total", {
+              jornada_id: S.jornada ? S.jornada.id : null,
+              total: Number(
+                (total || 0).toFixed
+                  ? total.toFixed(2)
+                  : Number(total).toFixed(2)
+              ),
+              accepted_by_user: true,
+            });
+          },
 
           async saveSistemas(items, comment) {
             return API.call("day/save-sistemas", {
@@ -1953,77 +2158,97 @@ window.S = window.S || {
           },
         },
         admin: {
-    async upsertUser(obj) { return API.call("admin-upsert-user", obj || {}); },
-    async listUsers() { return API.call("admin-list-users", {}); }
-  }
-};
+          async upsertUser(obj) {
+            return API.call("admin-upsert-user", obj || {});
+          },
+          async listUsers() {
+            return API.call("admin-list-users", {});
+          },
+        },
+      };
 
       /* ========================= Hook: enviar datos al backend en cada Guardar ========================= */
       document.addEventListener("click", async (e) => {
-        // Apertura
         // Apertura (guardar TOTAL y bloquear)
-if (e.target && e.target.id === "btnApSave") {
-  // calcular total desde la UI
-  var rows = Array.prototype.slice.call(document.querySelectorAll("#apRows tr"));
-  var total = 0;
-  rows.forEach(function(tr) {
-    var valor = Number(tr.getAttribute("data-valor") || 0);
-    var inp = tr.querySelector("input");
-    var qty = Math.max(0, parseInt((inp && inp.value) ? inp.value : "0", 10));
-    total += valor * qty;
-  });
+        if (e.target && e.target.id === "btnApSave") {
+          // Calcular total desde la UI (#apRows)
+          const rows = Array.from(document.querySelectorAll("#apRows tr"));
+          let total = 0;
+          rows.forEach((tr) => {
+            const valor = Number(tr.dataset.valor || 0);
+            const qty = Math.max(
+              0,
+              parseInt(tr.querySelector("input")?.value || "0", 10)
+            );
+            total += valor * qty;
+          });
 
-  var ok = window.confirm("Confirmo guardar la APERTURA por " + money(total) + " y bloquear el módulo.");
-  if (!ok) return;
-
-  try {
-    var r = await API.day.saveAperturaTotal(total);
-    if (!r.ok || !(r.data && r.data.ok)) throw new Error((r.data && r.data.error) || "No se pudo guardar en Supabase (apertura)");
-
-    rows.forEach(function(tr){ var i = tr.querySelector("input"); if (i) i.disabled = true; });
-    e.target.disabled = true;
-    e.target.textContent = "Guardado";
-    toast("Saldo inicial guardado y módulo bloqueado");
-  } catch (err) {
-    toast((err && err.message) ? err.message : String(err), "err");
-  }
-}
-        // Ingresos
-        if (e.target && e.target.id === "btnIngSave") {
           const ok = confirm(
-            "Confirmo que los INGRESOS son correctos y deseo guardarlos."
+            `Confirmo guardar la APERTURA por ${money(
+              total
+            )} y bloquear el módulo.`
           );
           if (!ok) return;
+
           try {
-            const items = S.data.ingresos[S.jornada.id] || [];
-            let comment = null;
-            if (window._lastIngresosSaved) {
-              comment = prompt(
-                "Comentario por modificación (obligatorio si ya guardaste antes):",
-                ""
+            const r = await API.day.saveAperturaTotal(total);
+            if (!r.ok || !r.data?.ok)
+              throw new Error(
+                r.data?.error || "No se pudo guardar en Supabase (apertura)"
               );
-            }
-            const r = await API.day.saveSistemas(items, comment || undefined);
-            window._lastIngresosSaved = true;
-            if (!r.ok)
-              toast("No se pudo guardar en Supabase (ingresos)", "warn");
+
+            // Bloquea inputs y botón en UI
+            rows.forEach((tr) => (tr.querySelector("input").disabled = true));
+            e.target.disabled = true;
+            e.target.textContent = "Guardado";
+            toast("Saldo inicial guardado y módulo bloqueado");
           } catch (err) {
             console.warn(err);
+            toast(err.message || String(err), "err");
           }
         }
-        // Saldo final
-        if (e.target && e.target.id === "btnSfSave") {
-          const ok = confirm(
-            "Confirmo que el SALDO FINAL es correcto y deseo guardarlo."
+
+        // Ingresos
+        if (e.target && e.target.id === "btnApSave") {
+          // calcular total desde la UI
+          var rows = Array.prototype.slice.call(
+            document.querySelectorAll("#apRows tr")
+          );
+          var total = 0;
+          rows.forEach(function (tr) {
+            var valor = Number(tr.getAttribute("data-valor") || 0);
+            var inp = tr.querySelector("input");
+            var qty = Math.max(
+              0,
+              parseInt(inp && inp.value ? inp.value : "0", 10)
+            );
+            total += valor * qty;
+          });
+
+          var ok = window.confirm(
+            "Confirmo guardar la APERTURA por " +
+              money(total) +
+              " y bloquear el módulo."
           );
           if (!ok) return;
+
           try {
-            const items = S.data.sfinales[S.jornada.id] || [];
-            const r = await API.day.saveSaldoFinal(items);
-            if (!r.ok)
-              toast("No se pudo guardar en Supabase (saldo final)", "warn");
+            var r = await API.day.saveAperturaTotal(total);
+            if (!r.ok || !(r.data && r.data.ok))
+              throw new Error(
+                (r.data && r.data.error) ||
+                  "No se pudo guardar en Supabase (apertura)"
+              );
+
+            rows.forEach(function (tr) {
+              var i = tr.querySelector("input");
+              if (i) i.disabled = true;
+            });
+            e.target.disabled = true;
+            e.target.textContent = "Guardado";
+            toast("Saldo inicial guardado y módulo bloqueado");
           } catch (err) {
-            console.warn(err);
+            toast(err && err.message ? err.message : String(err), "err");
           }
         }
         // Vouchers
