@@ -1790,30 +1790,39 @@ window.S = window.S || {
       };
 
       async function ensureConfig() {
-        try {
-          const t = await API.token();
-          const res = await fetch(
-            `${window.PSC_CONFIG.functionsBase}/get-config`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: "Bearer " + t,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({}),
-            }
-          );
-          const js = await res.json();
-          if (!res.ok) throw new Error(js?.error || "Error get-config");
-          S.config = {
-            sucursales: js.sucursales || [],
-            metodos: js.metodos || [],
-            gasto_categorias: js.gasto_categorias || [],
-          };
-        } catch (e) {
-          console.warn("get-config fallo", e);
-        }
-      }
+  var token = null;
+  try {
+    if (window._sb && window._sb.auth && window._sb.auth.getSession) {
+      var ses = await window._sb.auth.getSession();
+      token = ses && ses.data && ses.data.session ? ses.data.session.access_token : null;
+    }
+  } catch {}
+
+  var headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = "Bearer " + token;
+
+  var base = (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
+  var res = await fetch(base + "/get-config", {
+    method: "POST",
+    headers: headers,
+    body: "{}"
+  });
+
+  var js = {};
+  try { js = await res.json(); } catch {}
+  if (!res.ok) throw new Error((js && js.error) || ("get-config fallo (" + res.status + ")"));
+
+  // Inicializa S.config con claves esperadas
+  S.config = {
+    sucursales:       js.sucursales       || [],
+    metodos:          js.metodos          || [],
+    gasto_categorias: js.gasto_categorias || [],
+    metodos_cfg:      js.metodos_cfg      || [],
+    denominaciones:   (js.denominaciones  || []).map(function(d){
+      return { id: d.id, nombre: d.nombre, tipo: d.tipo, valor: Number(d.valor) };
+    })
+  };
+}
 
       async function openJornadaForToday(sucursal_id) {
         if (!sucursal_id) throw new Error("Sucursal requerida");
