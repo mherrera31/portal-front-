@@ -337,104 +337,24 @@
     </div>
 
     <script>
-      /* ========================= Estado (localStorage) ========================= */
-      const KEY = "psc-cierre-demo";
-      const S = {
-        currentUser: null, // {id,email,role,sucursal_id}
-        jornada: null, // jornada actual (obj)
-        data: null, // base completa
-      };
-      function load() {
-        try {
-          return JSON.parse(localStorage.getItem(KEY)) || null;
-        } catch {
-          return null;
-        }
-      }
-      function save(d) {
-        localStorage.setItem(KEY, JSON.stringify(d));
-      }
-      function uuid() {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-          const r = (Math.random() * 16) | 0,
-            v = c === "x" ? r : (r & 0x3) | 0x8;
-          return v.toString(16);
-        });
-      }
-      function today() {
-        return new Date().toISOString().slice(0, 10);
-      }
+      /* ========================= Util UI ========================= */
 
-      // --- Migración de datos de versiones anteriores ---
-      (function migrate() {
-        const d = S.data;
-        // asegurar nuevas colecciones
-        d.delivery = d.delivery || {};
-        d.gastos = d.gastos || {};
-        d.compras = d.compras || {};
-        // separar 'tarjeta' en 'tarjeta_clave' y 'tarjeta_credito'
-        const oldTar = (d.metodos || []).find((m) => m.nombre === "tarjeta");
-        const hasClave = (d.metodos || []).some(
-          (m) => m.nombre === "tarjeta_clave"
-        );
-        const hasCred = (d.metodos || []).some(
-          (m) => m.nombre === "tarjeta_credito"
-        );
-        if (oldTar && (!hasClave || !hasCred)) {
-          const clave = hasClave
-            ? d.metodos.find((m) => m.nombre === "tarjeta_clave")
-            : {
-                id: uuid(),
-                nombre: "tarjeta_clave",
-                requiere_match: true,
-                requiere_foto: true,
-                grupo: "tarjetas",
-              };
-          const credito = hasCred
-            ? d.metodos.find((m) => m.nombre === "tarjeta_credito")
-            : {
-                id: uuid(),
-                nombre: "tarjeta_credito",
-                requiere_match: true,
-                requiere_foto: true,
-                grupo: "tarjetas",
-              };
-          if (!hasClave) d.metodos.push(clave);
-          if (!hasCred) d.metodos.push(credito);
-          Object.keys(d.ingresos || {}).forEach((jid) => {
-            d.ingresos[jid] = (d.ingresos[jid] || []).map((it) =>
-              it.metodo_id === oldTar.id ? { ...it, metodo_id: clave.id } : it
-            );
-          });
-          d.metodos = d.metodos.filter((m) => m !== oldTar);
-        }
-        // renombrar 'yappy' a 'yappy_comercial'
-        const oldY = (d.metodos || []).find((m) => m.nombre === "yappy");
-        const ycom = (d.metodos || []).find(
-          (m) => m.nombre === "yappy_comercial"
-        );
-        if (oldY && !ycom) {
-          const newY = {
-            id: uuid(),
-            nombre: "yappy_comercial",
-            requiere_match: true,
-            requiere_foto: true,
-            grupo: "yappy",
-          };
-          d.metodos.push(newY);
-          Object.keys(d.ingresos || {}).forEach((jid) => {
-            d.ingresos[jid] = (d.ingresos[jid] || []).map((it) =>
-              it.metodo_id === oldY.id ? { ...it, metodo_id: newY.id } : it
-            );
-          });
-          d.metodos = d.metodos.filter((m) => m !== oldY);
-        }
-        save(d);
-      })();
+      /* ============= Estado global (sin demo) ============= */
+      window.S = window.S || {
+        currentUser: null,
+        config: { sucursales: [], metodos: [], gasto_categorias: [] },
+        jornada: null,
+      };
+      // NO-OP: mientras migramos módulos que aún llaman save(...)
+      window.save =
+        window.save ||
+        function () {
+          /* eliminado modo demo */
+        };
 
       /* ========================= Util UI ========================= */
-      const qs = (s) => document.querySelector(s);
-      const qsa = (s) => Array.from(document.querySelectorAll(s));
+      const qs = (s, el = document) => el.querySelector(s);
+      const qsa = (s, el = document) => Array.from(el.querySelectorAll(s));
       function el(html) {
         const t = document.createElement("template");
         t.innerHTML = html.trim();
@@ -455,15 +375,16 @@
         document.body.appendChild(d);
         setTimeout(() => d.remove(), 2400);
       }
-
       function setActive(href) {
         qsa("#nav a").forEach((a) =>
           a.classList.toggle("active", a.getAttribute("href") === href)
         );
       }
 
+      /* ========================= Session Box ========================= */
       function renderSession() {
         const box = qs("#sessionBox");
+        if (!box) return;
         if (!S.currentUser) {
           box.innerHTML = '<span class="tag">No has iniciado sesión</span>';
           return;
@@ -472,7 +393,6 @@
         const role = u.role?.[0]?.toUpperCase() + u.role?.slice(1);
         const suc = u.sucursal || "—";
 
-        // admin: selector de sucursal
         if (u.role === "admin") {
           const opts = (S.config?.sucursales || [])
             .map(
@@ -483,10 +403,10 @@
             )
             .join("");
           box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span>
-                           <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
-                           <label style="margin-left:8px" class="muted">Sucursal</label>
-                           <select id="selSucursal" style="padding:6px 8px;border-radius:10px;border:1px solid var(--border)">${opts}</select>
-                           <button class="btn" id="btnLogout">Salir</button>`;
+                       <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
+                       <label style="margin-left:8px" class="muted">Sucursal</label>
+                       <select id="selSucursal" style="padding:6px 8px;border-radius:10px;border:1px solid var(--border)">${opts}</select>
+                       <button class="btn" id="btnLogout">Salir</button>`;
           qs("#selSucursal").onchange = async (ev) => {
             const id = ev.target.value || null;
             try {
@@ -502,9 +422,9 @@
           };
         } else {
           box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span>
-                           <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
-                           <span class="muted">Sucursal:</span> <span class="tag">${suc}</span>
-                           <button class="btn" id="btnLogout">Salir</button>`;
+                       <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
+                       <span class="muted">Sucursal:</span> <span class="tag">${suc}</span>
+                       <button class="btn" id="btnLogout">Salir</button>`;
         }
         qs("#btnLogout").onclick = async () => {
           try {
@@ -518,11 +438,13 @@
 
       /* ========================= Router ========================= */
       window.addEventListener("hashchange", route);
-      function route() {
+      async function route() {
         const hash = location.hash || "#/login";
         setActive(hash);
-        if (hash === "#/login") return renderLogin();
-        if (!S.currentUser) return renderLogin();
+
+        // Guard: si no hay sesión, siempre login
+        if (hash === "#/login" || !S.currentUser) return renderLogin();
+
         switch (hash) {
           case "#/mod-inicio":
             return renderInicio();
@@ -558,46 +480,76 @@
       }
 
       /* ========================= Login ========================= */
-
       function renderLogin() {
-        renderSession();
+        renderSession(); // pinta "No has iniciado sesión"
         const v = qs("#content");
-        v.innerHTML = `<div class="card"><h2><span class="code">[C-01]</span> Entrar</h2>
-          <div class="row">
-            <div class="col">
-              <label>Email</label>
-              <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">
-              <label>Contraseña</label>
-              <input id="lgPass" type="password" placeholder="••••••••">
-              <div style="margin-top:12px"><button class="btn primary" id="btnLogin">Entrar (Supabase)</button></div>
-              <div class="muted" id="loginMsg" style="margin-top:8px"></div>
-            </div>
-            <div class="col">
-              <div class="muted">Inicia sesión con tu usuario de PSC. Si olvidaste tu contraseña, un admin puede restablecerla.</div>
-            </div>
-          </div>`;
+        if (!v) return console.error("No existe #content en el DOM.");
 
-        qs("#btnLogin").onclick = async () => {
-          const email = qs("#lgEmail").value.trim().toLowerCase();
-          const password = qs("#lgPass").value;
-          const msg = qs("#loginMsg");
+        v.innerHTML = `
+      <div class="card">
+        <h2><span class="code">[C-01]</span> Entrar</h2>
+        <div class="row">
+          <div class="col">
+            <label>Email</label>
+            <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">
+            <label>Contraseña</label>
+            <input id="lgPass" type="password" placeholder="••••••••">
+            <div style="margin-top:12px">
+              <button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button>
+            </div>
+            <div class="muted" id="loginMsg" style="margin-top:8px"></div>
+          </div>
+          <div class="col">
+            <div class="muted">Inicia sesión con tu usuario de PSC. Si olvidaste tu contraseña, un admin puede restablecerla.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+        const btn = qs("#btnLogin", v);
+        const pass = qs("#lgPass", v);
+        const emailEl = qs("#lgEmail", v);
+        const msg = qs("#loginMsg", v);
+
+        pass.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") btn.click();
+        });
+
+        btn.onclick = async () => {
+          const email = emailEl.value.trim().toLowerCase();
+          const password = pass.value;
           msg.textContent = "";
+
+          if (!email || !password)
+            return (msg.textContent = "Ingresa correo y contraseña.");
+          if (!window._sb?.auth)
+            return (msg.textContent = "Supabase no inicializado.");
+
+          btn.disabled = true;
           try {
-            const { data, error } = await window._sb.auth.signInWithPassword({
+            const { error } = await window._sb.auth.signInWithPassword({
               email,
               password,
             });
             if (error) throw error;
-            // traer perfil
-            const token = (await window._sb.auth.getSession()).data?.session
-              ?.access_token;
+
+            const {
+              data: { session },
+            } = await window._sb.auth.getSession();
+            const token = session?.access_token;
+            if (!token) throw new Error("No se obtuvo token de sesión.");
+
+            // Perfil
             const pr = await fetch(
               `${window.PSC_CONFIG.functionsBase}/get-profile`,
-              { headers: { Authorization: "Bearer " + token } }
+              {
+                headers: { Authorization: "Bearer " + token },
+              }
             );
             const prof = await pr.json();
             if (!pr.ok)
               throw new Error(prof?.error || "No se pudo leer perfil");
+
             S.currentUser = {
               id: prof.id,
               email: prof.email,
@@ -605,17 +557,92 @@
               sucursal_id: prof.sucursal_id,
               sucursal: prof.sucursal,
             };
-            // cargar config básica para admin switcher
+
+            // Config básica (sucursales, métodos, gasto_categorias)
             await ensureConfig();
-            // asegurar jornada del día en la sucursal actual (si tiene)
+
+            // Jornada del día si tiene sucursal
             if (S.currentUser.sucursal_id) {
               await openJornadaForToday(S.currentUser.sucursal_id);
             }
+
+            renderSession();
             location.hash = "#/mod-inicio";
           } catch (e) {
             msg.textContent = e.message || String(e);
+          } finally {
+            btn.disabled = false;
           }
         };
+      }
+
+      /* ========================= Boot (arranque) ========================= */
+      document.addEventListener("DOMContentLoaded", boot);
+      async function boot() {
+        // Si no hay hash, fuerza login
+        if (!location.hash) location.hash = "#/login";
+
+        // (opcional) crear cliente si aún no existe y tienes credenciales en config.js
+        try {
+          if (
+            !window._sb &&
+            window.supabase &&
+            window.PSC_CONFIG?.supabaseUrl &&
+            window.PSC_CONFIG?.supabaseAnonKey
+          ) {
+            window._sb = window.supabase.createClient(
+              window.PSC_CONFIG.supabaseUrl,
+              window.PSC_CONFIG.supabaseAnonKey
+            );
+          }
+        } catch (e) {
+          console.warn("No se pudo inicializar Supabase desde config.js:", e);
+        }
+
+        // Hidratar sesión si existe y preparar UI
+        try {
+          const { data: { session } = {} } =
+            (await window._sb?.auth?.getSession()) || {
+              data: { session: null },
+            };
+          if (!session) {
+            renderLogin();
+            return;
+          }
+
+          // Cargar perfil/config/jornada para entrar directo si ya había sesión
+          const token = session.access_token;
+          const pr = await fetch(
+            `${window.PSC_CONFIG.functionsBase}/get-profile`,
+            {
+              headers: { Authorization: "Bearer " + token },
+            }
+          );
+          const prof = await pr.json();
+          if (pr.ok) {
+            S.currentUser = {
+              id: prof.id,
+              email: prof.email,
+              role: prof.role,
+              sucursal_id: prof.sucursal_id,
+              sucursal: prof.sucursal,
+            };
+            await ensureConfig();
+            if (S.currentUser.sucursal_id) {
+              await openJornadaForToday(S.currentUser.sucursal_id);
+            }
+          } else {
+            // Si falla perfil, cae a login
+            S.currentUser = null;
+            return renderLogin();
+          }
+        } catch (e) {
+          console.warn("Arranque sin sesión válida:", e);
+          return renderLogin();
+        }
+
+        // Listo para rutear
+        route();
       }
 
       /* ========================= Helpers de Jornada ========================= */
@@ -648,35 +675,68 @@
       }
 
       /* ========================= Pantalla Inicio ========================= */
-      function renderInicio() {
+      async function renderInicio() {
+        // Si esto limpia/pinta #content, mantenlo. Si no, muévelo a tu router.
         renderSession();
+
         const v = qs("#content");
-        v.innerHTML = "";
-        const u = S.currentUser;
+        if (!v) return console.error("No existe #content en el DOM.");
+
+        const u = S.currentUser || { email: "—", role: "—", sucursal_id: null };
+        const sucursales = S.config?.sucursales || []; // ← ya no S.data
         const suc =
-          S.data.sucursales.find((s) => s.id === u.sucursal_id)?.nombre || "—";
-        const j = ensureJornadaHoy();
-        const jid = j?.id || "—";
-        v.appendChild(
-          el(`<div class="card">
-          <h2><span class="code">[C-02]</span> Inicio de jornada</h2>
-          <div class="muted">Usuario: <b>${u.email}</b> · Rol: <b>${u.role}</b></div>
-          <div class="muted">Sucursal actual: <b>${suc}</b></div>
-          <div class="muted">Jornada hoy: <b id="labJ">${jid}</b></div>
-          <div class="row" style="margin-top:10px">
-            <button class="btn primary" id="btnStart">Marcar inicio de jornada</button>
-            <button class="btn" id="btnEnsure">Refrescar jornada</button>
-          </div>
-        </div>`)
-        );
-        qs("#btnStart").onclick = () => {
-          marcarInicio();
-          qs("#labJ").textContent = S.jornada.id;
+          sucursales.find((s) => s.id === u.sucursal_id)?.nombre || "—";
+
+        v.innerHTML = `
+    <div class="card">
+      <h2><span class="code">[C-02]</span> Inicio de jornada</h2>
+      <div class="muted">Usuario: <b>${u.email}</b> · Rol: <b>${u.role}</b></div>
+      <div class="muted">Sucursal actual: <b>${suc}</b></div>
+      <div class="muted">Jornada hoy: <b id="labJ">…</b></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="btnStart">Marcar inicio de jornada</button>
+        <button class="btn" id="btnEnsure">Refrescar jornada</button>
+      </div>
+    </div>
+  `;
+
+        const btnStart = qs("#btnStart", v);
+        const btnEnsure = qs("#btnEnsure", v);
+        const labJ = qs("#labJ", v);
+
+        // Deshabilitar si no hay sucursal asignada
+        if (!u.sucursal_id) {
+          btnStart.disabled = true;
+          btnEnsure.disabled = true;
+        }
+
+        // Pinta la jornada actual (esperando a que se cree si hace falta)
+        try {
+          const j = await ensureJornadaHoy();
+          labJ.textContent = j?.id || S.jornada?.id || "—";
+        } catch (e) {
+          labJ.textContent = "—";
+          console.error(e);
+        }
+
+        btnStart.onclick = async () => {
+          try {
+            await marcarInicio();
+            labJ.textContent = S.jornada?.id || "—";
+            toast("Inicio de jornada marcado");
+          } catch (e) {
+            toast(e.message || String(e));
+          }
         };
-        qs("#btnEnsure").onclick = () => {
-          ensureJornadaHoy();
-          qs("#labJ").textContent = S.jornada.id;
-          toast("Jornada refrescada");
+
+        btnEnsure.onclick = async () => {
+          try {
+            const j2 = await ensureJornadaHoy();
+            labJ.textContent = j2?.id || S.jornada?.id || "—";
+            toast("Jornada refrescada");
+          } catch (e) {
+            toast(e.message || String(e));
+          }
         };
       }
 
@@ -1744,27 +1804,31 @@
           }
         },
         async call(path, body) {
-          const headers = { 'Content-Type': 'application/json', 'apikey': window.PSC_CONFIG.supabaseAnonKey };
+          const headers = {
+            "Content-Type": "application/json",
+            apikey: window.PSC_CONFIG.supabaseAnonKey,
+          };
           try {
             const t = await this.token();
             if (t) headers["Authorization"] = `Bearer ${t}`;
           } catch {}
           const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
-       let res;
-       try{
-         res = await fetch(url, {
-           method: 'POST',
-           mode: 'cors',
-           headers,
-           body: JSON.stringify(body || {})
-         });
-       }catch(e){
-         throw new Error('Network/CORS error: ' + (e?.message || e));
-       }
-       let json = null;
-       try { json = await res.json(); } catch {}
-       return { ok: res.ok, status: res.status, data: json };
-
+          let res;
+          try {
+            res = await fetch(url, {
+              method: "POST",
+              mode: "cors",
+              headers,
+              body: JSON.stringify(body || {}),
+            });
+          } catch (e) {
+            throw new Error("Network/CORS error: " + (e?.message || e));
+          }
+          let json = null;
+          try {
+            json = await res.json();
+          } catch {}
+          return { ok: res.ok, status: res.status, data: json };
         },
         day: {
           async saveApertura(items) {
