@@ -1832,70 +1832,64 @@ window.S = window.S || {
       }
 
       const API = {
-        ready: false,
-        init() {
-  try {
-    // No crear un cliente nuevo si ya existe (lo hiciste en config.js)
-    if (!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient) {
-      window._sb = window.supabase.createClient(
-        window.PSC_CONFIG.supabaseUrl,
-        window.PSC_CONFIG.supabaseAnonKey,
-        { auth: { persistSession: true, storageKey: "psc_cierre_auth" } }
-      );
+  ready: false,
+  init() {
+    try {
+      if (!window._sb && window.PSC_CONFIG && window.PSC_CONFIG.supabaseUrl && window.supabase && window.supabase.createClient) {
+        window._sb = window.supabase.createClient(
+          window.PSC_CONFIG.supabaseUrl,
+          window.PSC_CONFIG.supabaseAnonKey,
+          { auth: { persistSession: true, storageKey: "psc_cierre_auth" } }
+        );
+      }
+      this.ready = !!window._sb;
+    } catch (e) {
+      console.warn("Supabase init skipped", e);
     }
-    this.ready = !!window._sb;
-  } catch (e) {
-    console.warn("Supabase init skipped", e);
-  }
-},
-            this.ready = !!window._sb;
-          } catch (e) {
-            console.warn("Supabase init skipped", e);
-          }
-        },
-        async token() {
-          try {
-            const { data } = await window._sb.auth.getSession();
-            return data?.session?.access_token || null;
-          } catch {
-            return null;
-          }
-        },
-        async call(path, body) {
-          const headers = {
-            "Content-Type": "application/json",
-            apikey: window.PSC_CONFIG.supabaseAnonKey,
-          };
-          try {
-            const t = await this.token();
-            if (t) headers["Authorization"] = `Bearer ${t}`;
-          } catch {}
-          const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
-          let res;
-          try {
-            res = await fetch(url, {
-              method: "POST",
-              mode: "cors",
-              headers,
-              body: JSON.stringify(body || {}),
-            });
-          } catch (e) {
-            throw new Error("Network/CORS error: " + (e?.message || e));
-          }
-          let json = null;
-          try {
-            json = await res.json();
-          } catch {}
-          return { ok: res.ok, status: res.status, data: json };
-        },
-        day: {
-          async saveAperturaTotal(total) {
-  return API.call("day/save-apertura-total", {
-    jornada_id: S.jornada?.id,
-    total: Number(Number(total || 0).toFixed(2)),
-    accepted_by_user: true
-  });
-},
+  },
+  async token() {
+    try {
+      if (!window._sb || !window._sb.auth || !window._sb.auth.getSession) return null;
+      const { data } = await window._sb.auth.getSession();
+      return data && data.session ? data.session.access_token : null;
+    } catch {
+      return null;
+    }
+  },
+  async call(path, body) {
+    const headers = {
+      "Content-Type": "application/json",
+      apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || ""
+    };
+    try {
+      const t = await this.token();
+      if (t) headers["Authorization"] = "Bearer " + t;
+    } catch {}
+    const base = (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
+    const url = base + "/" + mapPath(path);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        mode: "cors",
+        headers: headers,
+        body: JSON.stringify(body || {})
+      });
+    } catch (e) {
+      throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e)));
+    }
+    let json = null;
+    try { json = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, data: json };
+  },
+  day: {
+    async saveAperturaTotal(total) {
+      return API.call("day/save-apertura-total", {
+        jornada_id: S.jornada ? S.jornada.id : null,
+        total: Number((total || 0).toFixed ? total.toFixed(2) : Number(total).toFixed(2)),
+        accepted_by_user: true
+      });
+    },
 
           async saveSistemas(items, comment) {
             return API.call("day/save-sistemas", {
@@ -1950,14 +1944,10 @@ window.S = window.S || {
           },
         },
         admin: {
-          async upsertUser({ email, role, sucursal_id }) {
-            return API.call("admin-upsert-user", { email, role, sucursal_id });
-          },
-          async listUsers() {
-            return API.call("admin-list-users", {});
-          },
-        },
-      };
+    async upsertUser(obj) { return API.call("admin-upsert-user", obj || {}); },
+    async listUsers() { return API.call("admin-list-users", {}); }
+  }
+};
 
       /* ========================= Hook: enviar datos al backend en cada Guardar ========================= */
       document.addEventListener("click", async (e) => {
