@@ -2,15 +2,15 @@
 <html lang="es">
 <head>
 <!-- Supabase Config + SDK (must load before app scripts) -->
-  <script src="./config.js?v=3"></script>
+  <script src="./config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     (function(){
-      if (window.PSC_CONFIG && window.supabase && !window._sb) {
-        try {
+      try {
+        if (window.PSC_CONFIG && window.supabase && !window._sb) {
           window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
-        } catch (e) { console.warn("Supabase init error:", e); }
-      }
+        }
+      } catch (e) { console.warn("Supabase init error:", e); }
     })();
   </script>
 
@@ -305,8 +305,10 @@ function renderLogin(){
       const token = sess?.session?.access_token;
       let prof = null;
       if(token && window.PSC_CONFIG?.functionsBase){
-        const { data: profRow } = await window._sb.from('app_users').select('id,role,sucursal_id').eq('id', data.user.id).maybeSingle();
-        const prof = profRow || null;
+        const r = await fetch(`${window.PSC_CONFIG.functionsBase}/get-profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(r.ok){ prof = await r.json(); }
       }
       S.currentUser = {
         id: data.user.id,
@@ -541,9 +543,8 @@ function renderVouchers(){
   const v = qs('#content'); if (!requireJornadaOrExplain(v)) return;
   const j = S.jornada;
   const comp = S.data.comprobantes[j.id] || { tarjetas:{clave:0, credito:0, url:''}, yappy:{monto:0, url:''} };
-    const gastosEf = (S.data.gastos[j.id]||[]).filter(g=> (g.tipo_pago||'').toLowerCase()==='efectivo').reduce((a,b)=>a+Number(b.monto||0),0);
-
-  S.data.comprobantes[j.id] = comp; save(S.data);
+  const gastosEf = ((S?.data?.gastos?.[j?.id]||[]).filter(g=>String(g?.tipo_pago||'').toLowerCase()==='efectivo').reduce((a,b)=>a+Number(b?.monto||0),0)) || 0;
+S.data.comprobantes[j.id] = comp; save(S.data);
 
   v.innerHTML = `<div class="card"><h2><span class="code">[C-06]</span> Vouchers</h2>
     <div class="muted">Se suben mínimo <b>2 fotos por día</b>: 1) voucher de <b>Tarjetas (CLAVE + Crédito)</b> y 2) voucher de <b>Yappy Comercial</b>.</div>
@@ -811,9 +812,6 @@ function renderPrecheck(){
   const sfinalEf   = totalEfectivoFrom(S.data.sfinales[j.id]);
   const ingresosJ  = (S.data.ingresos[j.id]||[]);
   const comp       = S.data.comprobantes[j.id] || { tarjetas:{clave:0, credito:0, url:''}, yappy:{monto:0, url:''} };
-
-    const gastosEf = (S.data.gastos[j.id]||[]).filter(g=> (g.tipo_pago||'').toLowerCase()==='efectivo').reduce((a,b)=>a+Number(b.monto||0),0);
-
 
   const mClave   = S.data.metodos.find(m=>m.nombre==='tarjeta_clave');
   const mCredito = S.data.metodos.find(m=>m.nombre==='tarjeta_credito');
@@ -1193,88 +1191,79 @@ document.addEventListener('DOMContentLoaded', ()=>{ API.init();
   route();
 });
 </script>
-
 <script type="module">
 // === Compat Layer for Supabase Edge Functions & data mapping ===
-
-// Ensure Supabase client exists
 if (!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient) {
-  window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+  try { window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey); } catch {}
 }
-
-// Normalize function path: turn "day/xyz" -> "day-xyz", "admin/xyz" -> "admin-xyz"
 function mapPath(p){
   if (p === 'day/save-vouchers') return 'day-save-comprobantes';
-  if (p.startsWith('day/')) return 'day-' + p.slice(4);
-  if (p.startsWith('admin/')) return 'admin-' + p.slice(6);
+  if (p && p.startsWith('day/')) return 'day-' + p.slice(4);
+  if (p && p.startsWith('admin/')) return 'admin-' + p.slice(6);
   return p;
 }
-
-// Override API.call to use mapped path and robust fetch
 if (window.API) {
+  const _orig = API.call;
   API.call = async function(path, body){
-    if(!window.PSC_CONFIG?.functionsBase) return { ok:false, message:'functionsBase no configurado' };
-    const headers = { 'Content-Type':'application/json' };
-    try {
-      const { data } = await window._sb.auth.getSession();
-      const t = data?.session?.access_token;
-      if (t) headers['Authorization'] = `Bearer ${t}`;
-    } catch {}
-    const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
-    const res = await fetch(url, { method:'POST', headers, body: JSON.stringify(body||{}) });
-    let json=null; try{ json = await res.json() }catch{};
-    return { ok: res.ok, status: res.status, data: json };
+    try{
+      if (window.PSC_CONFIG?.functionsBase) {
+        const headers = { 'Content-Type': 'application/json' };
+        try {
+          const { data } = await window._sb.auth.getSession();
+          const t = data?.session?.access_token;
+          if (t) headers['Authorization'] = `Bearer ${t}`;
+        } catch {}
+        const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
+        const res = await fetch(url, { method:'POST', headers, body: JSON.stringify(body||{}) });
+        let json = null; try { json = await res.json(); } catch {}
+        return { ok: res.ok, status: res.status, data: json };
+      }
+    }catch(e){
+      console.warn('API.call compat failed, falling back:', e);
+    }
+    return _orig ? _orig(path, body) : { ok:false, status:0, data:null };
   };
 }
-
-// Override ensureJornadaHoy to create jornada via backend if missing
 if (typeof ensureJornadaHoy === 'function') {
   const _ensure = ensureJornadaHoy;
   window.ensureJornadaHoy = function(){
-    if(!S.currentUser?.sucursal_id){ toast('Asigna sucursal al usuario','err'); return null }
-    const fecha = today();
-    let j = S.data.jornadas.find(x=> x.fecha===fecha && x.sucursal_id===S.currentUser.sucursal_id);
-    if(j){ S.jornada = j; return j; }
-    // Crear en backend
-    return (async ()=>{
-      try{
-        const r = await API.call('day/open-jornada', { sucursal_id: S.currentUser.sucursal_id, fecha });
-        if(!r.ok){ toast('No se pudo abrir jornada en Supabase','err'); return null; }
-        const bj = r.data?.jornada || r.data; // { id, fecha, sucursal_id, ... }
-        // sincroniza en memoria
-        const newJ = { id: bj.id, fecha: bj.fecha || fecha, sucursal_id: bj.sucursal_id, estado: (bj.estado||'abierta') };
-        S.data.jornadas.push(newJ);
-        S.jornada = newJ;
-        save(S.data);
-        return newJ;
-      }catch(e){ console.warn(e); toast('Error al abrir jornada','err'); return null; }
-    })();
+    try{
+      if(!S?.currentUser?.sucursal_id){ toast('Asigna sucursal al usuario','err'); return null }
+      const fecha = (typeof today==='function') ? today() : new Date().toISOString().slice(0,10);
+      let j = (S?.data?.jornadas||[]).find(x=> x.fecha===fecha && x.sucursal_id===S.currentUser.sucursal_id);
+      if(j){ S.jornada = j; return j; }
+      return (async ()=>{
+        try{
+          const r = await API.call('day/open-jornada', { sucursal_id: S.currentUser.sucursal_id, fecha });
+          if(!r.ok){ toast('No se pudo abrir jornada en Supabase','err'); return null; }
+          const bj = r.data?.jornada || r.data;
+          const newJ = { id: bj.id, fecha: bj.fecha || fecha, sucursal_id: bj.sucursal_id, estado: (bj.estado||'abierta') };
+          S.data = S.data || {}; S.data.jornadas = S.data.jornadas || [];
+          S.data.jornadas.push(newJ);
+          S.jornada = newJ;
+          if (typeof save==='function') save(S.data);
+          return newJ;
+        }catch(e){ console.warn(e); toast('Error al abrir jornada','err'); return null; }
+      })();
+    }catch(e){ console.warn(e); return _ensure(); }
   };
 }
-
-// Remap vouchers save to day-save-comprobantes using current in-memory structure
 if (window.API && API.day) {
   API.day.saveVouchers = async function(comp){
-    // comp: { tarjetas:{clave, credito, url}, yappy:{monto, url} }
     const totals = {};
     const files = [];
     const sum = n => Number(n||0);
-
     const tClave = sum(comp?.tarjetas?.clave);
     const tCred  = sum(comp?.tarjetas?.credito);
     const yMonto = sum(comp?.yappy?.monto);
-
-    // buckets tentativos (ajústalos en metodos_cfg si usas otros nombres)
     if (tClave + tCred > 0) totals['TARJETA'] = +(tClave + tCred).toFixed(2);
     if (yMonto > 0) totals['YAPPY'] = +yMonto.toFixed(2);
-
     const uTar = (comp?.tarjetas?.url||'').trim();
     const uYap = (comp?.yappy?.url||'').trim();
     if (uTar) files.push({ bucket: 'TARJETA', url: uTar, name: 'tarjeta' });
     if (uYap) files.push({ bucket: 'YAPPY',   url: uYap, name: 'yappy' });
-
     return API.call('day/save-vouchers', {
-      jornada_id: S.jornada?.id,
+      jornada_id: S?.jornada?.id,
       accepted_by_user: true,
       totals,
       files,
@@ -1282,24 +1271,19 @@ if (window.API && API.day) {
     });
   };
 }
-
-// Ensure gastos have metodo_id when missing (map from text "Efectivo")
 if (window.API && API.day) {
   const _addGasto = API.day.addGasto;
   API.day.addGasto = function(gasto){
     try{
-      if (!gasto.metodo_id) {
-        const ef = (S.data.metodos||[]).find(m=>m.efectivo);
+      if (!gasto?.metodo_id) {
+        const ef = (S?.data?.metodos||[]).find(m=>m?.efectivo);
         if (ef) gasto.metodo_id = ef.id;
       }
     }catch{}
     return _addGasto.call(API.day, gasto);
   };
 }
-
-// Optional: map admin endpoints with hyphen automatically via API.call(mapPath)
 </script>
-
 </body>
 </html>
 
