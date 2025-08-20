@@ -1834,16 +1834,20 @@ window.S = window.S || {
       const API = {
         ready: false,
         init() {
-          try {
-            if (
-              window.PSC_CONFIG?.supabaseUrl &&
-              window.supabase?.createClient
-            ) {
-              window._sb = window.supabase.createClient(
-                window.PSC_CONFIG.supabaseUrl,
-                window.PSC_CONFIG.supabaseAnonKey
-              );
-            }
+  try {
+    // No crear un cliente nuevo si ya existe (lo hiciste en config.js)
+    if (!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient) {
+      window._sb = window.supabase.createClient(
+        window.PSC_CONFIG.supabaseUrl,
+        window.PSC_CONFIG.supabaseAnonKey,
+        { auth: { persistSession: true, storageKey: "psc_cierre_auth" } }
+      );
+    }
+    this.ready = !!window._sb;
+  } catch (e) {
+    console.warn("Supabase init skipped", e);
+  }
+},
             this.ready = !!window._sb;
           } catch (e) {
             console.warn("Supabase init skipped", e);
@@ -1885,15 +1889,14 @@ window.S = window.S || {
           return { ok: res.ok, status: res.status, data: json };
         },
         day: {
-          async saveApertura(items) {
-            return API.call("day/save-apertura", {
-              jornada_id: S.jornada?.id,
-              fecha: today(),
-              accepted_by_user: true,
-              version: 1,
-              items,
-            });
-          },
+          async saveAperturaTotal(total) {
+  return API.call("day/save-apertura-total", {
+    jornada_id: S.jornada?.id,
+    total: Number(Number(total || 0).toFixed(2)),
+    accepted_by_user: true
+  });
+},
+
           async saveSistemas(items, comment) {
             return API.call("day/save-sistemas", {
               jornada_id: S.jornada?.id,
