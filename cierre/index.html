@@ -665,30 +665,38 @@
           const msg = qs("#loginMsg");
           msg.textContent = "";
           try {
-            const { data, error } = await window._sb.auth.signInWithPassword({
-              email,
-              password,
-            });
-            if (error) throw error;
-            // traer perfil
-            const token = (await window._sb.auth.getSession()).data?.session
-              ?.access_token;
-            const pr = await fetch(
-              `${window.PSC_CONFIG.functionsBase}/get-profile`,
-              { headers: { Authorization: "Bearer " + token } }
-            );
-            const prof = await pr.json();
-            if (!pr.ok)
-              throw new Error(prof?.error || "No se pudo leer perfil");
-            S.currentUser = {
-              id: prof.id,
-              email: prof.email,
-              role: prof.role,
-              sucursal_id: prof.sucursal_id,
-              sucursal: prof.sucursal,
-            };
-            // cargar config básica para admin switcher
-            await ensureConfig();
+            const t = await API.token();
+const rProf = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${t}`,
+  },
+  body: JSON.stringify({})
+});
+const prof = await rProf.json();
+if (!rProf.ok) throw new Error(prof?.error || 'Error get-profile');
+
+const _p = prof.user ?? prof;
+window.S = window.S || {};
+S.currentUser = {
+  id: _p.id,
+  email: _p.email,
+  role: _p.role,
+  sucursal_id: _p.sucursal_id,
+  sucursal: _p.sucursal
+};
+
+// 2) Config
+await ensureConfig();
+
+// 3) Jornada
+if (S.currentUser.sucursal_id) {
+  await openJornadaForToday(S.currentUser.sucursal_id);
+}
+
+// 4) Ir al módulo de inicio
+location.hash = "#/mod-inicio";
             // asegurar jornada del día en la sucursal actual (si tiene)
             if (S.currentUser.sucursal_id) {
               await openJornadaForToday(S.currentUser.sucursal_id);
@@ -1758,30 +1766,47 @@
       };
 
       async function ensureConfig() {
-        try {
-          const t = await API.token();
-          const res = await fetch(
-            `${window.PSC_CONFIG.functionsBase}/get-config`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: "Bearer " + t,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({}),
-            }
-          );
-          const js = await res.json();
-          if (!res.ok) throw new Error(js?.error || "Error get-config");
-          S.config = {
-            sucursales: js.sucursales || [],
-            metodos: js.metodos || [],
-            gasto_categorias: js.gasto_categorias || [],
-          };
-        } catch (e) {
-          console.warn("get-config fallo", e);
-        }
+  try {
+    // Si todavía no hay usuario en memoria, intenta cargarlo
+    if (!S.currentUser) {
+      const tUser = await API.token();
+      const rP = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${tUser}` },
+        body: JSON.stringify({})
+      });
+      const prof2 = await rP.json().catch(()=>null);
+      if (rP.ok && prof2) {
+        const _p2 = prof2.user ?? prof2;
+        window.S = window.S || {};
+        S.currentUser = {
+          id: _p2.id, email: _p2.email, role: _p2.role,
+          sucursal_id: _p2.sucursal_id, sucursal: _p2.sucursal
+        };
       }
+    }
+
+    const t = await API.token();
+    const res = await fetch(`${window.PSC_CONFIG.functionsBase}/get-config`, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + t,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    const js = await res.json();
+    if (!res.ok) throw new Error(js?.error || "Error get-config");
+    S.config = {
+      sucursales: js.sucursales || [],
+      metodos: js.metodos || [],
+      gasto_categorias: js.gasto_categorias || [],
+    };
+  } catch (e) {
+    console.warn("get-config fallo", e);
+  }
+}
+
 
       async function openJornadaForToday(sucursal_id) {
         if (!sucursal_id) throw new Error("Sucursal requerida");
