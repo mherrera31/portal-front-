@@ -589,24 +589,7 @@ window.S = window.S || {
       async function boot() {
         // Si no hay hash, fuerza login
         if (!location.hash) location.hash = "#/login";
-
-        // (opcional) crear cliente si aún no existe y tienes credenciales en config.js
-        try {
-          if (
-            !window._sb &&
-            window.supabase &&
-            window.PSC_CONFIG?.supabaseUrl &&
-            window.PSC_CONFIG?.supabaseAnonKey
-          ) {
-            window._sb = window.supabase.createClient(
-              window.PSC_CONFIG.supabaseUrl,
-              window.PSC_CONFIG.supabaseAnonKey
-            );
-          }
-        } catch (e) {
-          console.warn("No se pudo inicializar Supabase desde config.js:", e);
-        }
-
+        
         // Hidratar sesión si existe y preparar UI
         try {
           const { data: { session } = {} } =
