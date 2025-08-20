@@ -1962,20 +1962,35 @@ window.S = window.S || {
       /* ========================= Hook: enviar datos al backend en cada Guardar ========================= */
       document.addEventListener("click", async (e) => {
         // Apertura
-        if (e.target && e.target.id === "btnApSave") {
-          const ok = confirm(
-            "Confirmo que la APERTURA es correcta y deseo guardarla."
-          );
-          if (!ok) return;
-          try {
-            const items = S.data.aperturas[S.jornada.id] || [];
-            const r = await API.day.saveApertura(items);
-            if (!r.ok)
-              toast("No se pudo guardar en Supabase (apertura)", "warn");
-          } catch (err) {
-            console.warn(err);
-          }
-        }
+        // Apertura (guardar TOTAL y bloquear)
+if (e.target && e.target.id === "btnApSave") {
+  // Calcular total desde la UI (#apRows)
+  const rows = Array.from(document.querySelectorAll("#apRows tr"));
+  let total = 0;
+  rows.forEach(tr => {
+    const valor = Number(tr.dataset.valor || 0);
+    const qty = Math.max(0, parseInt(tr.querySelector("input")?.value || "0", 10));
+    total += valor * qty;
+  });
+
+  const ok = confirm(`Confirmo guardar la APERTURA por ${money(total)} y bloquear el módulo.`);
+  if (!ok) return;
+
+  try {
+    const r = await API.day.saveAperturaTotal(total);
+    if (!r.ok || !r.data?.ok) throw new Error(r.data?.error || "No se pudo guardar en Supabase (apertura)");
+
+    // Bloquea inputs y botón en UI
+    rows.forEach(tr => tr.querySelector("input").disabled = true);
+    e.target.disabled = true;
+    e.target.textContent = "Guardado";
+    toast("Saldo inicial guardado y módulo bloqueado");
+  } catch (err) {
+    console.warn(err);
+    toast(err.message || String(err), "err");
+  }
+}
+
         // Ingresos
         if (e.target && e.target.id === "btnIngSave") {
           const ok = confirm(
