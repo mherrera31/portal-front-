@@ -19,9 +19,6 @@
  <title>PSC Cierre — Front (v5 sin DB)</title>
  <link rel="icon" href="data:,">
  <style>
-  #login-demo, .login-demo { display:none !important; }
-</style>
- <style>
  :root{
  --bg:#f6f7fb; --bg2:#eef2f7; --card:#fff; --border:#e5e7eb; --muted:#6b7280; --fg:#111827;
  --accent:#10b981; --warn:#f59e0b; --err:#ef4444; --ok:#059669;
@@ -75,6 +72,11 @@
 
  <script src="./config.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* Oculta el selector 'Sucursal (opcional)' del formulario de login, si existiera */
+  label:has(+ select#selSuc) { display:none !important; }
+  select#selSuc { display:none !important; }
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -1286,6 +1288,87 @@ if (window.API && API.day) {
  return _addGasto.call(API.day, gasto);
  };
 }
+</script>
+<script>
+// Inserta switcher de sucursal en el área de sesión (solo admin)
+(function(){
+  const _renderSession = window.renderSession;
+  window.renderSession = function(...args){
+    const ret = _renderSession ? _renderSession.apply(this, args) : undefined;
+    try { injectSucursalSwitcher(); } catch(e){ console.warn('switcher err', e); }
+    return ret;
+  };
+  async function injectSucursalSwitcher(){
+    const wrap = document.querySelector('#session');
+    if (!wrap) return;
+    let host = document.getElementById('sucursal-switcher');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'sucursal-switcher';
+      host.style.display = 'none';
+      host.style.gap = '.5rem';
+      host.style.alignItems = 'center';
+      host.style.marginLeft = '12px';
+      host.innerHTML = '<label for="swSucursal">Sucursal:</label><select id="swSucursal"></select>';
+      wrap.appendChild(host);
+    }
+    // Solo admin puede cambiar sucursal
+    if (window.S?.currentUser?.role === 'admin'){
+      host.style.display = 'flex';
+      const sel = host.querySelector('#swSucursal');
+      // Asegura sucursales cargadas
+      let sucs = (window.S?.data?.sucursales || []);
+      if (!sucs.length && window._sb){
+        try{
+          const { data } = await window._sb.from('sucursales').select('id,nombre').eq('activo', true);
+          sucs = data || [];
+          window.S.data = window.S.data || {};
+          window.S.data.sucursales = sucs;
+        }catch(e){ console.warn('no sucs', e); }
+      }
+      sel.innerHTML = (sucs||[]).map(s => `<option value="${s.id}" ${s.id === window.S?.currentUser?.sucursal_id ? 'selected' : ''}>${s.nombre}</option>`).join('');
+      sel.onchange = (e)=>{
+        const val = e.target.value || null;
+        window.S.currentUser.sucursal_id = val;
+        window.S.jornada = null;
+        if (typeof window.save === 'function') window.save(window.S.data);
+        window.toast && window.toast('Sucursal cambiada. Abre jornada si vas a operar.', 'ok');
+      };
+    } else {
+      host.style.display = 'none';
+    }
+  }
+})();
+</script>
+<script>
+// Oculta login demo (selector de usuario/sucursal y botón Entrar de demo)
+(function(){
+  const _route = window.route;
+  window.route = function(...args){
+    const ret = _route ? _route.apply(this, args) : undefined;
+    setTimeout(hideDemoLogin, 0);
+    return ret;
+  };
+  function hideDemoLogin(){
+    try{
+      const selUser = document.getElementById('selUser');
+      if (selUser){
+        const row = selUser.closest('.row') || selUser.parentElement;
+        if (row) row.style.display = 'none';
+      }
+      const btn = document.getElementById('btnLogin');
+      if (btn){
+        const r2 = btn.closest('.row') || btn.parentElement;
+        if (r2) r2.style.display = 'none';
+      }
+      const selSuc = document.getElementById('selSuc');
+      if (selSuc){
+        const col = selSuc.closest('.col') || selSuc.parentElement;
+        if (col) col.style.display = 'none';
+      }
+    }catch(e){ console.warn('hideDemoLogin err', e); }
+  }
+})();
 </script>
 </body>
 </html>
