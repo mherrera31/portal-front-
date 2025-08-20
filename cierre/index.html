@@ -1793,6 +1793,12 @@
         S.jornada = { id: jid, sucursal_id };
       }
       /* ========================= API Layer (Supabase + Edge Functions) ========================= */
+
+      function mapPath(p) {
+        if (p === "day/save-vouchers") return "day-save-comprobantes";
+        return p.replace(/^day\//, "day-").replace(/^admin\//, "admin-");
+      }
+
       const API = {
         ready: false,
         init() {
