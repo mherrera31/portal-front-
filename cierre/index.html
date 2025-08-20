@@ -1963,33 +1963,31 @@ window.S = window.S || {
         // Apertura
         // Apertura (guardar TOTAL y bloquear)
 if (e.target && e.target.id === "btnApSave") {
-  // Calcular total desde la UI (#apRows)
-  const rows = Array.from(document.querySelectorAll("#apRows tr"));
-  let total = 0;
-  rows.forEach(tr => {
-    const valor = Number(tr.dataset.valor || 0);
-    const qty = Math.max(0, parseInt(tr.querySelector("input")?.value || "0", 10));
+  // calcular total desde la UI
+  var rows = Array.prototype.slice.call(document.querySelectorAll("#apRows tr"));
+  var total = 0;
+  rows.forEach(function(tr) {
+    var valor = Number(tr.getAttribute("data-valor") || 0);
+    var inp = tr.querySelector("input");
+    var qty = Math.max(0, parseInt((inp && inp.value) ? inp.value : "0", 10));
     total += valor * qty;
   });
 
-  const ok = confirm(`Confirmo guardar la APERTURA por ${money(total)} y bloquear el módulo.`);
+  var ok = window.confirm("Confirmo guardar la APERTURA por " + money(total) + " y bloquear el módulo.");
   if (!ok) return;
 
   try {
-    const r = await API.day.saveAperturaTotal(total);
-    if (!r.ok || !r.data?.ok) throw new Error(r.data?.error || "No se pudo guardar en Supabase (apertura)");
+    var r = await API.day.saveAperturaTotal(total);
+    if (!r.ok || !(r.data && r.data.ok)) throw new Error((r.data && r.data.error) || "No se pudo guardar en Supabase (apertura)");
 
-    // Bloquea inputs y botón en UI
-    rows.forEach(tr => tr.querySelector("input").disabled = true);
+    rows.forEach(function(tr){ var i = tr.querySelector("input"); if (i) i.disabled = true; });
     e.target.disabled = true;
     e.target.textContent = "Guardado";
     toast("Saldo inicial guardado y módulo bloqueado");
   } catch (err) {
-    console.warn(err);
-    toast(err.message || String(err), "err");
+    toast((err && err.message) ? err.message : String(err), "err");
   }
 }
-
         // Ingresos
         if (e.target && e.target.id === "btnIngSave") {
           const ok = confirm(
