@@ -340,11 +340,18 @@
       /* ========================= Util UI ========================= */
 
       /* ============= Estado global (sin demo) ============= */
-      window.S = window.S || {
-        currentUser: null,
-        config: { sucursales: [], metodos: [], gasto_categorias: [] },
-        jornada: null,
-      };
+     /* ============= Estado global (sin demo) ============= */
+window.S = window.S || {
+  currentUser: null,
+  config: { 
+    sucursales: [], 
+    metodos: [], 
+    gasto_categorias: [], 
+    metodos_cfg: [], 
+    denominaciones: []   // ← importante para Saldo inicial
+  },
+  jornada: null,
+};
       // NO-OP: mientras migramos módulos que aún llaman save(...)
       window.save =
         window.save ||
