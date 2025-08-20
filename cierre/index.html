@@ -673,25 +673,7 @@
             });
             if (error) throw error;
             // traer perfil
-            const token = (await window._sb.auth.getSession()).data?.session
-              ?.access_token;
-            const pr = await fetch(
-              `${window.PSC_CONFIG.functionsBase}/get-profile`,
-              { headers: { Authorization: "Bearer " + token } }
-            );
-            const prof = await pr.json();
-            if (!pr.ok)
-              throw new Error(prof?.error || "No se pudo leer perfil");
-            S.currentUser = {
-              id: prof.id,
-              email: prof.email,
-              role: prof.role,
-              sucursal_id: prof.sucursal_id,
-              sucursal: prof.sucursal,
-            };
-            // cargar config básica para admin switcher
-            // 1) Traer perfil y normalizar
-const t = await API.token();
+            const t = await API.token();
 const rProf = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`, {
   method: 'POST',
   headers: {
@@ -723,7 +705,6 @@ if (S.currentUser.sucursal_id) {
 
 // 4) Ir al módulo de inicio
 location.hash = "#/mod-inicio";
-
           } catch (e) {
             msg.textContent = e.message || String(e);
           }
