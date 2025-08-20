@@ -742,14 +742,15 @@
 
       /* =================== Catálogos básicos en memoria =================== */
       function denomLabel(d) {
-        return d.tipo === "moneda"
-          ? d.valor < 1
-            ? `¢ ${Math.round(d.valor * 100)}`
-            : `$ ${d.valor}`
-          : `$ ${d.valor}`;
+        // No dependemos de "tipo"; si valor < 1 mostramos centavos.
+        if (Number(d.valor) < 1)
+          return `¢ ${Math.round(Number(d.valor) * 100)}`;
+        return `$ ${Number(d.valor)}`;
       }
-      function requireJornadaOrExplain(v) {
-        ensureJornadaHoy();
+
+      /* Requiere jornada activa (async, para evitar condiciones de carrera) */
+      async function requireJornadaOrExplain(v) {
+        await ensureJornadaHoy();
         if (!S.jornada) {
           v.innerHTML =
             '<div class="card">Asigna sucursal y marca inicio de jornada.</div>';
@@ -759,72 +760,134 @@
       }
 
       /* ========================= Apertura ========================= */
-      function renderApertura() {
+      async function renderApertura() {
         const v = qs("#content");
-        if (!requireJornadaOrExplain(v)) return;
-        v.innerHTML = `<div class="card">
-          <div class="ap-head">
-            <h2><span class="code">[C-03]</span> Saldo inicial (Apertura)</h2>
-            <div class="ap-total"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
-          </div>
-          <table class="ap"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
-          <tbody id="apRows"></tbody>
-          <tfoot><tr><td colspan="2" class="right-align" style="font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>
-          </table>
-          <div class="actions"><button class="btn primary" id="btnApSave">Guardar</button></div>
-        </div>`;
+        if (!v) return console.error("No existe #content en el DOM.");
+        if (!(await requireJornadaOrExplain(v))) return;
 
-        const body = qs("#apRows");
-        body.innerHTML = "";
-        const detalle = S.data.aperturas[S.jornada.id] || [];
-        const prevById = Object.fromEntries(
-          detalle.map((x) => [x.denominacion_id, x.cantidad])
-        );
-        S.data.denominaciones
-          .sort((a, b) => a.valor - b.valor)
-          .forEach((d) => {
-            const qty = prevById[d.id] || "";
-            body.appendChild(
-              el(`<tr data-id="${d.id}" data-valor="${d.valor}">
-            <td>${denomLabel(d)}</td>
-            <td><input type="number" min="0" step="1" value="${qty}" style="width:120px"></td>
-            <td class="apSub">$0.00</td>
-          </tr>`)
-            );
-          });
+        // Catálogo de denominaciones desde la config (no demo).
+        const denoms = (S.config?.denominaciones || [])
+          .slice()
+          .sort((a, b) => Number(a.valor) - Number(b.valor));
+
+        v.innerHTML = `<div class="card">
+    <div class="ap-head">
+      <h2><span class="code">[C-03]</span> Saldo inicial (Apertura)</h2>
+      <div class="ap-total"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
+    </div>
+
+    ${
+      denoms.length === 0
+        ? `<div class="muted">No hay denominaciones configuradas. Asegúrate de que <code>get-config</code> devuelva <b>denominaciones</b> (id, valor).</div>`
+        : `
+      <table class="ap">
+        <thead>
+          <tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr>
+        </thead>
+        <tbody id="apRows"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" class="right-align" style="font-weight:600">Total</td>
+            <td class="apSub" id="apTotalFoot">$0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="actions">
+        <button class="btn primary" id="btnApSave">Guardar</button>
+      </div>
+    `
+    }
+  </div>`;
+
+        if (denoms.length === 0) return;
+
+        const tbody = qs("#apRows", v);
+        const totalEl = qs("#apTotal", v);
+        const footEl = qs("#apTotalFoot", v);
+        const btnSave = qs("#btnApSave", v);
+
+        // Pintar filas (sin valores previos: capturamos solo total)
+        tbody.innerHTML = "";
+        denoms.forEach((d) => {
+          tbody.appendChild(
+            el(
+              `<tr data-id="${d.id}" data-valor="${Number(d.valor)}">
+        <td>${denomLabel(d)}</td>
+        <td><input type="number" min="0" step="1" value="" style="width:120px"></td>
+        <td class="apSub">$0.00</td>
+      </tr>`
+            )
+          );
+        });
 
         function recalc() {
           let total = 0;
-          qsa("#apRows tr").forEach((tr) => {
+          qsa("#apRows tr", v).forEach((tr) => {
             const valor = Number(tr.dataset.valor || 0);
-            const qty = Math.max(
-              0,
-              parseInt(tr.querySelector("input").value || "0", 10)
-            );
+            const qty = Math.max(0, parseInt(qs("input", tr).value || "0", 10));
             const sub = valor * qty;
-            tr.querySelector(".apSub").textContent = money(sub);
+            qs(".apSub", tr).textContent = money(sub);
             total += sub;
           });
-          qs("#apTotal").textContent = money(total);
-          qs("#apTotalFoot").textContent = money(total);
+          totalEl.textContent = money(total);
+          footEl.textContent = money(total);
+          return total;
         }
         recalc();
-        qs("#apRows").addEventListener("input", (e) => {
+        tbody.addEventListener("input", (e) => {
           if (e.target.tagName === "INPUT") recalc();
         });
 
-        qs("#btnApSave").onclick = () => {
-          const items = qsa("#apRows tr").map((tr) => {
-            const id = tr.dataset.id,
-              qty = Math.max(
-                0,
-                parseInt(tr.querySelector("input").value || "0", 10)
-              );
-            return { denominacion_id: id, cantidad: qty };
-          });
-          S.data.aperturas[S.jornada.id] = items;
-          save(S.data);
-          toast("Apertura guardada");
+        btnSave.onclick = async () => {
+          const total = recalc();
+          if (total < 0) return toast("Total inválido", "err");
+
+          // Confirmación (popup)
+          const ok = window.confirm(
+            `¿Confirmas guardar el saldo inicial por ${money(
+              total
+            )} y bloquear el módulo?`
+          );
+          if (!ok) return;
+
+          // Token
+          const { data: { session } = {} } =
+            await (window._sb?.auth?.getSession() || {});
+          const token = session?.access_token;
+          if (!token)
+            return toast("Sesión no válida. Vuelve a iniciar sesión.", "err");
+
+          // Guardar total en la edge y bloquear módulo
+          btnSave.disabled = true;
+          try {
+            const res = await fetch(
+              `${window.PSC_CONFIG.functionsBase}/day-save-apertura-total`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + token,
+                },
+                body: JSON.stringify({
+                  jornada_id: S.jornada.id,
+                  total: Number(total.toFixed(2)),
+                  accepted_by_user: true,
+                }),
+              }
+            );
+            const js = await res.json();
+            if (!res.ok || !js?.ok)
+              throw new Error(js?.error || "No se pudo guardar apertura");
+
+            // Bloquear la UI localmente
+            qsa("#apRows input", v).forEach((inp) => (inp.disabled = true));
+            btnSave.disabled = true;
+            btnSave.textContent = "Guardado";
+            toast("Saldo inicial guardado y módulo bloqueado");
+          } catch (e) {
+            btnSave.disabled = false;
+            toast(e.message || String(e), "err");
+          }
         };
       }
 
