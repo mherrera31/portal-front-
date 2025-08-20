@@ -665,9 +665,7 @@
           const msg = qs("#loginMsg");
           msg.textContent = "";
           try {
-            async function ensureConfig() {
-  try {
-    const { data, error } = await window._sb.auth.signInWithPassword({
+            const { data, error } = await window._sb.auth.signInWithPassword({
               email,
               password,
             });
@@ -701,6 +699,36 @@
           }
         };
       }
+
+      /* ========================= Helpers de Jornada ========================= */
+
+      async function ensureJornadaHoy() {
+        if (!S.currentUser?.sucursal_id) {
+          toast("Asigna sucursal al usuario", "err");
+          return null;
+        }
+        await openJornadaForToday(S.currentUser.sucursal_id);
+        return S.jornada;
+      }
+
+      function marcarInicio() {
+        const j = ensureJornadaHoy();
+        if (!j) return;
+        if (j.abierto_por && j.abierto_por !== S.currentUser.id) {
+          toast("La jornada ya fue iniciada por otro usuario", "err");
+          return;
+        }
+        if (j.abierto_por === S.currentUser.id) {
+          toast("Ya habías iniciado la jornada");
+          return;
+        }
+        j.abierto_por = S.currentUser.id;
+        j.abierto_at = new Date().toISOString();
+        j.estado = "abierta";
+        save(S.data);
+        toast("Inicio de jornada marcado");
+      }
+
       /* ========================= Pantalla Inicio ========================= */
       function renderInicio() {
         renderSession();
@@ -1730,47 +1758,30 @@
       };
 
       async function ensureConfig() {
-  try {
-    // Si todavía no hay usuario en memoria, intenta cargarlo
-    if (!S.currentUser) {
-      const tUser = await API.token();
-      const rP = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${tUser}` },
-        body: JSON.stringify({})
-      });
-      const prof2 = await rP.json().catch(()=>null);
-      if (rP.ok && prof2) {
-        const _p2 = prof2.user ?? prof2;
-        window.S = window.S || {};
-        S.currentUser = {
-          id: _p2.id, email: _p2.email, role: _p2.role,
-          sucursal_id: _p2.sucursal_id, sucursal: _p2.sucursal
-        };
+        try {
+          const t = await API.token();
+          const res = await fetch(
+            `${window.PSC_CONFIG.functionsBase}/get-config`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + t,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({}),
+            }
+          );
+          const js = await res.json();
+          if (!res.ok) throw new Error(js?.error || "Error get-config");
+          S.config = {
+            sucursales: js.sucursales || [],
+            metodos: js.metodos || [],
+            gasto_categorias: js.gasto_categorias || [],
+          };
+        } catch (e) {
+          console.warn("get-config fallo", e);
+        }
       }
-    }
-
-    const t = await API.token();
-    const res = await fetch(`${window.PSC_CONFIG.functionsBase}/get-config`, {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + t,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-    });
-    const js = await res.json();
-    if (!res.ok) throw new Error(js?.error || "Error get-config");
-    S.config = {
-      sucursales: js.sucursales || [],
-      metodos: js.metodos || [],
-      gasto_categorias: js.gasto_categorias || [],
-    };
-  } catch (e) {
-    console.warn("get-config fallo", e);
-  }
-}
-
 
       async function openJornadaForToday(sucursal_id) {
         if (!sucursal_id) throw new Error("Sucursal requerida");
@@ -1815,22 +1826,27 @@
           }
         },
         async call(path, body) {
-          const headers = { "Content-Type": "application/json" };
+          const headers = { 'Content-Type': 'application/json', 'apikey': window.PSC_CONFIG.supabaseAnonKey };
           try {
             const t = await this.token();
             if (t) headers["Authorization"] = `Bearer ${t}`;
           } catch {}
           const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers,
-            body: JSON.stringify(body || {}),
-          });
-          let json = null;
-          try {
-            json = await res.json();
-          } catch {}
-          return { ok: res.ok, status: res.status, data: json };
+       let res;
+       try{
+         res = await fetch(url, {
+           method: 'POST',
+           mode: 'cors',
+           headers,
+           body: JSON.stringify(body || {})
+         });
+       }catch(e){
+         throw new Error('Network/CORS error: ' + (e?.message || e));
+       }
+       let json = null;
+       try { json = await res.json(); } catch {}
+       return { ok: res.ok, status: res.status, data: json };
+
         },
         day: {
           async saveApertura(items) {
