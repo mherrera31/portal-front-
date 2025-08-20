@@ -673,73 +673,34 @@
             });
             if (error) throw error;
             // traer perfil
-            const t = await API.token();
-const rProf = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${t}`,
-  },
-  body: JSON.stringify({})
-});
-const prof = await rProf.json();
-if (!rProf.ok) throw new Error(prof?.error || 'Error get-profile');
-
-const _p = prof.user ?? prof;
-window.S = window.S || {};
-S.currentUser = {
-  id: _p.id,
-  email: _p.email,
-  role: _p.role,
-  sucursal_id: _p.sucursal_id,
-  sucursal: _p.sucursal
-};
-
-// 2) Config
-await ensureConfig();
-
-// 3) Jornada
-if (S.currentUser.sucursal_id) {
-  await openJornadaForToday(S.currentUser.sucursal_id);
-}
-
-// 4) Ir al módulo de inicio
-location.hash = "#/mod-inicio";
+            const token = (await window._sb.auth.getSession()).data?.session
+              ?.access_token;
+            const pr = await fetch(
+              `${window.PSC_CONFIG.functionsBase}/get-profile`,
+              { headers: { Authorization: "Bearer " + token } }
+            );
+            const prof = await pr.json();
+            if (!pr.ok)
+              throw new Error(prof?.error || "No se pudo leer perfil");
+            S.currentUser = {
+              id: prof.id,
+              email: prof.email,
+              role: prof.role,
+              sucursal_id: prof.sucursal_id,
+              sucursal: prof.sucursal,
+            };
+            // cargar config básica para admin switcher
+            await ensureConfig();
+            // asegurar jornada del día en la sucursal actual (si tiene)
+            if (S.currentUser.sucursal_id) {
+              await openJornadaForToday(S.currentUser.sucursal_id);
+            }
+            location.hash = "#/mod-inicio";
           } catch (e) {
             msg.textContent = e.message || String(e);
           }
         };
       }
-
-      /* ========================= Helpers de Jornada ========================= */
-
-      async function ensureJornadaHoy() {
-        if (!S.currentUser?.sucursal_id) {
-          toast("Asigna sucursal al usuario", "err");
-          return null;
-        }
-        await openJornadaForToday(S.currentUser.sucursal_id);
-        return S.jornada;
-      }
-
-      function marcarInicio() {
-        const j = ensureJornadaHoy();
-        if (!j) return;
-        if (j.abierto_por && j.abierto_por !== S.currentUser.id) {
-          toast("La jornada ya fue iniciada por otro usuario", "err");
-          return;
-        }
-        if (j.abierto_por === S.currentUser.id) {
-          toast("Ya habías iniciado la jornada");
-          return;
-        }
-        j.abierto_por = S.currentUser.id;
-        j.abierto_at = new Date().toISOString();
-        j.estado = "abierta";
-        save(S.data);
-        toast("Inicio de jornada marcado");
-      }
-
       /* ========================= Pantalla Inicio ========================= */
       function renderInicio() {
         renderSession();
