@@ -24,6 +24,7 @@
     label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--fg);outline:0}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(16,185,129,.15);border-color:#a7f3d0}
+    textarea{min-height:90px}
     table{width:100%;border-collapse:separate;border-spacing:0 8px}
     th,td{text-align:left;padding:8px 10px} th{font-size:12px;color:#4b5563}
     tr{background:#f9fafb;border-radius:10px;border:1px solid var(--border)}
@@ -40,8 +41,6 @@
     .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .right{display:flex;align-items:center;gap:8px}
     .tag{font-size:12px;color:#111827;padding:4px 8px;background:#f3f4f6;border:1px solid var(--border);border-radius:999px}
-    .kpi{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff;min-width:160px}
-    .kpi small{color:var(--muted)}
     .toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 10px 18px rgba(0,0,0,.2);z-index:999}
     .ap-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
     .ap-total{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.04)}
@@ -78,6 +77,7 @@
         <nav id="nav" class="menu">
           <a href="#/mod-inicio">Inicio de jornada</a>
           <a href="#/mod-apertura">Saldo inicial</a>
+          <a href="#/mod-ingresos">Ingresos (sistemas)</a>
         </nav>
       </aside>
       <main id="content"></main>
@@ -93,11 +93,10 @@ function money(n){return Number(n||0).toLocaleString("en-US",{style:"currency",c
 function toast(msg,kind){const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`);document.body.appendChild(d);setTimeout(()=>d.remove(),2400);}
 
 /* ========================= Estado global ========================= */
-window.S = window.S || { currentUser:null, config:{ sucursales:[], denominaciones:[] }, jornada:null };
+window.S = window.S || { currentUser:null, config:{ sucursales:[], denominaciones:[], metodos:[] }, jornada:null };
 
 /* ========================= Config & Supabase ========================= */
 window.PSC_CONFIG = window.PSC_CONFIG || {
-  // 👉 Si usas config.js, ya vendrán definidos. Si no, completa aquí:
   // supabaseUrl: "https://<ref>.supabase.co",
   // supabaseAnonKey: "<ANON>",
   // functionsBase: "https://<ref>.functions.supabase.co",
@@ -135,6 +134,13 @@ const API = {
     saveAperturaTotal: async (items)=> API.call("day/save-apertura-total",{
       jornada_id: S.jornada?.id || null, items, accepted_by_user:true
     }),
+    saveSistemas: async (ingresos, comment)=> API.call("day/save-sistemas", {
+      jornada_id: S.jornada?.id || null,
+      accepted_by_user: true,
+      version: 1,
+      ingresos,                // [{metodo_id, total}]
+      comment: comment || null
+    }),
   },
   misc: {
     getConfig: async ()=> {
@@ -170,8 +176,9 @@ function route(){
   setActive(hash);
   if (hash==="#/login") return renderLogin();
   if (!S.currentUser) return renderLogin();
-  if (hash==="#/mod-inicio")  return renderInicio();
-  if (hash==="#/mod-apertura")return renderApertura();
+  if (hash==="#/mod-inicio")   return renderInicio();
+  if (hash==="#/mod-apertura") return renderApertura();
+  if (hash==="#/mod-ingresos") return renderIngresos();
   return renderInicio();
 }
 
@@ -182,6 +189,7 @@ async function ensureConfig(){
   const d = r.data || {};
   S.config.sucursales     = d.sucursales || [];
   S.config.denominaciones = d.denominaciones || [];
+  S.config.metodos        = d.metodos || [];   // <- necesario para Ingresos
 }
 
 /* ========================= LOGIN ========================= */
@@ -225,7 +233,7 @@ function renderLogin(){
       const prof = await pr.json();
       if(!pr.ok) throw new Error(prof?.error || "No se pudo leer perfil");
       S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
-      await ensureConfig();             // carga sucursales + denominaciones
+      await ensureConfig();             // carga sucursales + denominaciones + metodos
       renderSession();
       location.hash = "#/mod-inicio";   // NO abre jornada automáticamente
     }catch(e){ msg.textContent = e.message || String(e); }
@@ -319,44 +327,120 @@ function renderApertura(){
   }
   body.addEventListener("input", (e)=>{ if (e.target.tagName==="INPUT") recalc(); });
   recalc();
+}
 
-  if (!window.__PSC_HANDLERS_BOUND__){
+/* ========================= INGRESOS (Sistemas) ========================= */
+function renderIngresos(){
+  if (!S.currentUser){ return renderLogin(); }
+  const v = qs("#content");
+  const metodos = (S.config?.metodos || []).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+
+  v.innerHTML = `
+    <div class="card">
+      <h2><span class="code">[C-04]</span> Ingresos (sistemas)</h2>
+      <div class="muted" style="margin-bottom:8px">Captura los totales reportados por cada método en los sistemas.</div>
+
+      <table class="ap">
+        <thead><tr><th>Método</th><th style="width:180px">Total del sistema</th></tr></thead>
+        <tbody id="ingRows">
+          ${
+            metodos.length
+              ? metodos.map(m => `
+                <tr data-id="${m.id}">
+                  <td>${m.nombre}</td>
+                  <td><input type="number" min="0" step="0.01" value="" placeholder="$ 0.00" style="width:160px"></td>
+                </tr>`).join("")
+              : `<tr><td colspan="2" class="muted">No hay métodos configurados.</td></tr>`
+          }
+        </tbody>
+      </table>
+
+      <div class="row" style="margin-top:8px">
+        <div class="col">
+          <label>Comentario (opcional)</label>
+          <textarea id="ingComment" placeholder="Motivo si corriges valores luego de guardar"></textarea>
+        </div>
+      </div>
+
+      <div class="actions"><button class="btn primary" id="btnIngSave" type="button">Guardar</button></div>
+    </div>
+  `;
+
+  if (!window.__PSC_HANDLERS_BOUND__INGRESOS){
     document.addEventListener("click", async function(ev){
-      if (ev.target && ev.target.id==="btnApSave"){
+      if (ev.target && ev.target.id === "btnIngSave"){
         ev.preventDefault(); ev.stopPropagation();
         if (!S.jornada?.id){ toast("No hay jornada activa. Abre una en Inicio.", "err"); return; }
 
-        const rows = qsa("#apRows tr");
-        let total=0; const items=[];
-        rows.forEach(tr=>{
-          const valor=Number(tr.dataset.valor||0);
-          const id=tr.dataset.id;
-          const qty=Math.max(0,parseInt(qs("input",tr)?.value||"0",10));
-          total+=valor*qty;
-          if (qty>0) items.push({ denominacion_id:id, cantidad:qty });
+        const rows = qsa("#ingRows tr");
+        const ingresos = [];
+        rows.forEach(tr => {
+          const id  = tr.dataset.id;
+          const val = parseFloat(qs("input", tr)?.value || "0");
+          const total = isNaN(val) ? 0 : Math.max(0, val);
+          if (total > 0) ingresos.push({ metodo_id: id, total });
         });
-        if (!items.length){ toast("Ingresa al menos una cantidad > 0", "err"); return; }
 
-        const ok = confirm(`Confirmo guardar la APERTURA por ${money(total)} y bloquear el módulo.`);
+        if (!ingresos.length){ toast("Ingresa al menos un total > 0", "err"); return; }
+
+        const comment = qs("#ingComment")?.value?.trim() || "";
+
+        const ok = confirm("Confirmo que los INGRESOS son correctos y deseo guardarlos.");
         if (!ok) return;
 
         try{
-          const r = await API.day.saveAperturaTotal(items);
-          if (!r.ok || !r.data?.ok) throw new Error(r.data?.error || "No se pudo guardar en Supabase (apertura)");
-          const t = r.data.total ?? total;
-          qs("#apTotal").textContent = money(t);
-          qs("#apTotalFoot").textContent = money(t);
-          rows.forEach(tr=>{ const i=qs("input",tr); if(i) i.disabled=true; });
-          ev.target.disabled=true; ev.target.textContent="Guardado";
-          toast("Saldo inicial guardado y módulo bloqueado");
+          const r = await API.day.saveSistemas(ingresos, comment || null);
+          if (!r.ok || !r.data) throw new Error(r.data?.error || "No se pudo guardar Ingresos");
+          // Bloquear UI (si tu edge bloquea módulo puedes reflejarlo aquí)
+          rows.forEach(tr => { const i = qs("input",tr); if(i) i.disabled = true; });
+          qs("#ingComment").disabled = true;
+          ev.target.disabled = true; ev.target.textContent = "Guardado";
+          toast("Ingresos guardados");
         }catch(e){ toast(e.message || String(e), "err"); }
       }
     });
-    window.__PSC_HANDLERS_BOUND__ = true;
+    window.__PSC_HANDLERS_BOUND__INGRESOS = true;
   }
 }
 
+/* ========================= Guardados (handlers globales) ========================= */
+if (!window.__PSC_HANDLERS_BOUND__APERTURA_SAVE){
+  document.addEventListener("click", async function(ev){
+    if (ev.target && ev.target.id==="btnApSave"){
+      ev.preventDefault(); ev.stopPropagation();
+      if (!S.jornada?.id){ toast("No hay jornada activa. Abre una en Inicio.", "err"); return; }
+
+      const rows = qsa("#apRows tr");
+      let total=0; const items=[];
+      rows.forEach(tr=>{
+        const valor=Number(tr.dataset.valor||0);
+        const id=tr.dataset.id;
+        const qty=Math.max(0,parseInt(qs("input",tr)?.value||"0",10));
+        total+=valor*qty;
+        if (qty>0) items.push({ denominacion_id:id, cantidad:qty });
+      });
+      if (!items.length){ toast("Ingresa al menos una cantidad > 0", "err"); return; }
+
+      const ok = confirm(`Confirmo guardar la APERTURA por ${money(total)} y bloquear el módulo.`);
+      if (!ok) return;
+
+      try{
+        const r = await API.day.saveAperturaTotal(items);
+        if (!r.ok || !r.data?.ok) throw new Error(r.data?.error || "No se pudo guardar en Supabase (apertura)");
+        const t = r.data.total ?? total;
+        qs("#apTotal").textContent = money(t);
+        qs("#apTotalFoot").textContent = money(t);
+        rows.forEach(tr=>{ const i=qs("input",tr); if(i) i.disabled=true; });
+        ev.target.disabled=true; ev.target.textContent="Guardado";
+        toast("Saldo inicial guardado y módulo bloqueado");
+      }catch(e){ toast(e.message || String(e), "err"); }
+    }
+  });
+  window.__PSC_HANDLERS_BOUND__APERTURA_SAVE = true;
+}
+
 /* ========================= Boot ========================= */
+function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
 (async function boot(){
   renderSession();
   route();
