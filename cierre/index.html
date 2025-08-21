@@ -286,78 +286,95 @@
 
   // Crea (si no existe) la jornada de HOY (local) para el usuario/sucursal.
   // Si ya existe, la retorna. Si al insertar cae en duplicado, re-lee la existente.
-  async function openJornadaForToday(sucursal_id) {
-    if (!S.currentUser) throw new Error("No hay usuario en sesión");
-    if (!sucursal_id)   throw new Error("Falta sucursal");
+  // Crea (si no existe) la jornada de HOY (local) para el usuario/sucursal.
+// Si ya existe o hay duplicado por carrera, retorna la más reciente.
+async function openJornadaForToday(sucursal_id) {
+  if (!S.currentUser) throw new Error("No hay usuario en sesión");
+  if (!sucursal_id)   throw new Error("Falta sucursal");
 
-    const fecha = today();
+  const fecha = today();
 
-    // 1) buscar primero una abierta hoy
-    const q = await _sb
+  // 1) Buscar primero
+  const q = await _sb
+    .from("jornadas")
+    .select("id, estado, sucursal_id, created_at")
+    .eq("fecha", fecha)
+    .eq("sucursal_id", sucursal_id)
+    .eq("user_id", S.currentUser.id)
+    .in("estado", ["open", "modules_locked", "reopened"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (q.error) throw q.error;
+  if (Array.isArray(q.data) && q.data[0]) {
+    S.jornada = q.data[0];
+    return S.jornada;
+  }
+
+  // 2) Intentar crear
+  const ins = await _sb
+    .from("jornadas")
+    .insert({
+      fecha,
+      user_id: S.currentUser.id,
+      sucursal_id,
+      estado: "open",
+      cierre_ok: false,
+    })
+    .select("id, estado, sucursal_id, created_at"); // ← devuelve array
+
+  if (ins.error) {
+    const isDup = ins.error.code === "23505" ||
+                  /duplicate key value/i.test(ins.error.message || "");
+    if (!isDup) throw ins.error;
+    // 3) Duplicado por carrera → releer y devolver la más reciente
+    const again = await _sb
       .from("jornadas")
-      .select("id, estado, sucursal_id")
+      .select("id, estado, sucursal_id, created_at")
       .eq("fecha", fecha)
       .eq("sucursal_id", sucursal_id)
       .eq("user_id", S.currentUser.id)
       .in("estado", ["open", "modules_locked", "reopened"])
-      .maybeSingle();
-    if (q.error) throw q.error;
-    if (q.data) { S.jornada = q.data; return q.data; }
-
-    // 2) no hay -> intentamos crear
-    const ins = await _sb
-      .from("jornadas")
-      .insert({
-        fecha,
-        user_id: S.currentUser.id,
-        sucursal_id,
-        estado: "open",
-        cierre_ok: false,
-      })
-      .select("id, estado, sucursal_id")
-      .single();
-
-    // 3) si hubo carrera/duplicado (23505), re-leer la existente y devolverla
-    if (ins.error) {
-      const isDup = ins.error.code === "23505"
-        || /duplicate key value/i.test(ins.error.message || "");
-      if (isDup) {
-        const again = await _sb
-          .from("jornadas")
-          .select("id, estado, sucursal_id")
-          .eq("fecha", fecha)
-          .eq("sucursal_id", sucursal_id)
-          .eq("user_id", S.currentUser.id)
-          .in("estado", ["open", "modules_locked", "reopened"])
-          .maybeSingle();
-        if (again.error) throw again.error;
-        if (!again.data) throw new Error("Jornada duplicada pero no encontrada");
-        S.jornada = again.data;
-        return again.data;
-      }
-      throw ins.error; // otro error real
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (again.error) throw again.error;
+    if (!Array.isArray(again.data) || !again.data[0]) {
+      throw new Error("Jornada duplicada pero no encontrada");
     }
-
-    S.jornada = ins.data;
-    return ins.data;
-  }
-
-  // Consulta si hay jornada de HOY (local) abierta; NO crea.
-  async function ensureJornadaHoy() {
-    if (!S.currentUser?.sucursal_id) { S.jornada = null; return null; }
-    const fecha = today();
-    const q = await _sb
-      .from("jornadas")
-      .select("id, estado, sucursal_id")
-      .eq("fecha", fecha)
-      .eq("sucursal_id", S.currentUser.sucursal_id)
-      .eq("user_id", S.currentUser.id)
-      .in("estado", ["open", "modules_locked", "reopened"])
-      .maybeSingle();
-    if (q.error) throw q.error;
-    S.jornada = q.data || null;
+    S.jornada = again.data[0];
     return S.jornada;
   }
+
+  // insert OK: tomar la primera fila
+  const row = Array.isArray(ins.data) ? ins.data[0] : null;
+  if (!row) throw new Error("Insert OK pero sin datos devueltos");
+  S.jornada = row;
+  return row;
+}
+
+  // Consulta si hay jornada de HOY (local) abierta; NO crea.
+  // Consulta si hay jornada de HOY (local) abierta; NO crea.
+async function ensureJornadaHoy() {
+  if (!S.currentUser?.sucursal_id) { S.jornada = null; return null; }
+
+  const fecha = today();
+  const q = await _sb
+    .from("jornadas")
+    .select("id, estado, sucursal_id, created_at")
+    .eq("fecha", fecha)
+    .eq("sucursal_id", S.currentUser.sucursal_id)
+    .eq("user_id", S.currentUser.id)
+    .in("estado", ["open", "modules_locked", "reopened"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (q.error) throw q.error;
+
+  const row = Array.isArray(q.data) ? q.data[0] : null;
+  S.jornada = row || null;
+  return S.jornada;
+}
+
 
   /* ============= Inicio ============= */
   async function renderInicio(){
