@@ -6,20 +6,11 @@
   <title>PSC Cierre • Cierre de Caja</title>
   <link rel="icon" href="data:," />
   <style>
-    :root {
-      --bg:#f6f7fb; --bg2:#eef2f7; --card:#fff; --border:#e5e7eb;
-      --muted:#6b7280; --fg:#111827; --accent:#10b981; --warn:#f59e0b;
-      --err:#ef4444; --ok:#059669;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
-      background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--fg)}
+    :root{--bg:#f6f7fb;--bg2:#eef2f7;--card:#fff;--border:#e5e7eb;--muted:#6b7280;--fg:#111827;--accent:#10b981;--warn:#f59e0b;--err:#ef4444;--ok:#059669}
+    *{box-sizing:border-box} html,body{height:100%} body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--fg)}
     .wrap{max-width:1240px;margin:0 auto;padding:24px}
-    h1,h2,h3{margin:0 0 12px}
-    h1{font-size:22px} h2{font-size:18px;color:#1f2937}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;
-      box-shadow:0 8px 24px rgba(15,23,42,.06);margin:14px 0}
+    h1,h2,h3{margin:0 0 12px} h1{font-size:22px} h2{font-size:18px;color:#1f2937}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);margin:14px 0}
     .row{display:flex;gap:12px;flex-wrap:wrap} .col{flex:1 1 260px}
     label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
     input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--fg);outline:0}
@@ -41,28 +32,27 @@
     .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .right{display:flex;align-items:center;gap:8px}
     .tag{font-size:12px;color:#111827;padding:4px 8px;background:#f3f4f6;border:1px solid var(--border);border-radius:999px}
+    .kpi{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff;min-width:160px}
+    .kpi small{color:var(--muted)} .grid{display:grid;gap:12px}
     .toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 10px 18px rgba(0,0,0,.2);z-index:999}
     .ap-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
     .ap-total{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.04)}
-    .ap-total strong{font-size:1.1rem}
-    table.ap{width:100%}
-    .apSub{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
-    .actions{display:flex;justify-content:flex-end;margin-top:12px}
-    .right-align{text-align:right}
-    .flex{display:flex;gap:8px;align-items:center}
+    .ap-total strong{font-size:1.1rem} table.ap{width:100%} .apSub{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+    .actions{display:flex;justify-content:flex-end;margin-top:12px} .right-align{text-align:right}
     .code{font-size:11px;font-weight:normal;color:#9ca3af;margin-right:8px;user-select:none}
   </style>
 
-  <!-- Tu config propia (si existe) -->
+  <!-- Tu config con PSC_CONFIG (url, anon, functionsBase) -->
   <script src="./config.js"></script>
-  <!-- Supabase UMD (una sola vez) -->
+
+  <!-- Supabase UMD (solo UNA vez para evitar el warning de múltiples clientes) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
   <div class="wrap">
     <div class="header">
       <div class="flex">
-        <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="logo" style="width:28px;height:28px;border-radius:6px" />
+        <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="logo" style="width:28px;height:28px;border-radius:6px"/>
         <div>
           <div style="font-weight:800">PSC Cargas</div>
           <div class="muted" style="font-size:12px">Portal de Cierre (conectado)</div>
@@ -78,216 +68,247 @@
           <a href="#/mod-inicio">Inicio de jornada</a>
           <a href="#/mod-apertura">Saldo inicial</a>
           <a href="#/mod-ingresos">Ingresos (sistemas)</a>
+          <a href="#/mod-sfinal">Saldo final</a>
+          <a href="#/mod-vouchers">Vouchers</a>
+          <a href="#/mod-delivery">Delivery</a>
+          <a href="#/mod-gastos">Gastos</a>
+          <a href="#/mod-compras">Compras</a>
+          <a href="#/mod-precheck">Precheck</a>
+          <a href="#/mod-deposito">Depósito</a>
+          <a href="#/mod-cierre">Cierre</a>
+          <a href="#/mod-panel">Panel de jornadas</a>
+          <a href="#/mod-usuarios">Usuarios (admin)</a>
+          <a href="#/mod-config">Configuración</a>
         </nav>
       </aside>
       <main id="content"></main>
     </div>
   </div>
 
-<script>
-/* ========================= Utils UI ========================= */
-const qs = (s,root=document)=>root.querySelector(s);
-const qsa = (s,root=document)=>Array.from(root.querySelectorAll(s));
-function el(html){const t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstChild;}
-function money(n){return Number(n||0).toLocaleString("en-US",{style:"currency",currency:"USD"});}
-function toast(msg,kind){const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`);document.body.appendChild(d);setTimeout(()=>d.remove(),2400);}
+  <script>
+  /* ===== Util ===== */
+  const qs  = (s, r=document)=>r.querySelector(s);
+  const qsa = (s, r=document)=>Array.from(r.querySelectorAll(s));
+  const el  = (html)=>{ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; };
+  const money = (n)=>Number(n||0).toLocaleString("en-US",{style:"currency",currency:"USD"});
+  const toast = (msg, kind)=>{ const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`); document.body.appendChild(d); setTimeout(()=>d.remove(),2400); };
+  const today = ()=>new Date().toISOString().slice(0,10);
 
-/* ========================= Estado global ========================= */
-window.S = window.S || { currentUser:null, config:{ sucursales:[], denominaciones:[], metodos:[] }, jornada:null };
+  function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
 
-/* ========================= Config & Supabase ========================= */
-window.PSC_CONFIG = window.PSC_CONFIG || {
-  // supabaseUrl: "https://<ref>.supabase.co",
-  // supabaseAnonKey: "<ANON>",
-  // functionsBase: "https://<ref>.functions.supabase.co",
-};
-if (!window._sb && window.supabase && window.PSC_CONFIG.supabaseUrl) {
-  window._sb = window.supabase.createClient(
-    window.PSC_CONFIG.supabaseUrl,
-    window.PSC_CONFIG.supabaseAnonKey,
-    { auth: { persistSession:true, storageKey:"psc_cierre_auth" } }
-  );
-}
+  /* ===== Estado (sin demo) ===== */
+  window.S = window.S || { currentUser:null, config:{ sucursales:[], metodos:[], gasto_categorias:[], denominaciones:[], sistemas:[] }, jornada:null };
+  window.save = window.save || function(){}; // no-op
 
-/* ========================= API Layer ========================= */
-function mapPath(p){ return p.replace(/^day\//,"day-").replace(/^admin\//,"admin-"); }
-
-const API = {
-  async token(){ try{ const {data} = await _sb.auth.getSession(); return data?.session?.access_token || null; } catch{return null}},
-  async call(path, body){
-    const mustAuth = /^day\/|^admin\//.test(path);
-    const headers = { "Content-Type":"application/json", apikey: PSC_CONFIG.supabaseAnonKey || "" };
-    if (mustAuth){
-      const t = await this.token();
-      if (!t){ toast("No hay sesión. Inicia sesión.", "err"); location.hash="#/login"; return {ok:false,status:401,data:{error:"no_session"}}; }
-      headers.Authorization = "Bearer " + t;
-    } else {
-      const t = await this.token(); if (t) headers.Authorization = "Bearer " + t;
+  /* ===== API (Supabase + Edge) ===== */
+  function mapPath(p){ if(p==="day/save-vouchers") return "day-save-comprobantes"; return p.replace(/^day\//,"day-").replace(/^admin\//,"admin-"); }
+  const API = {
+    ready:false,
+    init(){
+      try{
+        if(!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient){
+          window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey, {
+            auth:{ persistSession:true, storageKey:"psc_cierre_auth" }
+          });
+        }
+        this.ready = !!window._sb;
+      }catch(e){ console.warn("Supabase init skipped", e); }
+    },
+    async token(){ try{ const { data } = await _sb.auth.getSession(); return data?.session?.access_token || null; }catch{return null} },
+    async call(path, body){
+      const headers={ "Content-Type":"application/json", apikey: window.PSC_CONFIG.supabaseAnonKey };
+      try{ const t=await this.token(); if(t) headers.Authorization = "Bearer "+t; }catch{}
+      const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
+      let res; try{
+        res = await fetch(url,{ method:"POST", mode:"cors", headers, body: JSON.stringify(body||{}) });
+      }catch(e){ throw new Error("Network/CORS error: "+(e?.message||e)); }
+      let json=null; try{ json = await res.json(); }catch{}
+      return { ok: res.ok, status: res.status, data: json };
+    },
+    day:{
+      saveAperturaTotal: (items)=>API.call("day/save-apertura-total",{ jornada_id: S.jornada?.id||null, items, accepted_by_user:true }),
+      getSistemasTotales: ()=>API.call("day/get-sistemas-totales",{ jornada_id: S.jornada?.id||null }),
+      saveSistemasTotales: (ingresos, comment)=>API.call("day/save-sistemas-totales",{ jornada_id:S.jornada?.id||null, accepted_by_user:true, version:1, ingresos, comment: comment||null })
+    },
+    admin:{
+      upsertUser:(p)=>API.call("admin-upsert-user",p),
+      listUsers:()=>API.call("admin-list-users",{})
     }
-    const url = `${PSC_CONFIG.functionsBase}/${mapPath(path)}`;
-    const res = await fetch(url,{ method:"POST", mode:"cors", headers, body: JSON.stringify(body||{}) });
-    let json=null; try{ json=await res.json(); }catch{}
-    return { ok:res.ok, status:res.status, data:json };
-  },
-  day: {
-    openJornada: async (sucursal_id)=> API.call("day/open-jornada",{ sucursal_id }),
-    saveAperturaTotal: async (items)=> API.call("day/save-apertura-total",{
-      jornada_id: S.jornada?.id || null, items, accepted_by_user:true
-    }),
-    saveSistemas: async (ingresos, comment)=> API.call("day/save-sistemas", {
-      jornada_id: S.jornada?.id || null,
-      accepted_by_user: true,
-      version: 1,
-      ingresos,                // [{metodo_id, total}]
-      comment: comment || null
-    }),
-  },
-  misc: {
-    getConfig: async ()=> {
-      const res = await fetch(`${PSC_CONFIG.functionsBase}/get-config`,{
-        method:"POST",
-        headers:{ "Content-Type":"application/json", apikey: PSC_CONFIG.supabaseAnonKey || "" }
-      });
-      return { ok:res.ok, data: await res.json().catch(()=>null) };
+  };
+
+  /* ===== Sesión/Header ===== */
+  function renderSession(){
+    const box = qs("#sessionBox");
+    if(!S.currentUser){ box.innerHTML = '<span class="tag">No has iniciado sesión</span>'; return; }
+    const u=S.currentUser; const role = u.role?.[0]?.toUpperCase()+u.role?.slice(1); const suc = u.sucursal || "—";
+
+    if(u.role==="admin"){
+      const opts = (S.config?.sucursales||[]).map(s=>`<option value="${s.id}" ${s.id===u.sucursal_id?"selected":""}>${s.nombre}</option>`).join("");
+      box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span>
+                       <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
+                       <label style="margin-left:8px" class="muted">Sucursal</label>
+                       <select id="selSucursal" style="padding:6px 8px;border-radius:10px;border:1px solid var(--border)">${opts}</select>
+                       <button class="btn" id="btnLogout">Salir</button>`;
+      qs("#selSucursal").onchange = async (ev)=>{
+        const id = ev.target.value || null;
+        try{
+          await openJornadaForToday(id); // <- tu función existente
+          S.currentUser.sucursal_id = id;
+          const ss=(S.config?.sucursales||[]).find(x=>x.id===id);
+          S.currentUser.sucursal = ss?.nombre || "—";
+          renderSession(); toast("Sucursal cambiada");
+        }catch(e){ toast(e.message||String(e),"err"); }
+      };
+    }else{
+      box.innerHTML = `<span class="muted">Rol:</span> <span class="tag">${role}</span>
+                       <span class="muted">Usuario:</span> <span class="tag">${u.email}</span>
+                       <span class="muted">Sucursal:</span> <span class="tag">${suc}</span>
+                       <button class="btn" id="btnLogout">Salir</button>`;
+    }
+    qs("#btnLogout").onclick = async ()=>{
+      try{ await window._sb?.auth?.signOut(); }catch{}
+      S.currentUser=null; S.jornada=null; location.hash="#/login";
+    };
+  }
+
+  /* ===== Router ===== */
+  window.addEventListener("hashchange", route);
+  function route(){
+    const hash = location.hash || "#/login";
+    setActive(hash);
+    if(hash==="#/login") return renderLogin();
+    if(!S.currentUser)  return renderLogin();
+    switch(hash){
+      case "#/mod-inicio":   return renderInicio();
+      case "#/mod-apertura": return renderApertura();
+      case "#/mod-ingresos": return renderIngresos();
+      default:               return renderInicio();
     }
   }
-};
 
-/* ========================= Session/Header ========================= */
-function renderSession(){
-  const box = qs("#sessionBox");
-  if (!S.currentUser){ box.innerHTML = '<span class="tag">No has iniciado sesión</span>'; return; }
-  const u = S.currentUser;
-  const role = (u.role||"").replace(/^./,c=>c.toUpperCase());
-  const suc  = u.sucursal || "—";
-  box.innerHTML = `
-    <span class="muted">Rol:</span> <span class="tag">${role||"—"}</span>
-    <span class="muted">Usuario:</span> <span class="tag">${u.email||"—"}</span>
-    <span class="muted">Sucursal:</span> <span class="tag">${suc}</span>
-    <button class="btn" id="btnLogout">Salir</button>`;
-  qs("#btnLogout").onclick = async ()=>{ try{ await _sb.auth.signOut(); }catch{} S.currentUser=null; S.jornada=null; location.hash="#/login"; };
-}
+  /* ===== Login ===== */
+  async function ensureConfig(){
+    try{
+      const r = await API.call("get-config", {}); // mapPath no cambia; tu function se llama get-config
+      if(!r.ok) throw new Error(r.data?.error || "get-config fallo");
+      const d = r.data;
+      S.config.sucursales       = d.sucursales || [];
+      S.config.metodos          = d.metodos || [];
+      S.config.gasto_categorias = d.gasto_categorias || [];
+      S.config.denominaciones   = d.denominaciones || [];
+      S.config.sistemas         = d.sistemas || [];
+    }catch(e){ console.error("get-config fallo", e); }
+  }
 
-/* ========================= Router ========================= */
-function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
-window.addEventListener("hashchange", route);
-function route(){
-  const hash = location.hash || "#/login";
-  setActive(hash);
-  if (hash==="#/login") return renderLogin();
-  if (!S.currentUser) return renderLogin();
-  if (hash==="#/mod-inicio")   return renderInicio();
-  if (hash==="#/mod-apertura") return renderApertura();
-  if (hash==="#/mod-ingresos") return renderIngresos();
-  return renderInicio();
-}
-
-/* ========================= Ensure Config ========================= */
-async function ensureConfig(){
-  const r = await API.misc.getConfig();
-  if (!r.ok){ throw new Error("get-config fallo"); }
-  const d = r.data || {};
-  S.config.sucursales     = d.sucursales || [];
-  S.config.denominaciones = d.denominaciones || [];
-  S.config.metodos        = d.metodos || [];   // <- necesario para Ingresos
-}
-
-/* ========================= LOGIN ========================= */
-function renderLogin(){
-  const v = qs("#content");
-  v.innerHTML = `
-    <div class="card">
-      <h2><span class="code">[C-01]</span> Entrar</h2>
-      <div class="row">
-        <div class="col">
-          <label>Email</label>
-          <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">
-          <label>Contraseña</label>
-          <input id="lgPass" type="password" placeholder="••••••••">
-          <div style="margin-top:12px">
-            <button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button>
+  function renderLogin(){
+    const v = qs("#content");
+    v.innerHTML = `
+      <div class="card">
+        <h2><span class="code">[C-01]</span> Entrar</h2>
+        <div class="row">
+          <div class="col">
+            <label>Email</label>
+            <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">
+            <label>Contraseña</label>
+            <input id="lgPass" type="password" placeholder="••••••••">
+            <div style="margin-top:12px"><button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button></div>
+            <div class="muted" id="loginMsg" style="margin-top:8px"></div>
           </div>
-          <div class="muted" id="loginMsg" style="margin-top:8px"></div>
+          <div class="col"><div class="muted">Inicia sesión con tu usuario de PSC. Si olvidaste tu contraseña, un admin puede restablecerla.</div></div>
         </div>
-        <div class="col">
-          <div class="muted">Inicia sesión con tu usuario de PSC.</div>
+      </div>`;
+
+    const btn = qs("#btnLogin", v);
+    const pass= qs("#lgPass", v);
+    const emailEl=qs("#lgEmail", v);
+    const msg = qs("#loginMsg", v);
+    pass.addEventListener("keydown", e=>{ if(e.key==="Enter") btn.click(); });
+
+    btn.onclick = async ()=>{
+      const email = emailEl.value.trim().toLowerCase();
+      const password = pass.value;
+      msg.textContent = "";
+      if(!email||!password){ msg.textContent="Ingresa correo y contraseña."; return; }
+      if(!window._sb?.auth){ msg.textContent="Supabase no inicializado."; return; }
+
+      btn.disabled=true;
+      try{
+        const { error } = await _sb.auth.signInWithPassword({ email, password });
+        if(error) throw error;
+
+        const { data:{ session } } = await _sb.auth.getSession();
+        const token = session?.access_token;
+        if(!token) throw new Error("No se obtuvo token de sesión.");
+
+        // perfil
+        const pr = await fetch(`${window.PSC_CONFIG.functionsBase}/get-profile`, { headers:{ Authorization:"Bearer "+token } });
+        const prof = await pr.json();
+        if(!pr.ok) throw new Error(prof?.error || "No se pudo leer perfil");
+
+        S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
+
+        // config + jornada si hay sucursal
+        await ensureConfig();
+        if(S.currentUser.sucursal_id){ await openJornadaForToday(S.currentUser.sucursal_id); }
+
+        renderSession();
+        location.hash = "#/mod-inicio";
+      }catch(e){ msg.textContent = e.message || String(e); }
+      finally{ btn.disabled=false; }
+    };
+  }
+
+  /* ===== Helpers Jornada ===== */
+  async function ensureJornadaHoy(){
+    if(!S.currentUser?.sucursal_id){ toast("Asigna sucursal al usuario","err"); return null; }
+    await openJornadaForToday(S.currentUser.sucursal_id); // <- tu función ya existente
+    return S.jornada;
+  }
+  function requireJornadaOrExplain(v){
+    ensureJornadaHoy();
+    if(!S.jornada){ v.innerHTML = '<div class="card">Asigna sucursal y marca inicio de jornada.</div>'; return false; }
+    return true;
+  }
+
+  /* ===== Inicio ===== */
+  async function renderInicio(){
+    renderSession();
+    const v = qs("#content");
+    const u = S.currentUser || { email:"—", role:"—", sucursal_id:null };
+    const sucursales = S.config?.sucursales || [];
+    const suc = sucursales.find(s=>s.id===u.sucursal_id)?.nombre || "—";
+
+    v.innerHTML = `
+      <div class="card">
+        <h2><span class="code">[C-02]</span> Inicio de jornada</h2>
+        <div class="muted">Usuario: <b>${u.email}</b> · Rol: <b>${u.role}</b></div>
+        <div class="muted">Sucursal actual: <b>${suc}</b></div>
+        <div class="muted">Jornada hoy: <b id="labJ">…</b></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="btnStart">Marcar inicio de jornada</button>
+          <button class="btn" id="btnEnsure">Refrescar jornada</button>
         </div>
-      </div>
-    </div>`;
-  const btn=qs("#btnLogin",v), pass=qs("#lgPass",v), emailEl=qs("#lgEmail",v), msg=qs("#loginMsg",v);
-  pass.addEventListener("keydown",(e)=>{ if(e.key==="Enter") btn.click(); });
-  btn.onclick = async ()=>{
-    const email=(emailEl.value||"").trim().toLowerCase();
-    const password=pass.value||"";
-    msg.textContent="";
-    if(!email||!password){ msg.textContent="Ingresa correo y contraseña."; return; }
-    btn.disabled=true;
-    try{
-      const { error } = await _sb.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      const { data:{session} } = await _sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error("No se obtuvo token.");
-      // perfil
-      const pr = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`,{ headers:{ Authorization:"Bearer "+token }});
-      const prof = await pr.json();
-      if(!pr.ok) throw new Error(prof?.error || "No se pudo leer perfil");
-      S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
-      await ensureConfig();             // carga sucursales + denominaciones + metodos
-      renderSession();
-      location.hash = "#/mod-inicio";   // NO abre jornada automáticamente
-    }catch(e){ msg.textContent = e.message || String(e); }
-    finally{ btn.disabled=false; }
-  };
-}
+      </div>`;
 
-/* ========================= INICIO (abrir jornada) ========================= */
-function renderInicio(){
-  renderSession();
-  const v = qs("#content");
-  const u = S.currentUser || {};
-  const suc = u.sucursal || "—";
-  v.innerHTML = `
-    <div class="card">
-      <h2><span class="code">[C-02]</span> Inicio de jornada</h2>
-      <div class="muted">Usuario: <b>${u.email||"—"}</b> · Rol: <b>${u.role||"—"}</b></div>
-      <div class="muted">Sucursal actual: <b>${suc}</b></div>
-      <div class="muted">Jornada hoy: <b id="labJ">${S.jornada?.id || "—"}</b></div>
-      <div class="row" style="margin-top:10px">
-        <button class="btn primary" id="btnStart" ${!u.sucursal_id?"disabled":""}>Marcar inicio de jornada</button>
-        <button class="btn" id="btnEnsure" ${!u.sucursal_id?"disabled":""}>Refrescar jornada</button>
-      </div>
-    </div>`;
-  const lab=qs("#labJ",v);
+    const labJ=qs("#labJ", v); const btnStart=qs("#btnStart", v); const btnEnsure=qs("#btnEnsure", v);
+    if(!u.sucursal_id){ btnStart.disabled=true; btnEnsure.disabled=true; }
+    try{ const j=await ensureJornadaHoy(); labJ.textContent = j?.id || S.jornada?.id || "—"; }catch{ labJ.textContent="—"; }
 
-  qs("#btnStart").onclick = async ()=>{
-    try{
-      const r = await API.day.openJornada(S.currentUser.sucursal_id);
-      if(!r.ok) throw new Error(r.data?.error || "No se pudo abrir/obtener jornada");
-      S.jornada = { id: r.data?.jornada_id || r.data?.id || r.data?.jornada?.id || null, sucursal_id: S.currentUser.sucursal_id };
-      lab.textContent = S.jornada?.id || "—";
-      toast("Jornada abierta");
-    }catch(e){ toast(e.message || String(e), "err"); }
-  };
-  qs("#btnEnsure").onclick = async ()=>{
-    try{
-      const r = await API.day.openJornada(S.currentUser.sucursal_id);
-      if(r.ok) { S.jornada = { id: r.data?.jornada_id || r.data?.id || null, sucursal_id: S.currentUser.sucursal_id }; lab.textContent=S.jornada?.id||"—"; toast("Jornada refrescada"); }
-    }catch(e){ toast(e.message || String(e), "err"); }
-  };
-}
+    btnStart.onclick = async ()=>{
+      try{ await ensureJornadaHoy(); labJ.textContent=S.jornada?.id||"—"; toast("Inicio de jornada marcado"); }catch(e){ toast(e.message||String(e)); }
+    };
+    btnEnsure.onclick = async ()=>{
+      try{ const j=await ensureJornadaHoy(); labJ.textContent=j?.id||S.jornada?.id||"—"; toast("Jornada refrescada"); }catch(e){ toast(e.message||String(e)); }
+    };
+  }
 
-/* ========================= APERTURA (Saldo inicial) ========================= */
-function denomLabel(d){
-  return d.tipo==="moneda"
-    ? (d.valor<1 ? `¢ ${Math.round(d.valor*100)}` : `$ ${d.valor}`)
-    : `$ ${d.valor}`;
-}
-function renderApertura(){
-  if (!S.currentUser){ return renderLogin(); }
-  const v = qs("#content");
-  v.innerHTML = `
-    <div class="card">
+  /* ===== Saldo inicial (Apertura) ===== */
+  function denomLabel(d){ return d.tipo==="moneda" ? (d.valor<1 ? `¢ ${Math.round(d.valor*100)}` : `$ ${d.valor}`) : `$ ${d.valor}`; }
+  function renderApertura(){
+    const v = qs("#content");
+    if(!requireJornadaOrExplain(v)) return;
+
+    v.innerHTML = `<div class="card">
       <div class="ap-head">
         <h2><span class="code">[C-03]</span> Saldo inicial (Apertura)</h2>
         <div class="ap-total"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
@@ -297,154 +318,163 @@ function renderApertura(){
         <tbody id="apRows"></tbody>
         <tfoot><tr><td colspan="2" class="right-align" style="font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>
       </table>
-      <div class="actions"><button class="btn primary" id="btnApSave" type="button">Guardar</button></div>
+      <div class="actions"><button class="btn primary" id="btnApSave">Guardar</button></div>
     </div>`;
 
-  const body = qs("#apRows");
-  const denoms = (S.config?.denominaciones || []).slice().sort((a,b)=>Number(a.valor)-Number(b.valor));
-  if (!denoms.length){
-    body.innerHTML = `<tr><td colspan="3" class="muted">No hay denominaciones configuradas.</td></tr>`;
-    return;
-  }
-  for (const d of denoms){
-    body.appendChild(el(`<tr data-id="${d.id}" data-valor="${Number(d.valor)}">
-      <td>${denomLabel(d)}</td>
-      <td><input type="number" min="0" step="1" value="" style="width:120px"></td>
-      <td class="apSub">$0.00</td>
-    </tr>`));
-  }
-  function recalc(){
-    let total=0;
-    qsa("#apRows tr").forEach(tr=>{
-      const valor=Number(tr.dataset.valor||0);
-      const qty = Math.max(0, parseInt(qs("input",tr)?.value||"0",10));
-      const sub = valor*qty;
-      qs(".apSub",tr).textContent = money(sub);
-      total += sub;
+    const body=qs("#apRows"); body.innerHTML="";
+    (S.config.denominaciones||[]).slice().sort((a,b)=>a.valor-b.valor).forEach(d=>{
+      body.appendChild(el(`
+        <tr data-id="${d.id}" data-valor="${d.valor}">
+          <td>${denomLabel(d)}</td>
+          <td><input type="number" min="0" step="1" value="" style="width:120px"></td>
+          <td class="apSub">$0.00</td>
+        </tr>`));
     });
-    qs("#apTotal").textContent = money(total);
-    qs("#apTotalFoot").textContent = money(total);
-  }
-  body.addEventListener("input", (e)=>{ if (e.target.tagName==="INPUT") recalc(); });
-  recalc();
-}
 
-/* ========================= INGRESOS (Sistemas) ========================= */
-function renderIngresos(){
-  if (!S.currentUser){ return renderLogin(); }
-  const v = qs("#content");
-  const metodos = (S.config?.metodos || []).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
-
-  v.innerHTML = `
-    <div class="card">
-      <h2><span class="code">[C-04]</span> Ingresos (sistemas)</h2>
-      <div class="muted" style="margin-bottom:8px">Captura los totales reportados por cada método en los sistemas.</div>
-
-      <table class="ap">
-        <thead><tr><th>Método</th><th style="width:180px">Total del sistema</th></tr></thead>
-        <tbody id="ingRows">
-          ${
-            metodos.length
-              ? metodos.map(m => `
-                <tr data-id="${m.id}">
-                  <td>${m.nombre}</td>
-                  <td><input type="number" min="0" step="0.01" value="" placeholder="$ 0.00" style="width:160px"></td>
-                </tr>`).join("")
-              : `<tr><td colspan="2" class="muted">No hay métodos configurados.</td></tr>`
-          }
-        </tbody>
-      </table>
-
-      <div class="row" style="margin-top:8px">
-        <div class="col">
-          <label>Comentario (opcional)</label>
-          <textarea id="ingComment" placeholder="Motivo si corriges valores luego de guardar"></textarea>
-        </div>
-      </div>
-
-      <div class="actions"><button class="btn primary" id="btnIngSave" type="button">Guardar</button></div>
-    </div>
-  `;
-
-  if (!window.__PSC_HANDLERS_BOUND__INGRESOS){
-    document.addEventListener("click", async function(ev){
-      if (ev.target && ev.target.id === "btnIngSave"){
-        ev.preventDefault(); ev.stopPropagation();
-        if (!S.jornada?.id){ toast("No hay jornada activa. Abre una en Inicio.", "err"); return; }
-
-        const rows = qsa("#ingRows tr");
-        const ingresos = [];
-        rows.forEach(tr => {
-          const id  = tr.dataset.id;
-          const val = parseFloat(qs("input", tr)?.value || "0");
-          const total = isNaN(val) ? 0 : Math.max(0, val);
-          if (total > 0) ingresos.push({ metodo_id: id, total });
-        });
-
-        if (!ingresos.length){ toast("Ingresa al menos un total > 0", "err"); return; }
-
-        const comment = qs("#ingComment")?.value?.trim() || "";
-
-        const ok = confirm("Confirmo que los INGRESOS son correctos y deseo guardarlos.");
-        if (!ok) return;
-
-        try{
-          const r = await API.day.saveSistemas(ingresos, comment || null);
-          if (!r.ok || !r.data) throw new Error(r.data?.error || "No se pudo guardar Ingresos");
-          // Bloquear UI (si tu edge bloquea módulo puedes reflejarlo aquí)
-          rows.forEach(tr => { const i = qs("input",tr); if(i) i.disabled = true; });
-          qs("#ingComment").disabled = true;
-          ev.target.disabled = true; ev.target.textContent = "Guardado";
-          toast("Ingresos guardados");
-        }catch(e){ toast(e.message || String(e), "err"); }
-      }
-    });
-    window.__PSC_HANDLERS_BOUND__INGRESOS = true;
-  }
-}
-
-/* ========================= Guardados (handlers globales) ========================= */
-if (!window.__PSC_HANDLERS_BOUND__APERTURA_SAVE){
-  document.addEventListener("click", async function(ev){
-    if (ev.target && ev.target.id==="btnApSave"){
-      ev.preventDefault(); ev.stopPropagation();
-      if (!S.jornada?.id){ toast("No hay jornada activa. Abre una en Inicio.", "err"); return; }
-
-      const rows = qsa("#apRows tr");
-      let total=0; const items=[];
-      rows.forEach(tr=>{
+    function recalc(){
+      let total=0;
+      qsa("#apRows tr").forEach(tr=>{
         const valor=Number(tr.dataset.valor||0);
-        const id=tr.dataset.id;
-        const qty=Math.max(0,parseInt(qs("input",tr)?.value||"0",10));
-        total+=valor*qty;
-        if (qty>0) items.push({ denominacion_id:id, cantidad:qty });
+        const qty=Math.max(0, parseInt(qs("input",tr).value||"0",10));
+        const sub=valor*qty;
+        qs(".apSub",tr).textContent = money(sub);
+        total+=sub;
       });
-      if (!items.length){ toast("Ingresa al menos una cantidad > 0", "err"); return; }
-
-      const ok = confirm(`Confirmo guardar la APERTURA por ${money(total)} y bloquear el módulo.`);
-      if (!ok) return;
-
-      try{
-        const r = await API.day.saveAperturaTotal(items);
-        if (!r.ok || !r.data?.ok) throw new Error(r.data?.error || "No se pudo guardar en Supabase (apertura)");
-        const t = r.data.total ?? total;
-        qs("#apTotal").textContent = money(t);
-        qs("#apTotalFoot").textContent = money(t);
-        rows.forEach(tr=>{ const i=qs("input",tr); if(i) i.disabled=true; });
-        ev.target.disabled=true; ev.target.textContent="Guardado";
-        toast("Saldo inicial guardado y módulo bloqueado");
-      }catch(e){ toast(e.message || String(e), "err"); }
+      qs("#apTotal").textContent = money(total);
+      qs("#apTotalFoot").textContent = money(total);
     }
-  });
-  window.__PSC_HANDLERS_BOUND__APERTURA_SAVE = true;
-}
+    recalc();
+    qs("#apRows").addEventListener("input", e=>{ if(e.target.tagName==="INPUT") recalc(); });
 
-/* ========================= Boot ========================= */
-function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
-(async function boot(){
-  renderSession();
-  route();
-})();
-</script>
+    if(!window.__PSC_HANDLERS_BOUND__AP){
+      document.addEventListener("click", async (e)=>{
+        if(e.target && e.target.id==="btnApSave"){
+          const items = qsa("#apRows tr").map(tr=>{
+            const id=tr.dataset.id;
+            const qty=Math.max(0, parseInt(qs("input",tr).value||"0",10));
+            return { denominacion_id:id, cantidad:qty };
+          }).filter(x=>x.cantidad>0);
+
+          if(!items.length){ toast("Ingresa cantidades > 0","err"); return; }
+          const ok = confirm("Confirmo que la APERTURA es correcta y deseo guardarla.");
+          if(!ok) return;
+
+          try{
+            const r = await API.day.saveAperturaTotal(items);
+            if(!r.ok) throw new Error(r.data?.error || "No se pudo guardar apertura");
+            // bloquear inputs
+            qsa("#apRows input").forEach(i=>i.disabled=true);
+            qs("#btnApSave").disabled=true; qs("#btnApSave").textContent="Guardado";
+            toast("Saldo inicial guardado y módulo bloqueado");
+          }catch(err){ toast(err.message||String(err),"err"); }
+        }
+      });
+      window.__PSC_HANDLERS_BOUND__AP = true;
+    }
+  }
+
+  /* ===== Ingresos (sistemas) ===== */
+  async function renderIngresos(){
+    if(!S.currentUser) return renderLogin();
+    const v = qs("#content");
+
+    // Traer sistemas + totales guardados
+    let sistemas = (S.config?.sistemas||[]).slice().filter(s=>s.activo!==false).map(s=>({...s,total:0}));
+    try{
+      if(S.jornada?.id){
+        const r = await API.day.getSistemasTotales();
+        if(r.ok && Array.isArray(r.data?.sistemas)) sistemas = r.data.sistemas;
+      }
+    }catch{}
+
+    v.innerHTML = `
+      <div class="card">
+        <h2><span class="code">[C-04]</span> Ingresos (sistemas)</h2>
+        <div class="muted" style="margin-bottom:8px">Ingresa el total del reporte diario por sistema.</div>
+
+        <table class="ap">
+          <thead><tr><th>Sistema</th><th style="width:180px">Total</th></tr></thead>
+          <tbody id="sisRows">
+            ${
+              sistemas.length
+              ? sistemas.map(s=>`
+                <tr data-id="${s.id}">
+                  <td>${s.nombre}</td>
+                  <td><input type="number" min="0" step="0.01" value="${Number(s.total||0)||""}" placeholder="$ 0.00" style="width:160px"></td>
+                </tr>`).join("")
+              : `<tr><td colspan="2" class="muted">No hay sistemas activos configurados.</td></tr>`
+            }
+          </tbody>
+        </table>
+
+        <div class="row" style="margin-top:8px">
+          <div class="col">
+            <label>Comentario (obligatorio si modificas después de haber guardado)</label>
+            <textarea id="ingComment" placeholder="Explica los cambios (si los hay)"></textarea>
+          </div>
+        </div>
+
+        <div class="actions"><button class="btn primary" id="btnIngSave" type="button">Guardar</button></div>
+      </div>
+    `;
+
+    if(!window.__PSC_HANDLERS_BOUND__INGRESOS){
+      document.addEventListener("click", async (ev)=>{
+        if(ev.target && ev.target.id==="btnIngSave"){
+          ev.preventDefault();
+          if(!S.jornada?.id){ toast("No hay jornada activa. Abre una en Inicio.","err"); return; }
+
+          const rows=qsa("#sisRows tr");
+          const ingresos=[];
+          rows.forEach(tr=>{
+            const id=tr.dataset.id;
+            const val=parseFloat(qs("input",tr)?.value||"0");
+            const total=isNaN(val)?0:Math.max(0,val);
+            if(total>0) ingresos.push({ sistema_id:id, total });
+          });
+          if(!ingresos.length){ toast("Ingresa al menos un total > 0","err"); return; }
+
+          const comment=(qs("#ingComment")?.value||"").trim();
+          const ok = confirm("Confirmo que los INGRESOS son correctos y deseo guardarlos.");
+          if(!ok) return;
+
+          try{
+            const r = await API.day.saveSistemasTotales(ingresos, comment||null);
+            if(!r.ok) throw new Error(r.data?.error || "No se pudo guardar Ingresos");
+            toast("Ingresos guardados");
+          }catch(e){
+            const msg = (e?.message||"").includes("comment_required_on_second_save")
+              ? "Debes agregar un comentario para modificar valores ya guardados."
+              : (e?.message||String(e));
+            toast(msg,"err");
+          }
+        }
+      });
+      window.__PSC_HANDLERS_BOUND__INGRESOS = true;
+    }
+  }
+
+  /* ===== Boot ===== */
+  async function boot(){
+    API.init();
+    try{
+      const { data:{ session } } = await _sb.auth.getSession();
+      if(session){
+        // si hay sesión, intenta cargar perfil y config
+        try{
+          const token = session.access_token;
+          const pr = await fetch(`${window.PSC_CONFIG.functionsBase}/get-profile`, { headers:{ Authorization:"Bearer "+token } });
+          const prof = await pr.json();
+          if(pr.ok){
+            S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
+          }
+        }catch{}
+      }
+      await ensureConfig();
+    }catch{}
+    route();
+  }
+  document.addEventListener("DOMContentLoaded", boot);
+  </script>
 </body>
 </html>
