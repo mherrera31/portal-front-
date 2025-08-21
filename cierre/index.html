@@ -1,642 +1,366 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PSC Cierre • Cierre de Caja</title>
-    <link rel="icon" href="data:," />
-    <style>
-      :root {
-        --bg: #f6f7fb;
-        --bg2: #eef2f7;
-        --card: #fff;
-        --border: #e5e7eb;
-        --muted: #6b7280;
-        --fg: #111827;
-        --accent: #10b981;
-        --warn: #f59e0b;
-        --err: #ef4444;
-        --ok: #059669;
-      }
-      * { box-sizing: border-box; }
-      html, body { height: 100%; }
-      body {
-        margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu;
-        background: linear-gradient(180deg, var(--bg), var(--bg2));
-        color: var(--fg);
-      }
-      .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
-      h1, h2, h3 { margin: 0 0 12px; }
-      h1 { font-size: 22px; }
-      h2 { font-size: 18px; color: #1f2937; }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 16px;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-        margin: 14px 0;
-      }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; }
-      .col { flex: 1 1 260px; }
-      label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-      input, select, textarea {
-        width: 100%; padding: 10px; border: 1px solid var(--border);
-        border-radius: 10px; background: #fff; color: var(--fg); outline: 0;
-      }
-      input:focus, select:focus, textarea:focus {
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); border-color: #a7f3d0;
-      }
-      textarea { min-height: 90px; }
-      table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
-      th, td { text-align: left; padding: 8px 10px; }
-      th { font-size: 12px; color: #4b5563; }
-      tr { background: #f9fafb; border-radius: 10px; border: 1px solid var(--border); }
-      tr td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
-      tr td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
-      .btn {
-        appearance: none; border: 1px solid var(--border); background: #fff; border-radius: 12px;
-        padding: 10px 14px; cursor: pointer; transition: all 0.15s ease; font-weight: 600;
-      }
-      .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); }
-      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-      .btn.danger { background: var(--err); border-color: var(--err); color: #fff; }
-      .muted { color: var(--muted); }
-      .ok { color: var(--ok); }
-      .bad { color: var(--err); }
-      .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
-      .menu a {
-        display: block; padding: 10px 12px; border: 1px solid var(--border);
-        border-radius: 12px; margin: 6px 0; text-decoration: none; color: #111827; background: #fff;
-      }
-      .menu a.active { outline: 2px solid #a7f3d0; background: #f0fdf4; }
-      .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-      .right { display: flex; align-items: center; gap: 8px; }
-      .tag {
-        font-size: 12px; color: #111827; padding: 4px 8px; background: #f3f4f6;
-        border: 1px solid var(--border); border-radius: 999px;
-      }
-      .kpi { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: #fff; min-width: 160px; }
-      .kpi small { color: var(--muted); }
-      .grid { display: grid; gap: 12px; }
-      .toast {
-        position: fixed; right: 20px; bottom: 20px; background: #111827; color: #fff;
-        padding: 10px 12px; border-radius: 10px; box-shadow: 0 10px 18px rgba(0,0,0,0.2); z-index: 999;
-      }
-      .ap-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-      .ap-total {
-        display: flex; gap: 8px; align-items: baseline; padding: 6px 10px; border: 1px solid var(--border);
-        border-radius: 10px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-      }
-      .ap-total strong { font-size: 1.1rem; }
-      table.ap { width: 100%; }
-      .apSub { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
-      .actions { display: flex; justify-content: flex-end; margin-top: 12px; }
-      .section-title { margin-top: 6px; margin-bottom: 4px; color: #6b7280; font-weight: 600; }
-      .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font-size: 12px; }
-      .flex { display: flex; gap: 8px; align-items: center; }
-      .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font-size: 12px; }
-      .right-align { text-align: right; }
-      .code { font-size: 11px; font-weight: normal; color: #9ca3af; margin-right: 8px; user-select: none; }
-    </style>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PSC Cierre • Cierre de Caja</title>
+  <link rel="icon" href="data:," />
+  <style>
+    :root {
+      --bg:#f6f7fb; --bg2:#eef2f7; --card:#fff; --border:#e5e7eb;
+      --muted:#6b7280; --fg:#111827; --accent:#10b981; --warn:#f59e0b;
+      --err:#ef4444; --ok:#059669;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+      background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--fg)}
+    .wrap{max-width:1240px;margin:0 auto;padding:24px}
+    h1,h2,h3{margin:0 0 12px}
+    h1{font-size:22px} h2{font-size:18px;color:#1f2937}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;
+      box-shadow:0 8px 24px rgba(15,23,42,.06);margin:14px 0}
+    .row{display:flex;gap:12px;flex-wrap:wrap} .col{flex:1 1 260px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--fg);outline:0}
+    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(16,185,129,.15);border-color:#a7f3d0}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th,td{text-align:left;padding:8px 10px} th{font-size:12px;color:#4b5563}
+    tr{background:#f9fafb;border-radius:10px;border:1px solid var(--border)}
+    tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;cursor:pointer;transition:all .15s ease;font-weight:600}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.08)}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn.danger{background:var(--err);border-color:var(--err);color:#fff}
+    .muted{color:var(--muted)} .ok{color:var(--ok)} .bad{color:var(--err)}
+    .layout{display:grid;grid-template-columns:260px 1fr;gap:16px}
+    .menu a{display:block;padding:10px 12px;border:1px solid var(--border);border-radius:12px;margin:6px 0;text-decoration:none;color:#111827;background:#fff}
+    .menu a.active{outline:2px solid #a7f3d0;background:#f0fdf4}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .right{display:flex;align-items:center;gap:8px}
+    .tag{font-size:12px;color:#111827;padding:4px 8px;background:#f3f4f6;border:1px solid var(--border);border-radius:999px}
+    .kpi{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff;min-width:160px}
+    .kpi small{color:var(--muted)}
+    .toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 10px 18px rgba(0,0,0,.2);z-index:999}
+    .ap-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+    .ap-total{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+    .ap-total strong{font-size:1.1rem}
+    table.ap{width:100%}
+    .apSub{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+    .actions{display:flex;justify-content:flex-end;margin-top:12px}
+    .right-align{text-align:right}
+    .flex{display:flex;gap:8px;align-items:center}
+    .code{font-size:11px;font-weight:normal;color:#9ca3af;margin-right:8px;user-select:none}
+  </style>
 
-    <!-- Supabase UMD (solo una) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <!-- Tu config con PSC_CONFIG y (si quieres) la creación de _sb -->
-    <script src="./config.js"></script>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="header">
-        <div class="flex">
-          <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="logo" style="width:28px;height:28px;border-radius:6px" />
-          <div>
-            <div style="font-weight: 800">PSC Cargas</div>
-            <div class="muted" style="font-size: 12px">Portal de Cierre (conectado)</div>
-          </div>
+  <!-- Tu config propia (si existe) -->
+  <script src="./config.js"></script>
+  <!-- Supabase UMD (una sola vez) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="flex">
+        <img src="https://i.postimg.cc/L8w6XpRT/PSC-AVION.webp" alt="logo" style="width:28px;height:28px;border-radius:6px" />
+        <div>
+          <div style="font-weight:800">PSC Cargas</div>
+          <div class="muted" style="font-size:12px">Portal de Cierre (conectado)</div>
         </div>
-        <div class="right" id="sessionBox"></div>
       </div>
-
-      <div class="layout">
-        <aside class="card">
-          <h3><span class="code">[C-00]</span> Menú</h3>
-          <nav id="nav" class="menu">
-            <a href="#/mod-inicio">Inicio de jornada</a>
-            <a href="#/mod-apertura">Saldo inicial</a>
-            <a href="#/mod-ingresos">Ingresos (sistemas)</a>
-            <a href="#/mod-sfinal">Saldo final</a>
-            <a href="#/mod-vouchers">Vouchers</a>
-            <a href="#/mod-delivery">Delivery</a>
-            <a href="#/mod-gastos">Gastos</a>
-            <a href="#/mod-compras">Compras</a>
-            <a href="#/mod-precheck">Precheck</a>
-            <a href="#/mod-deposito">Depósito</a>
-            <a href="#/mod-cierre">Cierre</a>
-            <a href="#/mod-panel">Panel de jornadas</a>
-            <a href="#/mod-usuarios">Usuarios (admin)</a>
-            <a href="#/mod-config">Configuración</a>
-          </nav>
-        </aside>
-        <main id="content"></main>
-      </div>
+      <div class="right" id="sessionBox"></div>
     </div>
 
-    <script>
-      /* ============= Estado global (sin demo) ============= */
-      window.S = window.S || {
-        currentUser: null,
-        config: { sucursales: [], metodos: [], gasto_categorias: [], metodos_cfg: [], denominaciones: [] },
-        jornada: null
-      };
-      // NO-OP: mientras migramos módulos que aún llaman save(...)
-      window.save = window.save || function () { /* eliminado modo demo */ };
+    <div class="layout">
+      <aside class="card">
+        <h3><span class="code">[C-00]</span> Menú</h3>
+        <nav id="nav" class="menu">
+          <a href="#/mod-inicio">Inicio de jornada</a>
+          <a href="#/mod-apertura">Saldo inicial</a>
+        </nav>
+      </aside>
+      <main id="content"></main>
+    </div>
+  </div>
 
-      /* ========================= Util UI ========================= */
-      function qs(s, root){ return (root||document).querySelector(s); }
-      function qsa(s, root){ return Array.prototype.slice.call((root||document).querySelectorAll(s)); }
-      function el(html){ var t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; }
-      function money(n){ return Number(n||0).toLocaleString("en-US",{style:"currency",currency:"USD"}); }
-      function toast(msg, kind){ var d=el('<div class="toast" style="'+(kind==='err'?'background:#b91c1c':'')+'">'+msg+'</div>'); document.body.appendChild(d); setTimeout(function(){ d.remove(); }, 2400); }
-      function setActive(href){ qsa("#nav a").forEach(function(a){ a.classList.toggle("active", a.getAttribute("href")===href); }); }
-      function today(){ var d=new Date(); return d.toISOString().slice(0,10); }
+<script>
+/* ========================= Utils UI ========================= */
+const qs = (s,root=document)=>root.querySelector(s);
+const qsa = (s,root=document)=>Array.from(root.querySelectorAll(s));
+function el(html){const t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstChild;}
+function money(n){return Number(n||0).toLocaleString("en-US",{style:"currency",currency:"USD"});}
+function toast(msg,kind){const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`);document.body.appendChild(d);setTimeout(()=>d.remove(),2400);}
 
-      /* ========================= Session Header ========================= */
-      function renderSession() {
-        var box = qs("#sessionBox"); if (!box) return;
-        if (!window.S || !window.S.currentUser) {
-          box.innerHTML = '<span class="tag">No has iniciado sesión</span>';
-          return;
-        }
-        var u = window.S.currentUser;
-        var role = u && u.role ? (u.role.charAt(0).toUpperCase()+u.role.slice(1)) : "—";
-        var suc = (u && u.sucursal) ? u.sucursal : "—";
+/* ========================= Estado global ========================= */
+window.S = window.S || { currentUser:null, config:{ sucursales:[], denominaciones:[] }, jornada:null };
 
-        if (u.role === "admin") {
-          var list = (window.S.config && window.S.config.sucursales) ? window.S.config.sucursales : [];
-          var opts = list.map(function(s){ var sel=(u.sucursal_id && s.id===u.sucursal_id)?"selected":""; return '<option value="'+s.id+'" '+sel+'>'+s.nombre+'</option>'; }).join("");
-          box.innerHTML =
-            '<span class="muted">Rol:</span> <span class="tag">'+role+'</span> ' +
-            '<span class="muted">Usuario:</span> <span class="tag">'+u.email+'</span> ' +
-            '<label style="margin-left:8px" class="muted">Sucursal</label>' +
-            '<select id="selSucursal" style="padding:6px 8px;border-radius:10px;border:1px solid var(--border)">'+opts+'</select> ' +
-            '<button class="btn" id="btnListOpen">Jornadas abiertas</button> ' +
-            '<button class="btn" id="btnLogout">Salir</button>';
+/* ========================= Config & Supabase ========================= */
+window.PSC_CONFIG = window.PSC_CONFIG || {
+  // 👉 Si usas config.js, ya vendrán definidos. Si no, completa aquí:
+  // supabaseUrl: "https://<ref>.supabase.co",
+  // supabaseAnonKey: "<ANON>",
+  // functionsBase: "https://<ref>.functions.supabase.co",
+};
+if (!window._sb && window.supabase && window.PSC_CONFIG.supabaseUrl) {
+  window._sb = window.supabase.createClient(
+    window.PSC_CONFIG.supabaseUrl,
+    window.PSC_CONFIG.supabaseAnonKey,
+    { auth: { persistSession:true, storageKey:"psc_cierre_auth" } }
+  );
+}
 
-          var sel = qs("#selSucursal");
-          if (sel) sel.onchange = function(ev){
-            var id = ev && ev.target ? ev.target.value : null;
-            window.S.currentUser.sucursal_id = id;
-            var ss = list.find(function(x){ return x.id===id; });
-            window.S.currentUser.sucursal = ss ? ss.nombre : "—";
-            renderSession();
-            toast("Sucursal seleccionada");
-          };
-        } else {
-          box.innerHTML =
-            '<span class="muted">Rol:</span> <span class="tag">'+role+'</span> ' +
-            '<span class="muted">Usuario:</span> <span class="tag">'+u.email+'</span> ' +
-            '<span class="muted">Sucursal:</span> <span class="tag">'+suc+'</span> ' +
-            '<button class="btn" id="btnLogout">Salir</button>';
-        }
+/* ========================= API Layer ========================= */
+function mapPath(p){ return p.replace(/^day\//,"day-").replace(/^admin\//,"admin-"); }
 
-        var btnLogout = qs("#btnLogout");
-        if (btnLogout) btnLogout.onclick = async function(){
-          try { if (window._sb && window._sb.auth && window._sb.auth.signOut) await window._sb.auth.signOut(); } catch(e){}
-          window.S.currentUser = null; window.S.jornada = null; location.hash = "#/login";
-        };
-      }
-
-      /* ========================= Router + Boot ========================= */
-      function route(){
-        var hash = location.hash || "#/login";
-        setActive(hash);
-        if (hash === "#/login") { renderLogin(); return; }
-        if (!window.S || !window.S.currentUser) { renderLogin(); return; }
-
-        switch (hash) {
-          case "#/mod-inicio":   renderInicio();   return;
-          case "#/mod-apertura": renderApertura(); return;
-          case "#/mod-ingresos": renderIngresos(); return;
-          case "#/mod-sfinal":   renderSFinal();   return;
-          case "#/mod-vouchers": renderVouchers(); return;
-          case "#/mod-delivery": renderDelivery(); return;
-          case "#/mod-gastos":   renderGastos();   return;
-          case "#/mod-compras":  renderCompras();  return;
-          case "#/mod-precheck": renderPrecheck(); return;
-          case "#/mod-deposito": renderDeposito(); return;
-          case "#/mod-cierre":   renderCierre();   return;
-          case "#/mod-panel":    renderPanel();    return;
-          case "#/mod-usuarios": renderUsuarios(); return;
-          case "#/mod-config":   renderConfig();   return;
-          default:               renderInicio();   return;
-        }
-      }
-
-      function boot(){
-        // Crea cliente solo si no existe (por si ya lo hiciste en config.js)
-        if (!window._sb && window.supabase && window.PSC_CONFIG && window.PSC_CONFIG.supabaseUrl) {
-          try {
-            window._sb = window.supabase.createClient(
-              window.PSC_CONFIG.supabaseUrl,
-              window.PSC_CONFIG.supabaseAnonKey,
-              { auth: { persistSession: true, storageKey: "psc_cierre_auth" } }
-            );
-          } catch(e){ console.warn("Supabase init skipped", e); }
-        }
-        window.addEventListener("hashchange", route);
-        (async function(){
-          try {
-            if (window._sb && window._sb.auth && window._sb.auth.getSession) {
-              var ses = await window._sb.auth.getSession();
-              var has = ses && ses.data && ses.data.session && ses.data.session.access_token;
-              if (has) { await ensureConfig(); }
-            }
-          } catch(e){}
-          route();
-        })();
-      }
-
-      /* ========================= Login ========================= */
-      function renderLogin() {
-        var v = qs("#content");
-        if (!v) { console.error("No existe #content"); return; }
-        v.innerHTML = [
-          '<div class="card"><h2><span class="code">[C-01]</span> Entrar</h2>',
-          '  <div class="row">',
-          '    <div class="col">',
-          '      <label>Email</label>',
-          '      <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">',
-          '      <label>Contraseña</label>',
-          '      <input id="lgPass" type="password" placeholder="••••••••">',
-          '      <div style="margin-top:12px"><button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button></div>',
-          '      <div class="muted" id="loginMsg" style="margin-top:8px"></div>',
-          '    </div>',
-          '    <div class="col"><div class="muted">Inicia sesión con tu usuario de PSC. Si olvidaste tu contraseña, un admin puede restablecerla.</div></div>',
-          '  </div>',
-          '</div>'
-        ].join("");
-
-        var btn = qs("#btnLogin", v);
-        var pass = qs("#lgPass", v);
-        var emailEl = qs("#lgEmail", v);
-        var msg = qs("#loginMsg", v);
-
-        if (pass) pass.addEventListener("keydown", function(e){ if (e.key==="Enter" && btn) btn.click(); });
-
-        if (btn) btn.onclick = async function(){
-          var email = (emailEl && emailEl.value ? emailEl.value : "").trim().toLowerCase();
-          var password = pass && pass.value ? pass.value : "";
-          if (msg) msg.textContent = "";
-          if (!email || !password){ if (msg) msg.textContent = "Ingresa correo y contraseña."; return; }
-          if (!window._sb || !window._sb.auth || !window._sb.auth.signInWithPassword){
-            if (msg) msg.textContent = "Supabase no inicializado."; return;
-          }
-          btn.disabled = true;
-          try {
-            var r = await window._sb.auth.signInWithPassword({ email: email, password: password });
-            if (r && r.error) throw r.error;
-            var ses = await window._sb.auth.getSession();
-            var token = ses && ses.data && ses.data.session ? ses.data.session.access_token : null;
-            if (!token) throw new Error("No se obtuvo token de sesión.");
-
-            // perfil
-            var pr = await fetch((window.PSC_CONFIG && window.PSC_CONFIG.functionsBase ? window.PSC_CONFIG.functionsBase : "") + "/get-profile", {
-              headers: { Authorization: "Bearer " + token }
-            });
-            var prof = {}; try { prof = await pr.json(); } catch {}
-            if (!pr.ok) throw new Error((prof && prof.error) || "No se pudo leer perfil");
-
-            window.S.currentUser = {
-              id: prof.id, email: prof.email, role: prof.role,
-              sucursal_id: prof.sucursal_id, sucursal: prof.sucursal
-            };
-
-            // catálogos
-            await ensureConfig();
-
-            // NO abrimos jornada automáticamente
-            location.hash = "#/mod-inicio";
-          } catch(e){ if (msg) msg.textContent = e && e.message ? e.message : String(e); }
-          finally{ btn.disabled = false; }
-        };
-      }
-
-      /* ========================= Config (catálogos) ========================= */
-      async function ensureConfig(){
-        var token = null;
-        try {
-          if (window._sb && window._sb.auth && window._sb.auth.getSession) {
-            var ses = await window._sb.auth.getSession();
-            token = ses && ses.data && ses.data.session ? ses.data.session.access_token : null;
-          }
-        } catch(e){}
-        var headers = { "Content-Type":"application/json" };
-        if (token) headers.Authorization = "Bearer " + token;
-        var base = (window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "";
-        var res = await fetch(base + "/get-config", { method:"POST", headers: headers, body: "{}" });
-        var js = {}; try { js = await res.json(); } catch {}
-        if (!res.ok) throw new Error((js && js.error) || ("get-config fallo ("+res.status+")"));
-        window.S.config = {
-          sucursales:       js.sucursales       || [],
-          metodos:          js.metodos          || [],
-          gasto_categorias: js.gasto_categorias || [],
-          metodos_cfg:      js.metodos_cfg      || [],
-          denominaciones:   (js.denominaciones  || []).map(function(d){
-            return { id:d.id, nombre:d.nombre, tipo:d.tipo, valor:Number(d.valor) };
-          })
-        };
-        renderSession();
-      }
-
-      /* ========================= API Layer ========================= */
-      function mapPath(p){ if (p==="day/save-vouchers") return "day-save-comprobantes"; return p.replace(/^day\//,"day-").replace(/^admin\//,"admin-"); }
-
-      var API = {
-        ready:false,
-        init: function(){
-          try {
-            if (!window._sb && window.PSC_CONFIG && window.PSC_CONFIG.supabaseUrl && window.supabase && window.supabase.createClient) {
-              window._sb = window.supabase.createClient(
-                window.PSC_CONFIG.supabaseUrl,
-                window.PSC_CONFIG.supabaseAnonKey,
-                { auth: { persistSession:true, storageKey:"psc_cierre_auth" } }
-              );
-            }
-            this.ready = !!window._sb;
-          } catch(e){ console.warn("Supabase init skipped", e); }
-        },
-        token: async function(){
-          try{
-            if (!window._sb || !window._sb.auth || !window._sb.auth.getSession) return null;
-            var { data, error } = await window._sb.auth.getSession();
-            if (error) return null;
-            if (data && data.session && data.session.access_token) return data.session.access_token;
-            if (window._sb.auth.refreshSession){
-              var r2 = await window._sb.auth.refreshSession();
-              return (r2 && r2.data && r2.data.session) ? r2.data.session.access_token : null;
-            }
-            return null;
-          } catch(e){ return null; }
-        },
-        call: async function(path, body){
-          var headers = { "Content-Type":"application/json", apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || "" };
-          try { var t = await this.token(); if (t) headers.Authorization = "Bearer " + t; } catch(e){}
-          var url = ((window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "") + "/" + mapPath(path);
-          var res;
-          try {
-            res = await fetch(url, { method:"POST", mode:"cors", headers: headers, body: JSON.stringify(body || {}) });
-          } catch(e){ throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e))); }
-          var json=null; try{ json = await res.json(); } catch(e){}
-          return { ok: res.ok, status: res.status, data: json };
-        },
-        day: {
-          saveAperturaTotal: async function(items){
-    return API.call("day/save-apertura-total", {
-      jornada_id: (window.S && window.S.jornada) ? window.S.jornada.id : null,
-      items: items,
-      accepted_by_user: true
-    });
+const API = {
+  async token(){ try{ const {data} = await _sb.auth.getSession(); return data?.session?.access_token || null; } catch{return null}},
+  async call(path, body){
+    const mustAuth = /^day\/|^admin\//.test(path);
+    const headers = { "Content-Type":"application/json", apikey: PSC_CONFIG.supabaseAnonKey || "" };
+    if (mustAuth){
+      const t = await this.token();
+      if (!t){ toast("No hay sesión. Inicia sesión.", "err"); location.hash="#/login"; return {ok:false,status:401,data:{error:"no_session"}}; }
+      headers.Authorization = "Bearer " + t;
+    } else {
+      const t = await this.token(); if (t) headers.Authorization = "Bearer " + t;
+    }
+    const url = `${PSC_CONFIG.functionsBase}/${mapPath(path)}`;
+    const res = await fetch(url,{ method:"POST", mode:"cors", headers, body: JSON.stringify(body||{}) });
+    let json=null; try{ json=await res.json(); }catch{}
+    return { ok:res.ok, status:res.status, data:json };
+  },
+  day: {
+    openJornada: async (sucursal_id)=> API.call("day/open-jornada",{ sucursal_id }),
+    saveAperturaTotal: async (items)=> API.call("day/save-apertura-total",{
+      jornada_id: S.jornada?.id || null, items, accepted_by_user:true
+    }),
+  },
+  misc: {
+    getConfig: async ()=> {
+      const res = await fetch(`${PSC_CONFIG.functionsBase}/get-config`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json", apikey: PSC_CONFIG.supabaseAnonKey || "" }
+      });
+      return { ok:res.ok, data: await res.json().catch(()=>null) };
+    }
   }
-},
-        admin: {
-          upsertUser: async function(obj){ return API.call("admin-upsert-user", obj || {}); },
-          listUsers:  async function(){ return API.call("admin-list-users", {}); }
-        }
-      };
+};
 
-      async function getAccessTokenOrRedirect(){
-        try {
-          if (!window._sb || !window._sb.auth || !window._sb.auth.getSession) return null;
-          var ses = await window._sb.auth.getSession();
-          var t = ses && ses.data && ses.data.session ? ses.data.session.access_token : null;
-          if (t) return t;
-          if (window._sb.auth.refreshSession) {
-            var r2 = await window._sb.auth.refreshSession();
-            var t2 = r2 && r2.data && r2.data.session ? r2.data.session.access_token : null;
-            if (t2) return t2;
-          }
-        } catch(e){}
-        toast("No hay sesión activa. Vuelve a iniciar sesión.", "err");
-        location.hash = "#/login";
-        return null;
-      }
+/* ========================= Session/Header ========================= */
+function renderSession(){
+  const box = qs("#sessionBox");
+  if (!S.currentUser){ box.innerHTML = '<span class="tag">No has iniciado sesión</span>'; return; }
+  const u = S.currentUser;
+  const role = (u.role||"").replace(/^./,c=>c.toUpperCase());
+  const suc  = u.sucursal || "—";
+  box.innerHTML = `
+    <span class="muted">Rol:</span> <span class="tag">${role||"—"}</span>
+    <span class="muted">Usuario:</span> <span class="tag">${u.email||"—"}</span>
+    <span class="muted">Sucursal:</span> <span class="tag">${suc}</span>
+    <button class="btn" id="btnLogout">Salir</button>`;
+  qs("#btnLogout").onclick = async ()=>{ try{ await _sb.auth.signOut(); }catch{} S.currentUser=null; S.jornada=null; location.hash="#/login"; };
+}
 
-      /* =================== Helpers UI/Jornada =================== */
-      function requireJornadaOrExplain(v){
-        if (!window.S || !window.S.jornada || !window.S.jornada.id){
-          v.innerHTML = '<div class="card">Asigna sucursal y marca <b>Inicio de jornada</b>.</div>';
-          return false;
-        }
-        return true;
-      }
+/* ========================= Router ========================= */
+function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
+window.addEventListener("hashchange", route);
+function route(){
+  const hash = location.hash || "#/login";
+  setActive(hash);
+  if (hash==="#/login") return renderLogin();
+  if (!S.currentUser) return renderLogin();
+  if (hash==="#/mod-inicio")  return renderInicio();
+  if (hash==="#/mod-apertura")return renderApertura();
+  return renderInicio();
+}
 
-      async function listOpenJornadas(sucursal_id, days){
-        var r = await API.day.getJornadasOpen(sucursal_id, days || 7);
-        if (!r.ok) throw new Error((r.data && r.data.error) || ("get-jornadas-open fallo ("+r.status+")"));
-        return (r.data && r.data.items) ? r.data.items : [];
-      }
+/* ========================= Ensure Config ========================= */
+async function ensureConfig(){
+  const r = await API.misc.getConfig();
+  if (!r.ok){ throw new Error("get-config fallo"); }
+  const d = r.data || {};
+  S.config.sucursales     = d.sucursales || [];
+  S.config.denominaciones = d.denominaciones || [];
+}
 
-      /* ========================= Inicio ========================= */
-      function renderInicio(){
-        renderSession();
-        var v = qs("#content"); if (!v) return;
-        var u = window.S.currentUser || { email:"—", role:"—", sucursal_id:null };
-        var sucursales = (window.S.config && window.S.config.sucursales) ? window.S.config.sucursales : [];
-        var found = null; for (var i=0;i<sucursales.length;i++){ if (sucursales[i].id===u.sucursal_id){ found = sucursales[i]; break; } }
-        var suc = found ? found.nombre : "—";
-        var jid = (window.S && window.S.jornada) ? window.S.jornada.id : "—";
+/* ========================= LOGIN ========================= */
+function renderLogin(){
+  const v = qs("#content");
+  v.innerHTML = `
+    <div class="card">
+      <h2><span class="code">[C-01]</span> Entrar</h2>
+      <div class="row">
+        <div class="col">
+          <label>Email</label>
+          <input id="lgEmail" type="email" placeholder="tucorreo@dominio.com">
+          <label>Contraseña</label>
+          <input id="lgPass" type="password" placeholder="••••••••">
+          <div style="margin-top:12px">
+            <button class="btn primary" id="btnLogin" type="button">Entrar (Supabase)</button>
+          </div>
+          <div class="muted" id="loginMsg" style="margin-top:8px"></div>
+        </div>
+        <div class="col">
+          <div class="muted">Inicia sesión con tu usuario de PSC.</div>
+        </div>
+      </div>
+    </div>`;
+  const btn=qs("#btnLogin",v), pass=qs("#lgPass",v), emailEl=qs("#lgEmail",v), msg=qs("#loginMsg",v);
+  pass.addEventListener("keydown",(e)=>{ if(e.key==="Enter") btn.click(); });
+  btn.onclick = async ()=>{
+    const email=(emailEl.value||"").trim().toLowerCase();
+    const password=pass.value||"";
+    msg.textContent="";
+    if(!email||!password){ msg.textContent="Ingresa correo y contraseña."; return; }
+    btn.disabled=true;
+    try{
+      const { error } = await _sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      const { data:{session} } = await _sb.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("No se obtuvo token.");
+      // perfil
+      const pr = await fetch(`${PSC_CONFIG.functionsBase}/get-profile`,{ headers:{ Authorization:"Bearer "+token }});
+      const prof = await pr.json();
+      if(!pr.ok) throw new Error(prof?.error || "No se pudo leer perfil");
+      S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
+      await ensureConfig();             // carga sucursales + denominaciones
+      renderSession();
+      location.hash = "#/mod-inicio";   // NO abre jornada automáticamente
+    }catch(e){ msg.textContent = e.message || String(e); }
+    finally{ btn.disabled=false; }
+  };
+}
 
-        v.innerHTML =
-          '<div class="card">' +
-          '  <h2><span class="code">[C-02]</span> Inicio de jornada</h2>' +
-          '  <div class="muted">Usuario: <b>'+u.email+'</b> · Rol: <b>'+u.role+'</b></div>' +
-          '  <div class="muted">Sucursal actual: <b>'+suc+'</b></div>' +
-          '  <div class="muted">Jornada hoy: <b id="labJ">'+jid+'</b></div>' +
-          '  <div class="row" style="margin-top:10px">' +
-          '    <button class="btn primary" id="btnStart">Marcar inicio de jornada</button>' +
-          '    <button class="btn" id="btnEnsure">Refrescar jornada</button>' +
-          '  </div>' +
-          '</div>';
+/* ========================= INICIO (abrir jornada) ========================= */
+function renderInicio(){
+  renderSession();
+  const v = qs("#content");
+  const u = S.currentUser || {};
+  const suc = u.sucursal || "—";
+  v.innerHTML = `
+    <div class="card">
+      <h2><span class="code">[C-02]</span> Inicio de jornada</h2>
+      <div class="muted">Usuario: <b>${u.email||"—"}</b> · Rol: <b>${u.role||"—"}</b></div>
+      <div class="muted">Sucursal actual: <b>${suc}</b></div>
+      <div class="muted">Jornada hoy: <b id="labJ">${S.jornada?.id || "—"}</b></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="btnStart" ${!u.sucursal_id?"disabled":""}>Marcar inicio de jornada</button>
+        <button class="btn" id="btnEnsure" ${!u.sucursal_id?"disabled":""}>Refrescar jornada</button>
+      </div>
+    </div>`;
+  const lab=qs("#labJ",v);
 
-        var btnStart = qs("#btnStart", v);
-        var btnEnsure= qs("#btnEnsure", v);
-        var labJ     = qs("#labJ", v);
+  qs("#btnStart").onclick = async ()=>{
+    try{
+      const r = await API.day.openJornada(S.currentUser.sucursal_id);
+      if(!r.ok) throw new Error(r.data?.error || "No se pudo abrir/obtener jornada");
+      S.jornada = { id: r.data?.jornada_id || r.data?.id || r.data?.jornada?.id || null, sucursal_id: S.currentUser.sucursal_id };
+      lab.textContent = S.jornada?.id || "—";
+      toast("Jornada abierta");
+    }catch(e){ toast(e.message || String(e), "err"); }
+  };
+  qs("#btnEnsure").onclick = async ()=>{
+    try{
+      const r = await API.day.openJornada(S.currentUser.sucursal_id);
+      if(r.ok) { S.jornada = { id: r.data?.jornada_id || r.data?.id || null, sucursal_id: S.currentUser.sucursal_id }; lab.textContent=S.jornada?.id||"—"; toast("Jornada refrescada"); }
+    }catch(e){ toast(e.message || String(e), "err"); }
+  };
+}
 
-        if (!u.sucursal_id){ if(btnStart) btnStart.disabled=true; if(btnEnsure) btnEnsure.disabled=true; }
+/* ========================= APERTURA (Saldo inicial) ========================= */
+function denomLabel(d){
+  return d.tipo==="moneda"
+    ? (d.valor<1 ? `¢ ${Math.round(d.valor*100)}` : `$ ${d.valor}`)
+    : `$ ${d.valor}`;
+}
+function renderApertura(){
+  if (!S.currentUser){ return renderLogin(); }
+  const v = qs("#content");
+  v.innerHTML = `
+    <div class="card">
+      <div class="ap-head">
+        <h2><span class="code">[C-03]</span> Saldo inicial (Apertura)</h2>
+        <div class="ap-total"><span>Total</span> <strong id="apTotal">$0.00</strong></div>
+      </div>
+      <table class="ap">
+        <thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>
+        <tbody id="apRows"></tbody>
+        <tfoot><tr><td colspan="2" class="right-align" style="font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>
+      </table>
+      <div class="actions"><button class="btn primary" id="btnApSave" type="button">Guardar</button></div>
+    </div>`;
 
-        if (btnStart) btnStart.onclick = async function(){
-          var r = await API.day.openJornada(u.sucursal_id);
-          if (!r.ok) { toast((r.data && r.data.error) || "open-jornada fallo", "err"); return; }
-          var id = (r.data && (r.data.jornada_id || r.data.id)) ? (r.data.jornada_id || r.data.id) : null;
-          if (!id){ toast("Respuesta inválida de open-jornada", "err"); return; }
-          window.S.jornada = { id: id, sucursal_id: u.sucursal_id };
-          if (labJ) labJ.textContent = id;
-          toast(r.data && r.data.reused ? "Jornada existente" : "Jornada abierta");
-        };
-
-        if (btnEnsure) btnEnsure.onclick = async function(){
-          try {
-            var items = await listOpenJornadas(u.sucursal_id, 14);
-            var mine = (items||[]).filter(function(j){ return j.user_id === (window.S.currentUser ? window.S.currentUser.id : null); });
-            if (mine.length>0){
-              window.S.jornada = { id: mine[0].id, sucursal_id: u.sucursal_id };
-              if (labJ) labJ.textContent = mine[0].id;
-              toast("Jornada refrescada");
-            } else {
-              toast("No tienes jornada abierta en esta sucursal", "warn");
-            }
-          } catch(e){ toast(e && e.message ? e.message : String(e), "err"); }
-        };
-      }
-
-      /* ========================= Apertura ========================= */
-      function denomLabel(d){ return d.tipo === "moneda" ? (d.valor < 1 ? ("¢ " + Math.round(d.valor*100)) : ("$ " + d.valor)) : ("$ " + d.valor); }
-
-      function renderApertura(){
-        var v = qs("#content"); if (!v) return;
-        if (!requireJornadaOrExplain(v)) return;
-
-        v.innerHTML =
-          '<div class="card">' +
-          '  <div class="ap-head">' +
-          '    <h2><span class="code">[C-03]</span> Saldo inicial (Apertura)</h2>' +
-          '    <div class="ap-total"><span>Total</span> <strong id="apTotal">$0.00</strong></div>' +
-          '  </div>' +
-          '  <table class="ap"><thead><tr><th>Denominación</th><th style="width:140px">Cant.</th><th style="width:160px">Subtotal</th></tr></thead>' +
-          '  <tbody id="apRows"></tbody>' +
-          '  <tfoot><tr><td colspan="2" class="right-align" style="font-weight:600">Total</td><td class="apSub" id="apTotalFoot">$0.00</td></tr></tfoot>' +
-          '  </table>' +
-          '  <div class="actions"><button class="btn primary" id="btnApSave">Guardar</button></div>' +
-          '</div>';
-
-        var body = qs("#apRows", v);
-        var den = (window.S.config && window.S.config.denominaciones) ? window.S.config.denominaciones.slice() : [];
-        den.sort(function(a,b){ return Number(a.valor)-Number(b.valor); });
-        body.innerHTML = "";
-        for (var i=0;i<den.length;i++){
-          var d = den[i];
-          body.appendChild(el(
-            '<tr data-id="'+d.id+'" data-valor="'+Number(d.valor)+'">' +
-            '  <td>'+denomLabel(d)+'</td>' +
-            '  <td><input type="number" min="0" step="1" value="" style="width:120px"></td>' +
-            '  <td class="apSub">$0.00</td>' +
-            '</tr>'
-          ));
-        }
-
-        function recalc(){
-          var total = 0;
-          qsa("#apRows tr", v).forEach(function(tr){
-            var valor = Number(tr.getAttribute("data-valor") || 0);
-            var qty = Math.max(0, parseInt((qs("input", tr) && qs("input", tr).value) ? qs("input", tr).value : "0", 10));
-            var sub = valor * qty;
-            qs(".apSub", tr).textContent = money(sub);
-            total += sub;
-          });
-          qs("#apTotal", v).textContent = money(total);
-          qs("#apTotalFoot", v).textContent = money(total);
-        }
-        recalc();
-        body.addEventListener("input", function(e){ if (e.target && e.target.tagName==="INPUT") recalc(); });
-      }
-
-      /* ========================= Otras pantallas (stubs) ========================= */
-      function renderIngresos(){ qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderSFinal(){   qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderVouchers(){ qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderDelivery(){ qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderGastos(){   qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderCompras(){  qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderPrecheck(){ qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderDeposito(){ qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderCierre(){   qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderPanel(){    qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderUsuarios(){ qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-      function renderConfig(){   qs("#content").innerHTML = '<div class="card">Módulo en construcción.</div>'; }
-
-      /* ========================= Handlers globales (una sola vez) ========================= */
-      if (!window.__PSC_HANDLERS_BOUND__){
-        document.addEventListener("click", async function(e){
-          // Guardar APERTURA (envía items y bloquea UI)
-if (e.target && e.target.id === "btnApSave"){
-  var rows  = qsa("#apRows tr");
-  var total = 0;
-  var items = [];
-
-  rows.forEach(function(tr){
-    var valor = Number(tr.getAttribute("data-valor") || 0);
-    var id    = tr.getAttribute("data-id");
-    var inp   = qs("input", tr);
-    var qty   = Math.max(0, parseInt((inp && inp.value) ? inp.value : "0", 10));
-
-    total += valor * qty;
-    if (qty > 0) items.push({ denominacion_id: id, cantidad: qty });
-  });
-
-  if (items.length === 0){
-    toast("Ingresa al menos una cantidad > 0", "err");
+  const body = qs("#apRows");
+  const denoms = (S.config?.denominaciones || []).slice().sort((a,b)=>Number(a.valor)-Number(b.valor));
+  if (!denoms.length){
+    body.innerHTML = `<tr><td colspan="3" class="muted">No hay denominaciones configuradas.</td></tr>`;
     return;
   }
+  for (const d of denoms){
+    body.appendChild(el(`<tr data-id="${d.id}" data-valor="${Number(d.valor)}">
+      <td>${denomLabel(d)}</td>
+      <td><input type="number" min="0" step="1" value="" style="width:120px"></td>
+      <td class="apSub">$0.00</td>
+    </tr>`));
+  }
+  function recalc(){
+    let total=0;
+    qsa("#apRows tr").forEach(tr=>{
+      const valor=Number(tr.dataset.valor||0);
+      const qty = Math.max(0, parseInt(qs("input",tr)?.value||"0",10));
+      const sub = valor*qty;
+      qs(".apSub",tr).textContent = money(sub);
+      total += sub;
+    });
+    qs("#apTotal").textContent = money(total);
+    qs("#apTotalFoot").textContent = money(total);
+  }
+  body.addEventListener("input", (e)=>{ if (e.target.tagName==="INPUT") recalc(); });
+  recalc();
 
-  var ok = window.confirm("Confirmo guardar la APERTURA por " + money(total) + " y bloquear el módulo.");
-  if (!ok) return;
+  if (!window.__PSC_HANDLERS_BOUND__){
+    document.addEventListener("click", async function(ev){
+      if (ev.target && ev.target.id==="btnApSave"){
+        ev.preventDefault(); ev.stopPropagation();
+        if (!S.jornada?.id){ toast("No hay jornada activa. Abre una en Inicio.", "err"); return; }
 
-  try {
-    var r = await API.day.saveAperturaTotal(items);
-    if (!r.ok || !(r.data && r.data.ok)) throw new Error((r.data && r.data.error) || "No se pudo guardar en Supabase (apertura)");
-    rows.forEach(function(tr){ var i = qs("input", tr); if (i) i.disabled = true; });
-    e.target.disabled = true; e.target.textContent = "Guardado";
-    toast("Saldo inicial guardado y módulo bloqueado");
-  } catch(err){
-    toast((err && err.message) ? err.message : String(err), "err");
+        const rows = qsa("#apRows tr");
+        let total=0; const items=[];
+        rows.forEach(tr=>{
+          const valor=Number(tr.dataset.valor||0);
+          const id=tr.dataset.id;
+          const qty=Math.max(0,parseInt(qs("input",tr)?.value||"0",10));
+          total+=valor*qty;
+          if (qty>0) items.push({ denominacion_id:id, cantidad:qty });
+        });
+        if (!items.length){ toast("Ingresa al menos una cantidad > 0", "err"); return; }
+
+        const ok = confirm(`Confirmo guardar la APERTURA por ${money(total)} y bloquear el módulo.`);
+        if (!ok) return;
+
+        try{
+          const r = await API.day.saveAperturaTotal(items);
+          if (!r.ok || !r.data?.ok) throw new Error(r.data?.error || "No se pudo guardar en Supabase (apertura)");
+          const t = r.data.total ?? total;
+          qs("#apTotal").textContent = money(t);
+          qs("#apTotalFoot").textContent = money(t);
+          rows.forEach(tr=>{ const i=qs("input",tr); if(i) i.disabled=true; });
+          ev.target.disabled=true; ev.target.textContent="Guardado";
+          toast("Saldo inicial guardado y módulo bloqueado");
+        }catch(e){ toast(e.message || String(e), "err"); }
+      }
+    });
+    window.__PSC_HANDLERS_BOUND__ = true;
   }
 }
 
-
-          // Admin: listar jornadas abiertas
-          if (e.target && e.target.id === "btnListOpen"){
-            e.preventDefault();
-            var sel = qs("#selSucursal");
-            var sucursal_id = sel ? sel.value : (window.S.currentUser ? window.S.currentUser.sucursal_id : null);
-            if (!sucursal_id){ toast("Selecciona una sucursal", "err"); return; }
-            try {
-              var items = await listOpenJornadas(sucursal_id, 14);
-              var host = qs(".header"); var old = qs("#openJList"); if (old) old.remove();
-              if (!items || items.length===0){ toast("No hay jornadas abiertas en esta sucursal", "warn"); return; }
-              var html = '<div id="openJList" class="card" style="position:absolute; z-index:999; right:24px; top:64px; width:360px;">' +
-                         '<h3 style="margin-bottom:8px">Jornadas abiertas</h3>';
-              items.forEach(function(j){
-                html += '<div class="row" style="justify-content:space-between;align-items:center;margin:4px 0;">' +
-                        '<div><div><b>'+j.id+'</b></div><div class="muted" style="font-size:12px">'+j.fecha+' · '+j.estado+'</div></div>' +
-                        '<button class="btn pill" data-enter-jid="'+j.id+'" data-suc="'+j.sucursal_id+'">Entrar</button>' +
-                        '</div>';
-              });
-              html += '<div class="actions"><button class="btn" id="btnCloseJList">Cerrar</button></div></div>';
-              host.insertAdjacentHTML("afterend", html);
-            } catch(err){ toast((err && err.message) ? err.message : String(err), "err"); }
-          }
-
-          // Entrar a jornada desde el panel de admin
-          if (e.target && e.target.hasAttribute && e.target.hasAttribute("data-enter-jid")){
-            var jid = e.target.getAttribute("data-enter-jid");
-            var suc = e.target.getAttribute("data-suc");
-            window.S.jornada = { id: jid, sucursal_id: suc };
-            var lab = qs("#labJ"); if (lab) lab.textContent = jid;
-            var panel = qs("#openJList"); if (panel) panel.remove();
-            toast("Entraste a la jornada " + jid);
-          }
-
-          if (e.target && e.target.id === "btnCloseJList"){
-            var panel = qs("#openJList"); if (panel) panel.remove();
-          }
-        });
-        window.__PSC_HANDLERS_BOUND__ = true;
-      }
-
-      // ¡Arranque!
-      boot();
-    </script>
-  </body>
+/* ========================= Boot ========================= */
+(async function boot(){
+  renderSession();
+  route();
+})();
+</script>
+</body>
 </html>
