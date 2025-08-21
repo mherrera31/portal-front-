@@ -2171,43 +2171,61 @@
       document.addEventListener("click", async (e) => {
         // Apertura (guardar TOTAL y bloquear)
         if (e.target && e.target.id === "btnApSave") {
-          // Calcular total desde la UI (#apRows)
-          const rows = Array.from(document.querySelectorAll("#apRows tr"));
-          let total = 0;
-          rows.forEach((tr) => {
-            const valor = Number(tr.dataset.valor || 0);
-            const qty = Math.max(
+          // 1) calcular total desde la UI
+          var rows = Array.prototype.slice.call(
+            document.querySelectorAll("#apRows tr")
+          );
+          var total = 0;
+          rows.forEach(function (tr) {
+            var valor = Number(tr.getAttribute("data-valor") || 0);
+            var inp = tr.querySelector("input");
+            var qty = Math.max(
               0,
-              parseInt(tr.querySelector("input")?.value || "0", 10)
+              parseInt(inp && inp.value ? inp.value : "0", 10)
             );
             total += valor * qty;
           });
 
-          const ok = confirm(
-            `Confirmo guardar la APERTURA por ${money(
-              total
-            )} y bloquear el módulo.`
+          // 2) confirmar
+          var ok = window.confirm(
+            "Confirmo guardar la APERTURA por " +
+              money(total) +
+              " y bloquear el módulo."
           );
           if (!ok) return;
 
-          try {
-            const r = await API.day.saveAperturaTotal(total);
-            if (!r.ok || !r.data?.ok)
-              throw new Error(
-                r.data?.error || "No se pudo guardar en Supabase (apertura)"
-              );
+          // 3) token obligatorio
+          async function getAccessTokenOrRedirect() {
+            try {
+              if (
+                !window._sb ||
+                !window._sb.auth ||
+                !window._sb.auth.getSession
+              )
+                return null;
+              var ses = await window._sb.auth.getSession();
+              var t =
+                ses && ses.data && ses.data.session
+                  ? ses.data.session.access_token
+                  : null;
+              if (t) return t;
 
-            // Bloquea inputs y botón en UI
-            rows.forEach((tr) => (tr.querySelector("input").disabled = true));
-            e.target.disabled = true;
-            e.target.textContent = "Guardado";
-            toast("Saldo inicial guardado y módulo bloqueado");
-          } catch (err) {
-            console.warn(err);
-            toast(err.message || String(err), "err");
+              // intento de refresh por si está en memoria pero no en storage
+              if (window._sb.auth.refreshSession) {
+                var r2 = await window._sb.auth.refreshSession();
+                var t2 =
+                  r2 && r2.data && r2.data.session
+                    ? r2.data.session.access_token
+                    : null;
+                if (t2) return t2;
+              }
+            } catch (e) {}
+            // sin token → manda a login
+            toast("No hay sesión activa. Vuelve a iniciar sesión.", "err");
+            location.hash = "#/login";
+            return null;
           }
         }
-
         // Ingresos
         if (e.target && e.target.id === "btnApSave") {
           // calcular total desde la UI
@@ -2357,3 +2375,4 @@
     </script>
   </body>
 </html>
+
