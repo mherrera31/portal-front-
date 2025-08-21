@@ -381,16 +381,34 @@
           } catch(e){ return null; }
         },
         call: async function(path, body){
-          var headers = { "Content-Type":"application/json", apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || "" };
-          try { var t = await this.token(); if (t) headers.Authorization = "Bearer " + t; } catch(e){}
-          var url = ((window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "") + "/" + mapPath(path);
-          var res;
-          try {
-            res = await fetch(url, { method:"POST", mode:"cors", headers: headers, body: JSON.stringify(body || {}) });
-          } catch(e){ throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e))); }
-          var json=null; try{ json = await res.json(); } catch(e){}
-          return { ok: res.ok, status: res.status, data: json };
-        },
+  var mustAuth = /^day\/|^admin\//.test(path);     // edges protegidas
+  var headers  = { "Content-Type":"application/json",
+                   apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || "" };
+
+  // Token obligatorio para day/* y admin/*
+  if (mustAuth) {
+    var t = await this.token();
+    if (!t) {                                     // falla temprano si no hay sesión
+      toast("No hay sesión activa. Inicia sesión nuevamente.", "err");
+      location.hash = "#/login";
+      return { ok:false, status:401, data:{ error:"no_session" } };
+    }
+    headers.Authorization = "Bearer " + t;
+  } else {
+    // opcional: si hay token, lo adjuntamos igual
+    try { var t2 = await this.token(); if (t2) headers.Authorization = "Bearer " + t2; } catch(e){}
+  }
+
+  var url = ((window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "") + "/" + mapPath(path);
+  var res;
+  try {
+    res = await fetch(url, { method:"POST", mode:"cors", headers, body: JSON.stringify(body || {}) });
+  } catch(e){ throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e))); }
+
+  var json = null; try { json = await res.json(); } catch(e){}
+  return { ok: res.ok, status: res.status, data: json };
+},
+
         day: {
           openJornada: async function(sucursal_id){ return API.call("day/open-jornada", { sucursal_id: sucursal_id }); },
           getJornadasOpen: async function(sucursal_id, days){ return API.call("day/get-jornadas-open", { sucursal_id: sucursal_id, days: days || 7 }); },
