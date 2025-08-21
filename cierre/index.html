@@ -381,45 +381,25 @@
           } catch(e){ return null; }
         },
         call: async function(path, body){
-  var mustAuth = /^day\/|^admin\//.test(path);     // edges protegidas
-  var headers  = { "Content-Type":"application/json",
-                   apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || "" };
-
-  // Token obligatorio para day/* y admin/*
-  if (mustAuth) {
-    var t = await this.token();
-    if (!t) {                                     // falla temprano si no hay sesión
-      toast("No hay sesión activa. Inicia sesión nuevamente.", "err");
-      location.hash = "#/login";
-      return { ok:false, status:401, data:{ error:"no_session" } };
-    }
-    headers.Authorization = "Bearer " + t;
-  } else {
-    // opcional: si hay token, lo adjuntamos igual
-    try { var t2 = await this.token(); if (t2) headers.Authorization = "Bearer " + t2; } catch(e){}
-  }
-
-  var url = ((window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "") + "/" + mapPath(path);
-  var res;
-  try {
-    res = await fetch(url, { method:"POST", mode:"cors", headers, body: JSON.stringify(body || {}) });
-  } catch(e){ throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e))); }
-
-  var json = null; try { json = await res.json(); } catch(e){}
-  return { ok: res.ok, status: res.status, data: json };
-},
-
-        day: {
-          openJornada: async function(sucursal_id){ return API.call("day/open-jornada", { sucursal_id: sucursal_id }); },
-          getJornadasOpen: async function(sucursal_id, days){ return API.call("day/get-jornadas-open", { sucursal_id: sucursal_id, days: days || 7 }); },
-          saveAperturaTotal: async function(total){
-            return API.call("day/save-apertura-total", {
-              jornada_id: (window.S && window.S.jornada) ? window.S.jornada.id : null,
-              total: Number(Number(total||0).toFixed(2)),
-              accepted_by_user: true
-            });
-          }
+          var headers = { "Content-Type":"application/json", apikey: (window.PSC_CONFIG && window.PSC_CONFIG.supabaseAnonKey) || "" };
+          try { var t = await this.token(); if (t) headers.Authorization = "Bearer " + t; } catch(e){}
+          var url = ((window.PSC_CONFIG && window.PSC_CONFIG.functionsBase) || "") + "/" + mapPath(path);
+          var res;
+          try {
+            res = await fetch(url, { method:"POST", mode:"cors", headers: headers, body: JSON.stringify(body || {}) });
+          } catch(e){ throw new Error("Network/CORS error: " + (e && e.message ? e.message : String(e))); }
+          var json=null; try{ json = await res.json(); } catch(e){}
+          return { ok: res.ok, status: res.status, data: json };
         },
+        day: {
+          saveAperturaTotal: async function(items){
+    return API.call("day/save-apertura-total", {
+      jornada_id: (window.S && window.S.jornada) ? window.S.jornada.id : null,
+      items: items,
+      accepted_by_user: true
+    });
+  }
+},
         admin: {
           upsertUser: async function(obj){ return API.call("admin-upsert-user", obj || {}); },
           listUsers:  async function(){ return API.call("admin-list-users", {}); }
@@ -579,26 +559,41 @@
       /* ========================= Handlers globales (una sola vez) ========================= */
       if (!window.__PSC_HANDLERS_BOUND__){
         document.addEventListener("click", async function(e){
-          // Guardar APERTURA (total y lock UI)
-          if (e.target && e.target.id === "btnApSave"){
-            var rows = qsa("#apRows tr"); var total = 0;
-            rows.forEach(function(tr){
-              var valor = Number(tr.getAttribute("data-valor") || 0);
-              var inp = qs("input", tr);
-              var qty = Math.max(0, parseInt((inp && inp.value) ? inp.value : "0", 10));
-              total += valor * qty;
-            });
-            var ok = window.confirm("Confirmo guardar la APERTURA por " + money(total) + " y bloquear el módulo.");
-            if (!ok) return;
+          // Guardar APERTURA (envía items y bloquea UI)
+if (e.target && e.target.id === "btnApSave"){
+  var rows  = qsa("#apRows tr");
+  var total = 0;
+  var items = [];
 
-            try {
-              var r = await API.day.saveAperturaTotal(total);
-              if (!r.ok || !(r.data && r.data.ok)) throw new Error((r.data && r.data.error) || "No se pudo guardar en Supabase (apertura)");
-              rows.forEach(function(tr){ var i = qs("input", tr); if (i) i.disabled = true; });
-              e.target.disabled = true; e.target.textContent = "Guardado";
-              toast("Saldo inicial guardado y módulo bloqueado");
-            } catch(err){ toast((err && err.message) ? err.message : String(err), "err"); }
-          }
+  rows.forEach(function(tr){
+    var valor = Number(tr.getAttribute("data-valor") || 0);
+    var id    = tr.getAttribute("data-id");
+    var inp   = qs("input", tr);
+    var qty   = Math.max(0, parseInt((inp && inp.value) ? inp.value : "0", 10));
+
+    total += valor * qty;
+    if (qty > 0) items.push({ denominacion_id: id, cantidad: qty });
+  });
+
+  if (items.length === 0){
+    toast("Ingresa al menos una cantidad > 0", "err");
+    return;
+  }
+
+  var ok = window.confirm("Confirmo guardar la APERTURA por " + money(total) + " y bloquear el módulo.");
+  if (!ok) return;
+
+  try {
+    var r = await API.day.saveAperturaTotal(items);
+    if (!r.ok || !(r.data && r.data.ok)) throw new Error((r.data && r.data.error) || "No se pudo guardar en Supabase (apertura)");
+    rows.forEach(function(tr){ var i = qs("input", tr); if (i) i.disabled = true; });
+    e.target.disabled = true; e.target.textContent = "Guardado";
+    toast("Saldo inicial guardado y módulo bloqueado");
+  } catch(err){
+    toast((err && err.message) ? err.message : String(err), "err");
+  }
+}
+
 
           // Admin: listar jornadas abiertas
           if (e.target && e.target.id === "btnListOpen"){
