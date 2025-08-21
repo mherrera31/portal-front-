@@ -42,10 +42,10 @@
     .code{font-size:11px;font-weight:normal;color:#9ca3af;margin-right:8px;user-select:none}
   </style>
 
-  <!-- Tu config con PSC_CONFIG (supabaseUrl, supabaseAnonKey, functionsBase) -->
+  <!-- Tu config: define window.PSC_CONFIG -->
   <script src="./config.js"></script>
 
-  <!-- Supabase UMD (solo una vez) -->
+  <!-- Supabase UMD (una sola vez) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -68,7 +68,7 @@
           <a href="#/mod-inicio">Inicio de jornada</a>
           <a href="#/mod-apertura">Saldo inicial</a>
           <a href="#/mod-ingresos">Ingresos (sistemas)</a>
-          <!-- Los demás módulos se marcan como "en construcción" -->
+          <!-- Los demás módulos quedarán como WIP -->
           <a href="#/wip">Saldo final</a>
           <a href="#/wip">Vouchers</a>
           <a href="#/wip">Delivery</a>
@@ -87,21 +87,33 @@
   </div>
 
   <script>
-  /* ===== Utils ===== */
+  /* =================== Utils =================== */
   const qs  = (s, r=document)=>r.querySelector(s);
   const qsa = (s, r=document)=>Array.from(r.querySelectorAll(s));
   const el  = (html)=>{ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; };
   const money = (n)=>Number(n||0).toLocaleString("en-US",{style:"currency",currency:"USD"});
   const toast = (msg, kind)=>{ const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`); document.body.appendChild(d); setTimeout(()=>d.remove(),2400); };
-  const today = ()=>new Date().toISOString().slice(0,10);
   function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
 
-  /* ===== Estado (sin demo local) ===== */
-  window.S = window.S || { currentUser:null, config:{ sucursales:[], metodos:[], gasto_categorias:[], denominaciones:[], sistemas:[] }, jornada:null };
-  window.save = window.save || function(){}; // no-op demo
+  // Hoy en HORA LOCAL (evita desface UTC)
+  function today() {
+    const now = new Date();
+    const localISO = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString();
+    return localISO.slice(0,10);
+  }
 
-  /* ===== API (Supabase + Edge) ===== */
+  /* ============= Estado global ============= */
+  window.S = window.S || {
+    currentUser: null,
+    config: { sucursales: [], metodos: [], gasto_categorias: [], denominaciones: [], sistemas: [] },
+    jornada: null,
+  };
+  // No-op para restos del modo demo
+  window.save = window.save || function() {};
+
+  /* ============= API Layer (Supabase + Edge) ============= */
   function mapPath(p){ if(p==="day/save-vouchers") return "day-save-comprobantes"; return p.replace(/^day\//,"day-").replace(/^admin\//,"admin-"); }
+
   const API = {
     ready:false,
     init(){
@@ -110,7 +122,7 @@
           window._sb = window.supabase.createClient(
             window.PSC_CONFIG.supabaseUrl,
             window.PSC_CONFIG.supabaseAnonKey,
-            { auth:{ persistSession:true, storageKey:"psc_cierre_auth" }, db:{ schema: "cierrev2" } } // 👈 schema
+            { auth:{ persistSession:true, storageKey:"psc_cierre_auth" }, db:{ schema:"cierrev2" } }
           );
         }
         this.ready = !!window._sb;
@@ -128,9 +140,13 @@
       return { ok: res.ok, status: res.status, data: json };
     },
     day:{
-      saveAperturaTotal: (items)=>API.call("day/save-apertura-total",{ jornada_id: S.jornada?.id||null, items, accepted_by_user:true }),
+      saveAperturaTotal: (items)=>API.call("day/save-apertura-total",{
+        jornada_id: S.jornada?.id||null, items, accepted_by_user:true
+      }),
       getSistemasTotales: ()=>API.call("day/get-sistemas-totales",{ jornada_id: S.jornada?.id||null }),
-      saveSistemasTotales: (ingresos, comment)=>API.call("day/save-sistemas-totales",{ jornada_id:S.jornada?.id||null, accepted_by_user:true, version:1, ingresos, comment: comment||null })
+      saveSistemasTotales: (ingresos, comment)=>API.call("day/save-sistemas-totales",{
+        jornada_id:S.jornada?.id||null, accepted_by_user:true, version:1, ingresos, comment: comment||null
+      }),
     },
     admin:{
       upsertUser:(p)=>API.call("admin-upsert-user",p),
@@ -138,7 +154,7 @@
     }
   };
 
-  /* ===== Sesión/Header ===== */
+  /* ============= Sesión/Header ============= */
   function renderSession(){
     const box = qs("#sessionBox");
     if(!S.currentUser){ box.innerHTML = '<span class="tag">No has iniciado sesión</span>'; return; }
@@ -154,11 +170,10 @@
       qs("#selSucursal").onchange = async (ev)=>{
         const id = ev.target.value || null;
         try{
-          // Solo cambiar sucursal y refrescar jornada (NO crear)
           S.currentUser.sucursal_id = id;
           const ss=(S.config?.sucursales||[]).find(x=>x.id===id);
           S.currentUser.sucursal = ss?.nombre || "—";
-          await ensureJornadaHoy();
+          await ensureJornadaHoy();   // solo consulta
           renderSession();
           toast("Sucursal cambiada");
         }catch(e){ toast(e.message||String(e),"err"); }
@@ -175,7 +190,7 @@
     };
   }
 
-  /* ===== Router ===== */
+  /* ============= Router ============= */
   window.addEventListener("hashchange", route);
   function route(){
     const hash = location.hash || "#/login";
@@ -194,10 +209,10 @@
     v.innerHTML = `<div class="card"><h2>En construcción</h2><div class="muted">Este módulo aún no está disponible.</div></div>`;
   }
 
-  /* ===== Config ===== */
+  /* ============= Config (get-config) ============= */
   async function ensureConfig(){
     try{
-      const r = await API.call("get-config", {}); // devuelve sucursales, metodos, gasto_categorias, denominaciones, sistemas
+      const r = await API.call("get-config", {});
       if(!r.ok) throw new Error(r.data?.error || "get-config fallo");
       const d = r.data;
       S.config.sucursales       = d.sucursales || [];
@@ -208,7 +223,7 @@
     }catch(e){ console.error("get-config fallo", e); }
   }
 
-  /* ===== Login ===== */
+  /* ============= Login ============= */
   function renderLogin(){
     const v = qs("#content");
     v.innerHTML = `
@@ -237,8 +252,8 @@
       const email = emailEl.value.trim().toLowerCase();
       const password = pass.value;
       msg.textContent = "";
-      if(!email||!password){ msg.textContent="Ingresa correo y contraseña."; return; }
-      if(!window._sb?.auth){ msg.textContent="Supabase no inicializado."; return; }
+      if(!email||!password){ msg.textContent = "Ingresa correo y contraseña."; return; }
+      if(!window._sb?.auth){ msg.textContent = "Supabase no inicializado."; return; }
 
       btn.disabled=true;
       try{
@@ -249,14 +264,14 @@
         const token = session?.access_token;
         if(!token) throw new Error("No se obtuvo token de sesión.");
 
-        // perfil
+        // Perfil
         const pr = await fetch(`${window.PSC_CONFIG.functionsBase}/get-profile`, { headers:{ Authorization:"Bearer "+token } });
         const prof = await pr.json();
         if(!pr.ok) throw new Error(prof?.error || "No se pudo leer perfil");
 
         S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
 
-        // config y solo CONSULTAR jornada (NO crear)
+        // Config y SOLO consultar jornada (no crear)
         await ensureConfig();
         await ensureJornadaHoy();
 
@@ -267,17 +282,17 @@
     };
   }
 
-  /* ===== Helpers Jornada ===== */
+  /* ============= Helpers de Jornada ============= */
 
-  // Crea (si no existe) la jornada de HOY para el usuario actual y la sucursal dada.
-  // Devuelve la jornada y setea S.jornada.
+  // Crea (si no existe) la jornada de HOY (local) para el usuario/sucursal.
+  // Si ya existe, la retorna. Si al insertar cae en duplicado, re-lee la existente.
   async function openJornadaForToday(sucursal_id) {
     if (!S.currentUser) throw new Error("No hay usuario en sesión");
     if (!sucursal_id)   throw new Error("Falta sucursal");
 
     const fecha = today();
 
-    // ¿ya existe una jornada de hoy para este usuario y sucursal?
+    // 1) buscar primero una abierta hoy
     const q = await _sb
       .from("jornadas")
       .select("id, estado, sucursal_id")
@@ -286,36 +301,50 @@
       .eq("user_id", S.currentUser.id)
       .in("estado", ["open", "modules_locked", "reopened"])
       .maybeSingle();
-
     if (q.error) throw q.error;
+    if (q.data) { S.jornada = q.data; return q.data; }
 
-    let j = q.data;
+    // 2) no hay -> intentamos crear
+    const ins = await _sb
+      .from("jornadas")
+      .insert({
+        fecha,
+        user_id: S.currentUser.id,
+        sucursal_id,
+        estado: "open",
+        cierre_ok: false,
+      })
+      .select("id, estado, sucursal_id")
+      .single();
 
-    // si no existe, la creamos con estado 'open'
-    if (!j) {
-      const ins = await _sb
-        .from("jornadas")
-        .insert({
-          fecha,
-          user_id: S.currentUser.id,
-          sucursal_id,
-          estado: "open",
-          cierre_ok: false
-        })
-        .select("id, estado, sucursal_id")
-        .single();
-      if (ins.error) throw ins.error;
-      j = ins.data;
+    // 3) si hubo carrera/duplicado (23505), re-leer la existente y devolverla
+    if (ins.error) {
+      const isDup = ins.error.code === "23505"
+        || /duplicate key value/i.test(ins.error.message || "");
+      if (isDup) {
+        const again = await _sb
+          .from("jornadas")
+          .select("id, estado, sucursal_id")
+          .eq("fecha", fecha)
+          .eq("sucursal_id", sucursal_id)
+          .eq("user_id", S.currentUser.id)
+          .in("estado", ["open", "modules_locked", "reopened"])
+          .maybeSingle();
+        if (again.error) throw again.error;
+        if (!again.data) throw new Error("Jornada duplicada pero no encontrada");
+        S.jornada = again.data;
+        return again.data;
+      }
+      throw ins.error; // otro error real
     }
 
-    S.jornada = j;
-    return j;
+    S.jornada = ins.data;
+    return ins.data;
   }
 
-  // Solo consulta si hay jornada de hoy; NO crea.
+  // Consulta si hay jornada de HOY (local) abierta; NO crea.
   async function ensureJornadaHoy() {
     if (!S.currentUser?.sucursal_id) { S.jornada = null; return null; }
-
     const fecha = today();
     const q = await _sb
       .from("jornadas")
@@ -325,14 +354,12 @@
       .eq("user_id", S.currentUser.id)
       .in("estado", ["open", "modules_locked", "reopened"])
       .maybeSingle();
-
     if (q.error) throw q.error;
-
     S.jornada = q.data || null;
     return S.jornada;
   }
 
-  /* ===== Inicio ===== */
+  /* ============= Inicio ============= */
   async function renderInicio(){
     renderSession();
     const v = qs("#content");
@@ -374,7 +401,7 @@
     };
   }
 
-  /* ===== Saldo inicial (Apertura) ===== */
+  /* ============= Saldo inicial (Apertura) ============= */
   const denomLabel = (d)=> d.tipo==="moneda" ? (d.valor<1 ? `¢ ${Math.round(d.valor*100)}` : `$ ${d.valor}`) : `$ ${d.valor}`;
 
   async function renderApertura(){
@@ -440,7 +467,6 @@
           try{
             const r = await API.day.saveAperturaTotal(items);
             if(!r.ok) throw new Error(r.data?.error || "No se pudo guardar apertura");
-            // bloquear inputs
             qsa("#apRows input").forEach(i=>i.disabled=true);
             qs("#btnApSave").disabled=true; qs("#btnApSave").textContent="Guardado";
             toast("Saldo inicial guardado y módulo bloqueado");
@@ -451,7 +477,7 @@
     }
   }
 
-  /* ===== Ingresos (sistemas) ===== */
+  /* ============= Ingresos (sistemas) ============= */
   async function renderIngresos(){
     const v = qs("#content");
     await ensureJornadaHoy();
@@ -460,7 +486,7 @@
       return;
     }
 
-    // Traer sistemas + totales guardados
+    // Sistemas activos + totales guardados (si los hay)
     let sistemas = (S.config?.sistemas||[]).slice().filter(s=>s.activo!==false).map(s=>({...s,total:0}));
     try{
       const r = await API.day.getSistemasTotales();
@@ -534,13 +560,12 @@
     }
   }
 
-  /* ===== Boot ===== */
+  /* ============= Boot ============= */
   async function boot(){
     API.init();
     try{
       const { data:{ session } } = await _sb.auth.getSession();
       if(session){
-        // si hay sesión, intenta cargar perfil
         try{
           const token = session.access_token;
           const pr = await fetch(`${window.PSC_CONFIG.functionsBase}/get-profile`, { headers:{ Authorization:"Bearer "+token } });
@@ -559,4 +584,3 @@
   </script>
 </body>
 </html>
-
