@@ -42,10 +42,10 @@
     .code{font-size:11px;font-weight:normal;color:#9ca3af;margin-right:8px;user-select:none}
   </style>
 
-  <!-- Tu config con PSC_CONFIG (url, anon, functionsBase) -->
+  <!-- Tu config con PSC_CONFIG (supabaseUrl, supabaseAnonKey, functionsBase) -->
   <script src="./config.js"></script>
 
-  <!-- Supabase UMD (solo UNA vez para evitar el warning de múltiples clientes) -->
+  <!-- Supabase UMD (solo una vez) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -68,17 +68,18 @@
           <a href="#/mod-inicio">Inicio de jornada</a>
           <a href="#/mod-apertura">Saldo inicial</a>
           <a href="#/mod-ingresos">Ingresos (sistemas)</a>
-          <a href="#/mod-sfinal">Saldo final</a>
-          <a href="#/mod-vouchers">Vouchers</a>
-          <a href="#/mod-delivery">Delivery</a>
-          <a href="#/mod-gastos">Gastos</a>
-          <a href="#/mod-compras">Compras</a>
-          <a href="#/mod-precheck">Precheck</a>
-          <a href="#/mod-deposito">Depósito</a>
-          <a href="#/mod-cierre">Cierre</a>
-          <a href="#/mod-panel">Panel de jornadas</a>
-          <a href="#/mod-usuarios">Usuarios (admin)</a>
-          <a href="#/mod-config">Configuración</a>
+          <!-- Los demás módulos se marcan como "en construcción" -->
+          <a href="#/wip">Saldo final</a>
+          <a href="#/wip">Vouchers</a>
+          <a href="#/wip">Delivery</a>
+          <a href="#/wip">Gastos</a>
+          <a href="#/wip">Compras</a>
+          <a href="#/wip">Precheck</a>
+          <a href="#/wip">Depósito</a>
+          <a href="#/wip">Cierre</a>
+          <a href="#/wip">Panel de jornadas</a>
+          <a href="#/wip">Usuarios (admin)</a>
+          <a href="#/wip">Configuración</a>
         </nav>
       </aside>
       <main id="content"></main>
@@ -86,19 +87,18 @@
   </div>
 
   <script>
-  /* ===== Util ===== */
+  /* ===== Utils ===== */
   const qs  = (s, r=document)=>r.querySelector(s);
   const qsa = (s, r=document)=>Array.from(r.querySelectorAll(s));
   const el  = (html)=>{ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; };
   const money = (n)=>Number(n||0).toLocaleString("en-US",{style:"currency",currency:"USD"});
   const toast = (msg, kind)=>{ const d=el(`<div class="toast" style="${kind==='err'?'background:#b91c1c':''}">${msg}</div>`); document.body.appendChild(d); setTimeout(()=>d.remove(),2400); };
   const today = ()=>new Date().toISOString().slice(0,10);
-
   function setActive(href){ qsa("#nav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href")===href)); }
 
-  /* ===== Estado (sin demo) ===== */
+  /* ===== Estado (sin demo local) ===== */
   window.S = window.S || { currentUser:null, config:{ sucursales:[], metodos:[], gasto_categorias:[], denominaciones:[], sistemas:[] }, jornada:null };
-  window.save = window.save || function(){}; // no-op
+  window.save = window.save || function(){}; // no-op demo
 
   /* ===== API (Supabase + Edge) ===== */
   function mapPath(p){ if(p==="day/save-vouchers") return "day-save-comprobantes"; return p.replace(/^day\//,"day-").replace(/^admin\//,"admin-"); }
@@ -107,9 +107,11 @@
     init(){
       try{
         if(!window._sb && window.PSC_CONFIG?.supabaseUrl && window.supabase?.createClient){
-          window._sb = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey, {
-            auth:{ persistSession:true, storageKey:"psc_cierre_auth" }
-          });
+          window._sb = window.supabase.createClient(
+            window.PSC_CONFIG.supabaseUrl,
+            window.PSC_CONFIG.supabaseAnonKey,
+            { auth:{ persistSession:true, storageKey:"psc_cierre_auth" }, db:{ schema: "cierrev2" } } // 👈 schema
+          );
         }
         this.ready = !!window._sb;
       }catch(e){ console.warn("Supabase init skipped", e); }
@@ -119,9 +121,9 @@
       const headers={ "Content-Type":"application/json", apikey: window.PSC_CONFIG.supabaseAnonKey };
       try{ const t=await this.token(); if(t) headers.Authorization = "Bearer "+t; }catch{}
       const url = `${window.PSC_CONFIG.functionsBase}/${mapPath(path)}`;
-      let res; try{
-        res = await fetch(url,{ method:"POST", mode:"cors", headers, body: JSON.stringify(body||{}) });
-      }catch(e){ throw new Error("Network/CORS error: "+(e?.message||e)); }
+      let res;
+      try{ res = await fetch(url,{ method:"POST", mode:"cors", headers, body: JSON.stringify(body||{}) }); }
+      catch(e){ throw new Error("Network/CORS error: "+(e?.message||e)); }
       let json=null; try{ json = await res.json(); }catch{}
       return { ok: res.ok, status: res.status, data: json };
     },
@@ -152,11 +154,13 @@
       qs("#selSucursal").onchange = async (ev)=>{
         const id = ev.target.value || null;
         try{
-          await openJornadaForToday(id); // <- tu función existente
+          // Solo cambiar sucursal y refrescar jornada (NO crear)
           S.currentUser.sucursal_id = id;
           const ss=(S.config?.sucursales||[]).find(x=>x.id===id);
           S.currentUser.sucursal = ss?.nombre || "—";
-          renderSession(); toast("Sucursal cambiada");
+          await ensureJornadaHoy();
+          renderSession();
+          toast("Sucursal cambiada");
         }catch(e){ toast(e.message||String(e),"err"); }
       };
     }else{
@@ -182,14 +186,18 @@
       case "#/mod-inicio":   return renderInicio();
       case "#/mod-apertura": return renderApertura();
       case "#/mod-ingresos": return renderIngresos();
-      default:               return renderInicio();
+      default:               return renderWIP();
     }
   }
+  function renderWIP(){
+    const v=qs("#content");
+    v.innerHTML = `<div class="card"><h2>En construcción</h2><div class="muted">Este módulo aún no está disponible.</div></div>`;
+  }
 
-  /* ===== Login ===== */
+  /* ===== Config ===== */
   async function ensureConfig(){
     try{
-      const r = await API.call("get-config", {}); // mapPath no cambia; tu function se llama get-config
+      const r = await API.call("get-config", {}); // devuelve sucursales, metodos, gasto_categorias, denominaciones, sistemas
       if(!r.ok) throw new Error(r.data?.error || "get-config fallo");
       const d = r.data;
       S.config.sucursales       = d.sucursales || [];
@@ -200,6 +208,7 @@
     }catch(e){ console.error("get-config fallo", e); }
   }
 
+  /* ===== Login ===== */
   function renderLogin(){
     const v = qs("#content");
     v.innerHTML = `
@@ -247,9 +256,9 @@
 
         S.currentUser = { id: prof.id, email: prof.email, role: prof.role, sucursal_id: prof.sucursal_id, sucursal: prof.sucursal };
 
-        // config + jornada si hay sucursal
+        // config y solo CONSULTAR jornada (NO crear)
         await ensureConfig();
-        if(S.currentUser.sucursal_id){ await openJornadaForToday(S.currentUser.sucursal_id); }
+        await ensureJornadaHoy();
 
         renderSession();
         location.hash = "#/mod-inicio";
@@ -259,15 +268,68 @@
   }
 
   /* ===== Helpers Jornada ===== */
-  async function ensureJornadaHoy(){
-    if(!S.currentUser?.sucursal_id){ toast("Asigna sucursal al usuario","err"); return null; }
-    await openJornadaForToday(S.currentUser.sucursal_id); // <- tu función ya existente
-    return S.jornada;
+
+  // Crea (si no existe) la jornada de HOY para el usuario actual y la sucursal dada.
+  // Devuelve la jornada y setea S.jornada.
+  async function openJornadaForToday(sucursal_id) {
+    if (!S.currentUser) throw new Error("No hay usuario en sesión");
+    if (!sucursal_id)   throw new Error("Falta sucursal");
+
+    const fecha = today();
+
+    // ¿ya existe una jornada de hoy para este usuario y sucursal?
+    const q = await _sb
+      .from("jornadas")
+      .select("id, estado, sucursal_id")
+      .eq("fecha", fecha)
+      .eq("sucursal_id", sucursal_id)
+      .eq("user_id", S.currentUser.id)
+      .in("estado", ["open", "modules_locked", "reopened"])
+      .maybeSingle();
+
+    if (q.error) throw q.error;
+
+    let j = q.data;
+
+    // si no existe, la creamos con estado 'open'
+    if (!j) {
+      const ins = await _sb
+        .from("jornadas")
+        .insert({
+          fecha,
+          user_id: S.currentUser.id,
+          sucursal_id,
+          estado: "open",
+          cierre_ok: false
+        })
+        .select("id, estado, sucursal_id")
+        .single();
+      if (ins.error) throw ins.error;
+      j = ins.data;
+    }
+
+    S.jornada = j;
+    return j;
   }
-  function requireJornadaOrExplain(v){
-    ensureJornadaHoy();
-    if(!S.jornada){ v.innerHTML = '<div class="card">Asigna sucursal y marca inicio de jornada.</div>'; return false; }
-    return true;
+
+  // Solo consulta si hay jornada de hoy; NO crea.
+  async function ensureJornadaHoy() {
+    if (!S.currentUser?.sucursal_id) { S.jornada = null; return null; }
+
+    const fecha = today();
+    const q = await _sb
+      .from("jornadas")
+      .select("id, estado, sucursal_id")
+      .eq("fecha", fecha)
+      .eq("sucursal_id", S.currentUser.sucursal_id)
+      .eq("user_id", S.currentUser.id)
+      .in("estado", ["open", "modules_locked", "reopened"])
+      .maybeSingle();
+
+    if (q.error) throw q.error;
+
+    S.jornada = q.data || null;
+    return S.jornada;
   }
 
   /* ===== Inicio ===== */
@@ -292,21 +354,36 @@
 
     const labJ=qs("#labJ", v); const btnStart=qs("#btnStart", v); const btnEnsure=qs("#btnEnsure", v);
     if(!u.sucursal_id){ btnStart.disabled=true; btnEnsure.disabled=true; }
-    try{ const j=await ensureJornadaHoy(); labJ.textContent = j?.id || S.jornada?.id || "—"; }catch{ labJ.textContent="—"; }
 
-    btnStart.onclick = async ()=>{
-      try{ await ensureJornadaHoy(); labJ.textContent=S.jornada?.id||"—"; toast("Inicio de jornada marcado"); }catch(e){ toast(e.message||String(e)); }
+    try{ const j=await ensureJornadaHoy(); labJ.textContent = j?.id || "—"; }catch{ labJ.textContent="—"; }
+
+    btnStart.onclick = async () => {
+      try {
+        const j = await openJornadaForToday(S.currentUser.sucursal_id);
+        labJ.textContent = j?.id || "—";
+        toast("Inicio de jornada marcado");
+      } catch (e) { toast(e.message || String(e), "err"); }
     };
-    btnEnsure.onclick = async ()=>{
-      try{ const j=await ensureJornadaHoy(); labJ.textContent=j?.id||S.jornada?.id||"—"; toast("Jornada refrescada"); }catch(e){ toast(e.message||String(e)); }
+
+    btnEnsure.onclick = async () => {
+      try {
+        const j2 = await ensureJornadaHoy();
+        labJ.textContent = j2?.id || "—";
+        toast("Jornada refrescada");
+      } catch (e) { toast(e.message || String(e), "err"); }
     };
   }
 
   /* ===== Saldo inicial (Apertura) ===== */
-  function denomLabel(d){ return d.tipo==="moneda" ? (d.valor<1 ? `¢ ${Math.round(d.valor*100)}` : `$ ${d.valor}`) : `$ ${d.valor}`; }
-  function renderApertura(){
+  const denomLabel = (d)=> d.tipo==="moneda" ? (d.valor<1 ? `¢ ${Math.round(d.valor*100)}` : `$ ${d.valor}`) : `$ ${d.valor}`;
+
+  async function renderApertura(){
     const v = qs("#content");
-    if(!requireJornadaOrExplain(v)) return;
+    await ensureJornadaHoy();
+    if(!S.jornada){
+      v.innerHTML = '<div class="card">Asigna sucursal y marca inicio de jornada.</div>';
+      return;
+    }
 
     v.innerHTML = `<div class="card">
       <div class="ap-head">
@@ -322,7 +399,8 @@
     </div>`;
 
     const body=qs("#apRows"); body.innerHTML="";
-    (S.config.denominaciones||[]).slice().sort((a,b)=>a.valor-b.valor).forEach(d=>{
+    const dens = (S.config.denominaciones||[]).slice().sort((a,b)=>a.valor-b.valor);
+    dens.forEach(d=>{
       body.appendChild(el(`
         <tr data-id="${d.id}" data-valor="${d.valor}">
           <td>${denomLabel(d)}</td>
@@ -375,16 +453,18 @@
 
   /* ===== Ingresos (sistemas) ===== */
   async function renderIngresos(){
-    if(!S.currentUser) return renderLogin();
     const v = qs("#content");
+    await ensureJornadaHoy();
+    if(!S.jornada){
+      v.innerHTML = '<div class="card">Asigna sucursal y marca inicio de jornada.</div>';
+      return;
+    }
 
     // Traer sistemas + totales guardados
     let sistemas = (S.config?.sistemas||[]).slice().filter(s=>s.activo!==false).map(s=>({...s,total:0}));
     try{
-      if(S.jornada?.id){
-        const r = await API.day.getSistemasTotales();
-        if(r.ok && Array.isArray(r.data?.sistemas)) sistemas = r.data.sistemas;
-      }
+      const r = await API.day.getSistemasTotales();
+      if(r.ok && Array.isArray(r.data?.sistemas)) sistemas = r.data.sistemas;
     }catch{}
 
     v.innerHTML = `
@@ -460,7 +540,7 @@
     try{
       const { data:{ session } } = await _sb.auth.getSession();
       if(session){
-        // si hay sesión, intenta cargar perfil y config
+        // si hay sesión, intenta cargar perfil
         try{
           const token = session.access_token;
           const pr = await fetch(`${window.PSC_CONFIG.functionsBase}/get-profile`, { headers:{ Authorization:"Bearer "+token } });
@@ -471,6 +551,7 @@
         }catch{}
       }
       await ensureConfig();
+      await ensureJornadaHoy(); // solo consulta; no crea
     }catch{}
     route();
   }
@@ -478,3 +559,4 @@
   </script>
 </body>
 </html>
+
