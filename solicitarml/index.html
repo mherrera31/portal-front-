@@ -130,7 +130,7 @@
         if (window.PSC_CONFIG?.anon) headers["apikey"] = window.PSC_CONFIG.anon;
         try {
           if (sbClient?.auth) {
-            const { data: { session } } = await sbClient.auth.getSession();
+            const { data: { session} } = await sbClient.auth.getSession();
             const token = session?.access_token;
             if (token) headers["Authorization"] = "Bearer " + token;
             else if (window.PSC_CONFIG?.anon) headers["Authorization"] = "Bearer " + window.PSC_CONFIG.anon;
@@ -141,20 +141,47 @@
         return headers;
       }
 
-      // ==== Chequeo directo por PostgREST (ML=true o status='ML') ====
+      // ==== Chequeo PostgREST en dos pasos (ML=true y status='ML') ====
       async function checkDupViaPostgrest(tracking) {
         if (!window.PSC_CONFIG?.url) return { ok:false, exists:false };
         try {
-          const url = new URL(`${window.PSC_CONFIG.url}/rest/v1/trackings`);
-          url.searchParams.set("select", "ML,status,tracking_original,tracking_corrected");
-          url.searchParams.set("limit", "5");
-          url.searchParams.append("or", `(tracking_original.eq.${tracking},tracking_corrected.eq.${tracking})`);
           const headers = await getAuthHeaders();
-          const r = await fetch(url, { headers });
-          if (!r.ok) return { ok:false, exists:false };
-          const rows = await r.json();
-          const existsML = Array.isArray(rows) && rows.some(x => x?.ML === true || x?.status === "ML");
-          return { ok:true, exists:existsML };
+
+          // Paso 1: ML = true (boolean)
+          {
+            const url1 = new URL(`${window.PSC_CONFIG.url}/rest/v1/trackings`);
+            url1.searchParams.set("select", "ML,status,tracking_original,tracking_corrected");
+            url1.searchParams.set("limit", "5");
+            url1.searchParams.append("or", `(tracking_original.eq.${tracking},tracking_corrected.eq.${tracking})`);
+            url1.searchParams.set("ML", "is.true");
+            const r1 = await fetch(url1, { headers });
+            if (r1.ok) {
+              const rows1 = await r1.json();
+              if (Array.isArray(rows1) && rows1.length > 0) {
+                const exact = rows1.some(x => x?.tracking_original === tracking || x?.tracking_corrected === tracking);
+                if (exact) return { ok:true, exists:true, via:"ml_true" };
+              }
+            }
+          }
+
+          // Paso 2: status = 'ML'
+          {
+            const url2 = new URL(`${window.PSC_CONFIG.url}/rest/v1/trackings`);
+            url2.searchParams.set("select", "ML,status,tracking_original,tracking_corrected");
+            url2.searchParams.set("limit", "5");
+            url2.searchParams.append("or", `(tracking_original.eq.${tracking},tracking_corrected.eq.${tracking})`);
+            url2.searchParams.set("status", "eq.ML");
+            const r2 = await fetch(url2, { headers });
+            if (r2.ok) {
+              const rows2 = await r2.json();
+              if (Array.isArray(rows2) && rows2.length > 0) {
+                const exact = rows2.some(x => x?.tracking_original === tracking || x?.tracking_corrected === tracking);
+                if (exact) return { ok:true, exists:true, via:"status_ml" };
+              }
+            }
+          }
+
+          return { ok:true, exists:false };
         } catch {
           return { ok:false, exists:false };
         }
@@ -177,18 +204,35 @@
 
         // 1) Chequeo por PostgREST (ML/status)
         const dup = await checkDupViaPostgrest(tracking);
-        if (!dup.ok) {
-          setStatus("No se pudo validar duplicado. Intenta nuevamente.", "err");
-          ui.btnSubmit.disabled = false;
-          return;
-        }
-        if (dup.exists) {
-          setStatus("Ya Fue Solicitado", "warn");
-          ui.btnSubmit.disabled = false;
+
+        // 2) Si PostgREST cree que ya existe, verificamos con la Edge (autoridad final)
+        if (dup.ok && dup.exists) {
+          try {
+            const res = await fetch(ML_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tracking, num_casillero: casillero, name: nombre }),
+            });
+            const js = await res.json().catch(() => ({}));
+            if (!res.ok || js?.ok !== true) {
+              const msg = js?.error || js?.detail || res.statusText || `HTTP ${res.status}`;
+              throw new Error(msg);
+            }
+            if (js.mode === "exists") {
+              setStatus("Ya Fue Solicitado", "warn");
+            } else {
+              setStatus("Solicitado ✔️", "ok");
+              ui.form.reset();
+            }
+          } catch (err) {
+            setStatus("Error: " + (err?.message || err), "err");
+          } finally {
+            ui.btnSubmit.disabled = false;
+          }
           return;
         }
 
-        // 2) Enviar solicitud a Edge nueva (ml-request)
+        // 3) Si PostgREST no lo encontró, insertamos con la Edge
         setStatus("Solicitando…", "warn");
         try {
           const res = await fetch(ML_URL, {
@@ -223,4 +267,3 @@
     <script src="portal.js"></script>
   </body>
 </html>
-
