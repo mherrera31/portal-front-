@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Crear Cliente</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Config con las claves (se carga antes del script principal) -->
+  <script src="config.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h1 class="mb-4">Crear Cliente</h1>
+
+    <form id="formCliente" class="card p-4 shadow-sm">
+      <div class="mb-3">
+        <label for="nombre" class="form-label">Nombre</label>
+        <input type="text" id="nombre" class="form-control" required />
+      </div>
+      <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <input type="email" id="email" class="form-control" required />
+      </div>
+      <div class="mb-3">
+        <label for="telefono" class="form-label">Teléfono</label>
+        <input type="text" id="telefono" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="fecha_nac" class="form-label">Fecha de nacimiento</label>
+        <input type="date" id="fecha_nac" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="tarifa1" class="form-label">Tarifa 1</label>
+        <input type="number" step="0.01" id="tarifa1" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="tarifa2" class="form-label">Tarifa 2</label>
+        <input type="number" step="0.01" id="tarifa2" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="tarifa3" class="form-label">Tarifa 3</label>
+        <input type="number" step="0.01" id="tarifa3" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="direccion" class="form-label">Dirección</label>
+        <textarea id="direccion" class="form-control"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="sucursal" class="form-label">Sucursal</label>
+        <select id="sucursal" class="form-select" required>
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Crear</button>
+    </form>
+  </div>
+
+  <!-- Supabase y lógica de conexión -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL = window.PSC_CONFIG.supabaseUrl;
+    const SUPABASE_ANON_KEY = window.PSC_CONFIG.supabaseAnonKey;
+
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const normEmail = (s) => (s || "").trim().toLowerCase();
+    const toNum = (s) => {
+      const n = Number(String(s || "").replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    };
+
+    // 1) Cargar sucursales en el dropdown
+    async function cargarSucursales() {
+      const sel = document.querySelector("#sucursal");
+      sel.innerHTML = "<option value=''>Cargando...</option>";
+
+      const { data, error } = await sb
+        .from("sucursales")
+        .select("id,sucursal")
+        .order("sucursal", { ascending: true });
+
+      if (error) {
+        sel.innerHTML = "<option value=''>Error al cargar</option>";
+        console.error(error);
+        alert("No se pudieron cargar las sucursales.");
+        return;
+      }
+
+      sel.innerHTML = "<option value=''>Seleccione sucursal</option>";
+      for (const row of data) {
+        const opt = document.createElement("option");
+        opt.value = row.id;               // UUID
+        opt.textContent = row.sucursal;   // Texto visible
+        sel.appendChild(opt);
+      }
+    }
+
+    // 2) Insertar cliente al enviar el form
+    async function onSubmitCliente(ev) {
+      ev.preventDefault();
+
+      const nombre     = document.querySelector("#nombre")?.value?.trim();
+      const email      = normEmail(document.querySelector("#email")?.value);
+      const telefono   = document.querySelector("#telefono")?.value?.trim() || null;
+      const fecha_nac  = document.querySelector("#fecha_nac")?.value || null;
+      const tarifa_1   = toNum(document.querySelector("#tarifa1")?.value);
+      const tarifa_2   = toNum(document.querySelector("#tarifa2")?.value);
+      const tarifa_3   = toNum(document.querySelector("#tarifa3")?.value);
+      const direccion  = document.querySelector("#direccion")?.value?.trim() || null;
+
+      const sel         = document.querySelector("#sucursal");
+      const sucursal_id = sel?.value || null;                          // UUID
+      const sucursal_txt= sel?.selectedOptions[0]?.textContent || "";  // Texto visible
+
+      if (!nombre || !email || !sucursal_id) {
+        alert("Nombre, Email y Sucursal son obligatorios.");
+        return;
+      }
+
+      const row = {
+        nombre,
+        email,
+        telefono,
+        fecha_nac,
+        tarifa_1,
+        tarifa_2,
+        tarifa_3,
+        direccion,
+        sucursal: sucursal_txt,
+        sucursal_id,
+        source: "staff" // este front siempre es staff
+      };
+
+      const { error } = await sb
+        .from("clientes")
+        .insert(row, { returning: "minimal" });
+
+      if (error) {
+        if (error.code === "23505") {
+          alert("Este email ya está registrado.");
+        } else {
+          alert("Error al crear cliente: " + (error.message || "desconocido"));
+        }
+        console.error(error);
+        return;
+      }
+
+      alert("Cliente creado ✅");
+      ev.target.reset();
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await cargarSucursales();
+      document.querySelector("#formCliente")?.addEventListener("submit", onSubmitCliente);
+    });
+  </script>
+</body>
+</html>
