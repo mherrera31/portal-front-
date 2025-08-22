@@ -153,7 +153,7 @@
             url1.searchParams.set("select", "ML,status,tracking_original,tracking_corrected");
             url1.searchParams.set("limit", "5");
             url1.searchParams.append("or", `(tracking_original.eq.${tracking},tracking_corrected.eq.${tracking})`);
-            url1.searchParams.set("ML", "is.true");
+            url1.searchParams.set("ml", "is.true");
             const r1 = await fetch(url1, { headers });
             if (r1.ok) {
               const rows1 = await r1.json();
