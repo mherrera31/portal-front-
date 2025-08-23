@@ -229,23 +229,20 @@
 
     async function cargarClientes(q=""){
   q = (q || "").trim();
-  if (!q) return renderEmpty(); // vacío hasta buscar
+if (!q) return renderEmpty();
 
-  const like = `%${q}%`;
-  const num  = Number(q);
-  const isInt = Number.isInteger(num);
+const like = `%${q}%`;
+const ors = [
+  `nombre.ilike.${like}`,
+  `email.ilike.${like}`,
+  `telefono.ilike.${like}`,
+  `sucursal.ilike.${like}`,
+  `direccion.ilike.${like}`
+];
+const n = Number(q);
+if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
 
-  // columnas que pintamos siempre
-  const cols = "id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3";
-
-  // 5 búsquedas en paralelo (nombre, email, tel, sucursal, dirección)
-  const queries = [
-    sb.from("clientes").select(cols).ilike("nombre", like).limit(100),
-    sb.from("clientes").select(cols).ilike("email", like).limit(100),
-    sb.from("clientes").select(cols).ilike("telefono", like).limit(100),
-    sb.from("clientes").select(cols).ilike("sucursal", like).limit(100),
-    sb.from("clientes").select(cols).ilike("direccion", like).limit(100),
-  ];
+query = query.or(ors.join(',')); // ← SIN paréntesis
 
   // si es entero, también buscamos por box exacto
   if (isInt) {
