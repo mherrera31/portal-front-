@@ -129,21 +129,19 @@
 
   <!-- Bootstrap del usuario ANTES del guard para evitar cierre inmediato -->
   <script>
-  (function bootstrapPSCUser(){
-    const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s||'');
+  (function(){
     try{
-      const qs = new URL(location.href).searchParams.get('user');
-      const pscUser = (window.PSC && window.PSC.user && window.PSC.user.email) || null;
-      const pscLegacy = (typeof window.PSC_USER === 'string') ? window.PSC_USER :
-                        (window.PSC_USER && (window.PSC_USER.email || window.PSC_USER.mail));
-      const ls = localStorage.getItem('psc_user') || localStorage.getItem('psc_user_email') || localStorage.getItem('email');
-      const cand = [qs, pscUser, pscLegacy, ls].find(isEmail) || null;
-      if (cand) {
-        try { localStorage.setItem('psc_user', cand); } catch {}
-        window.PSC = window.PSC || {};
-        window.PSC.user = { email: cand };
+      var qs=new URL(location.href).searchParams.get('user');
+      var p1=(window.PSC&&window.PSC.user&&window.PSC.user.email)||null;
+      var p2=(typeof window.PSC_USER==='string')?window.PSC_USER:(window.PSC_USER&&(window.PSC_USER.email||window.PSC_USER.mail));
+      var p3=localStorage.getItem('psc_user')||localStorage.getItem('psc_user_email')||localStorage.getItem('email');
+      var cand=[qs,p1,p2,p3].find(function(x){return x&&x.indexOf('@')>0;})||null;
+      if(cand){
+        try{localStorage.setItem('psc_user',cand);}catch(e){}
+        window.PSC=window.PSC||{};
+        window.PSC.user={email:cand};
       }
-    } catch(e){}
+    }catch(e){}
   })();
   </script>
   <script src="./guard.js" defer></script>
@@ -161,13 +159,12 @@
   const API_KEY  = CFG.apikey || CFG.anon || CFG.anonKey || '';
   const FUNCS    = (CFG.functionsBase||'').replace(/\/$/,'');
 
-  // Detectar email de usuario del login global
+  // Detectar email de usuario del login global (tolerante)
   function detectUserEmail(){
-    const fromPSC = window.PSC && window.PSC.user && window.PSC.user.email;
-    const fromUser = (typeof window.PSC_USER === 'string') ? window.PSC_USER
-                     : (window.PSC_USER && (window.PSC_USER.email||window.PSC_USER.mail));
-    const fromLS = localStorage.getItem('psc_user') || localStorage.getItem('psc_user_email') || localStorage.getItem('email');
-    const fromQS = new URLSearchParams(location.search).get('user');
+    var fromPSC = window.PSC && window.PSC.user && window.PSC.user.email;
+    var fromUser = (typeof window.PSC_USER === 'string') ? window.PSC_USER : (window.PSC_USER && (window.PSC_USER.email||window.PSC_USER.mail));
+    var fromLS = localStorage.getItem('psc_user') || localStorage.getItem('psc_user_email') || localStorage.getItem('email');
+    var fromQS = new URLSearchParams(location.search).get('user');
     return (fromPSC||fromUser||fromLS||fromQS||'').trim();
   }
 
@@ -208,25 +205,23 @@
   function minimalNormalize(code){
     if(code==null) return '';
     let s = String(code);
-    // Reglas mínimas: quitar sufijos/ruido y barras
     s = s.replace(/\]c1|\+c1|\]|\|/gi,'');
     s = s.replace(/[\\\/]+/g,' '); // cubrir / y \\ en cualquier posición
-    return s.trim(); // trim solo extremos
+    return s.trim();
   }
 
   function parsePasted(text){
     const out=[];
     const lines = String(text||'').split(/\r?\n/).filter(l=>l.trim());
     for(const ln of lines){
-      // Separar por tab o por múltiples espacios
       const parts = ln.split(/\t|\s{2,}/).map(s=>s.trim());
       if(!parts.length) continue;
-      const code = parts[0]||'';               // 1a col: código
-      const pesoStr = (parts[parts.length-1]||'').replace(',', '.'); // última col: peso
+      const code = parts[0]||'';
+      const pesoStr = (parts[parts.length-1]||'').replace(',', '.');
       const peso = pesoStr && !isNaN(Number(pesoStr)) ? Number(pesoStr) : null;
-      const original = code;                    // tal cual viene
-      const corrected = minimalNormalize(code); // limpieza mínima
-      const status = 'Centro de Dist. PSC';     // por defecto
+      const original = code;
+      const corrected = minimalNormalize(code);
+      const status = 'Centro de Dist. PSC';
       out.push({ original, corrected, weight:peso, status, account:getSelectedAccount(), isML:false, isDup:false });
     }
     return out;
@@ -282,7 +277,7 @@
       const chunks = chunk(list, 100);
       const found = new Set();
       for(const ch of chunks){
-        const quoted = ch.map(v=>`"${v.replaceAll('"','\\"')}"`).join(',');
+        const quoted = ch.map(v=>`\"${v.replaceAll('"','\\"')}\"`).join(',');
         const url = `/rest/v1/trackings?select=tracking_corrected&tracking_corrected=in.(${encodeURIComponent(quoted)})&ml=is.true`;
         const js = await rest(url, { method:'GET' });
         (js||[]).forEach(row=>{ if(row.tracking_corrected) found.add(row.tracking_corrected) });
@@ -329,7 +324,7 @@
         }
       }
 
-      // 2) Insertar NO-ML (bulk, todo de una; duplicados permitidos)
+      // 2) Insertar NO-ML (bulk, duplicados permitidos)
       let inserted = 0;
       if(newRows.length){
         toast(`Insertando ${newRows.length} nuevos…`);
