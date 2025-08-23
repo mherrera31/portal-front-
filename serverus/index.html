@@ -234,23 +234,24 @@
     .limit(100);
 
   q = (q || "").trim();
-  if (!q) return renderEmpty(); // vacío hasta buscar
+if (!q) return renderEmpty();
 
-  const like = `*${q}*`;
-  const ors = [
-    `nombre.ilike.${like}`,
-    `email.ilike.${like}`,
-    `telefono.ilike.${like}`,
-    `sucursal.ilike.${like}`,
-    `direccion.ilike.${like}`
-  ];
+const like = `*${q}*`;
+const ors = [
+  `nombre.ilike.${like}`,
+  `email.ilike.${like}`,
+  `telefono.ilike.${like}`,
+  `sucursal.ilike.${like}`,
+  `direccion.ilike.${like}`
+];
+
 
   const n = Number(q);
-  if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
-
+if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
+      
   // 👇 paréntesis explícitos
-  query = query.or(`(${ors.join(',')})`);
-
+  query = query.or(ors.join(','));
+      
   const { data, error } = await query;
   if (error) {
     console.error(error);
