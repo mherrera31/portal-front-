@@ -269,8 +269,6 @@
       map.set(row.id, row);
     }
   }
-      window.cargarClientes = cargarClientes;
-
 
   const rows = Array.from(map.values())
     // orden aproximado por created_at no disponible aquí; si lo necesitas, añade created_at a 'cols'
@@ -280,6 +278,7 @@
   renderRows(rows);
 }
 
+window.cargarClientes = cargarClientes;
 
     // ===== Crear / Editar =====
     function resetModal(){
