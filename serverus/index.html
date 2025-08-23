@@ -158,8 +158,10 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+    // ===== Config =====
     const sb = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
 
+    // ===== Utils =====
     const $  = (s, p=document) => p.querySelector(s);
     const $$ = (s, p=document) => [...p.querySelectorAll(s)];
     const norm      = s => (s||"").trim();
@@ -170,15 +172,17 @@
     };
     const escapeHtml = (s) =>
       String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-    function fmtNum(n){ if(n==null) return ""; try {return Number(n).toFixed(2);} catch { return String(n);} }
+    const fmtNum = (n) => (n==null ? "" : (Number(n).toFixed(2)));
     function fmtDate(iso){
       if(!iso) return "";
       try {
         const d = new Date(iso);
-        return d.toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" });
+        // DD/MM/YY
+        return d.toLocaleDateString("es-PA", { day:"2-digit", month:"2-digit", year:"2-digit" });
       } catch { return iso; }
     }
 
+    // ===== Refs DOM =====
     const tableBody   = document.querySelector("table tbody");
     const inputQ      = $('#q');
     const btnBuscar   = $('#btnBuscar');
@@ -188,30 +192,49 @@
     const fltSucursal = $('#fltSucursal');
     const fltSource   = $('#fltSource');
     const fltBox      = $('#fltBox');
-    const fldSucursal = $('#sucursal');
-    const form        = $('#formCliente');
-    const modalTitle  = $('#modalTitle');
-    const modal       = new bootstrap.Modal($('#modalCliente'));
 
-    // Sucursales
+    const modalEl     = document.getElementById('modalCliente');
+    const modal       = new bootstrap.Modal(modalEl);
+    const form        = document.getElementById('formCliente');
+    const modalTitle  = document.getElementById('modalTitle');
+    const fldNombre   = document.getElementById('nombre');
+    const fldEmail    = document.getElementById('email');
+    const fldTel      = document.getElementById('telefono');
+    const fldFecha    = document.getElementById('fecha_nac');
+    const fldTar1     = document.getElementById('tarifa1');
+    const fldTar2     = document.getElementById('tarifa2');
+    const fldTar3     = document.getElementById('tarifa3');
+    const fldDir      = document.getElementById('direccion');
+    const fldSucursal = document.getElementById('sucursal');
+
+    let editingId = null;
+
+    // ===== Sucursales (nombre) =====
     async function cargarSucursales() {
       fldSucursal.innerHTML = "<option value=''>Cargando...</option>";
       fltSucursal.innerHTML = "<option value=''>Todas</option>";
-      const { data, error } = await sb.from("sucursales").select("id,sucursal").order("sucursal");
-      if (error) return;
+      const { data, error } = await sb.from("sucursales").select("sucursal").order("sucursal");
+      if (error) {
+        console.error(error);
+        fldSucursal.innerHTML = "<option value=''>Error</option>";
+        return;
+      }
       fldSucursal.innerHTML = "<option value=''>Seleccione sucursal</option>";
-      for (const row of (data||[])) {
+      for (const row of (data || [])) {
+        const name = row.sucursal;
         const opt1 = document.createElement("option");
-        opt1.value = row.sucursal; // nombre en vez de id
-        opt1.textContent = row.sucursal;
+        opt1.value = name;
+        opt1.textContent = name;
         fldSucursal.appendChild(opt1);
+
         const opt2 = document.createElement("option");
-        opt2.value = row.sucursal;
-        opt2.textContent = row.sucursal;
+        opt2.value = name;
+        opt2.textContent = name;
         fltSucursal.appendChild(opt2);
       }
     }
 
+    // ===== Render =====
     function renderEmpty(msg="No hay clientes.") {
       tableBody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-muted">${msg}</td></tr>`;
     }
@@ -231,24 +254,35 @@
           <td>${fmtNum(r.tarifa_1)}</td>
           <td>${fmtNum(r.tarifa_2)}</td>
           <td>${fmtNum(r.tarifa_3)}</td>
-          <td>...</td>
+          <td>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-primary" data-edit="${r.id}">Editar</button>
+              <button class="btn btn-sm btn-danger"  data-del="${r.id}">Eliminar</button>
+            </div>
+          </td>
         </tr>
       `).join("");
+
+      $$("button[data-edit]").forEach(b => b.addEventListener("click", () => abrirEditar(b.dataset.edit)));
+      $$("button[data-del]").forEach(b => b.addEventListener("click", () => eliminar(b.dataset.del)));
     }
 
-    async function cargarClientes(q="") {
-      let query = sb.from("clientes")
-        .select("id,created_at,box,nombre,email,telefono,sucursal,source,direccion,tarifa_1,tarifa_2,tarifa_3")
-        .order("created_at",{ascending:false})
-        .limit(200);
+    // ===== Listar/Buscar con filtros =====
+    async function cargarClientes(q = "") {
+      const cols = "id,created_at,box,nombre,email,telefono,sucursal,source,direccion,tarifa_1,tarifa_2,tarifa_3";
+      let query = sb.from("clientes").select(cols, { count: "exact" }).order("created_at",{ascending:false}).limit(200);
 
-      if (fltDesde.value) query = query.gte("created_at", `${fltDesde.value}T00:00:00Z`);
-      if (fltHasta.value) query = query.lte("created_at", `${fltHasta.value}T23:59:59Z`);
+      // filtros
+      const d = fltDesde.value ? `${fltDesde.value}T00:00:00Z` : null;
+      const h = fltHasta.value ? `${fltHasta.value}T23:59:59Z` : null;
+      if (d) query = query.gte("created_at", d);
+      if (h) query = query.lte("created_at", h);
       if (fltSucursal.value) query = query.eq("sucursal", fltSucursal.value);
-      if (fltSource.value) query = query.eq("source", fltSource.value);
-      if (fltBox.value) query = query.eq("box", Number(fltBox.value));
+      if (fltSource.value)   query = query.eq("source", fltSource.value);
+      if (fltBox.value)      query = query.eq("box", Number(fltBox.value));
 
-      q = q.trim();
+      // búsqueda específica
+      q = (q || "").trim();
       if (q) {
         const like = `%${q}%`;
         query = query.or([
@@ -261,10 +295,109 @@
 
       const { data, error } = await query;
       if (error) { console.error(error); return renderEmpty("Error cargando."); }
-      renderRows(data||[]);
+      if ((!data || data.length === 0) && !q) return renderEmpty("No hay clientes con esos filtros.");
+      renderRows(data || []);
     }
 
-    document.addEventListener("DOMContentLoaded", async ()=>{
+    // ===== Crear / Editar / Eliminar =====
+    function resetModal(){
+      editingId = null;
+      modalTitle.textContent = "Crear cliente";
+      form.reset();
+      fldSucursal.value = "";
+    }
+
+    async function abrirEditar(id){
+      const { data, error } = await sb.from("clientes")
+        .select("id,created_at,box,nombre,email,telefono,fecha_nac,direccion,sucursal,source,tarifa_1,tarifa_2,tarifa_3")
+        .eq("id", id).single();
+
+      if (error) { console.error(error); return alert("No se pudo cargar el cliente."); }
+
+      editingId = id;
+      modalTitle.textContent = `Editar cliente (Box ${data.box ?? "-"})`;
+      fldNombre.value = data.nombre || "";
+      fldEmail.value  = data.email || "";
+      fldTel.value    = data.telefono || "";
+      fldFecha.value  = data.fecha_nac || "";
+      fldTar1.value   = data.tarifa_1 ?? "";
+      fldTar2.value   = data.tarifa_2 ?? "";
+      fldTar3.value   = data.tarifa_3 ?? "";
+      fldDir.value    = data.direccion || "";
+      fldSucursal.value = data.sucursal || "";
+      modal.show();
+    }
+
+    async function correoExiste(email, excluirId=null){
+      // email normalizado en minúscula
+      const em = (email||"").toLowerCase().trim();
+      if (!em) return false;
+      let q = sb.from("clientes").select("id").eq("email", em).limit(1);
+      if (excluirId) q = q.neq("id", excluirId);
+      const { data, error } = await q.maybeSingle();
+      if (error && error.code !== "PGRST116") { console.error(error); }
+      return !!(data && data.id);
+    }
+
+    form?.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const payload = {
+        nombre:    norm(fldNombre.value),
+        email:     normEmail(fldEmail.value),
+        telefono:  norm(fldTel.value) || null,
+        fecha_nac: fldFecha.value || null,
+        tarifa_1:  toNum(fldTar1.value),
+        tarifa_2:  toNum(fldTar2.value),
+        tarifa_3:  toNum(fldTar3.value),
+        direccion: norm(fldDir.value) || null,
+        // sucursal por nombre
+        sucursal:  fldSucursal.value || null,
+        source:    "staff"
+      };
+
+      if (!payload.nombre || !payload.email || !payload.sucursal) {
+        return alert("Nombre, Email y Sucursal son obligatorios.");
+      }
+
+      // 🔒 Bloqueo de duplicado en front
+      const dup = await correoExiste(payload.email, editingId);
+      if (dup) {
+        return alert("Este email ya está registrado. No se puede duplicar.");
+      }
+
+      let err;
+      if (editingId) {
+        const { error } = await sb.from("clientes").update(payload, { returning: "minimal" }).eq("id", editingId);
+        err = error;
+      } else {
+        const { error } = await sb.from("clientes").insert(payload, { returning: "minimal" });
+        err = error;
+      }
+
+      if (err) {
+        console.error(err);
+        if (err.code === "23505") alert("Este email ya está registrado (único).");
+        else alert(err.message || "Error al guardar");
+        return;
+      }
+
+      modal.hide();
+      await cargarClientes(document.getElementById('q').value);
+      alert("Guardado ✅");
+    });
+
+    async function eliminar(id){
+      if (!confirm("¿Eliminar este cliente? Esta acción no se puede deshacer.")) return;
+      const { error } = await sb.from("clientes").delete().eq("id", id);
+      if (error) { console.error(error); return alert(error.message || "No se pudo eliminar"); }
+      await cargarClientes(document.getElementById('q').value);
+      alert("Eliminado 🗑️");
+    }
+
+    // ===== Eventos =====
+    document.addEventListener("DOMContentLoaded", async () => {
+      document.getElementById('btnNuevo')?.addEventListener('click', resetModal);
+
       btnBuscar.addEventListener("click", ()=>cargarClientes(inputQ.value));
       btnLimpiar.addEventListener("click", ()=>{
         fltDesde.value="";fltHasta.value="";fltSucursal.value="";fltSource.value="";fltBox.value="";inputQ.value="";
@@ -273,12 +406,15 @@
       [fltDesde,fltHasta,fltSucursal,fltSource,fltBox].forEach(el=>{
         el.addEventListener("change",()=>cargarClientes(inputQ.value));
       });
+
       await cargarSucursales();
-      await cargarClientes();
+      await cargarClientes(); // lista todo al cargar
     });
   </script>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
 
 
