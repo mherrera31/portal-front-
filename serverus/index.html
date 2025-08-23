@@ -227,7 +227,6 @@
     }
 
     async function cargarClientes(q=""){
-  // columnas que pinta la tabla
   let query = sb
     .from("clientes")
     .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
@@ -235,10 +234,9 @@
     .limit(100);
 
   q = (q || "").trim();
-  if (!q) return renderEmpty(); // vacío hasta que busques
+  if (!q) return renderEmpty(); // vacío hasta buscar
 
-  // armar OR correctamente
-  const like = `%${q}%`;
+  const like = `*${q}*`;
   const ors = [
     `nombre.ilike.${like}`,
     `email.ilike.${like}`,
@@ -247,11 +245,11 @@
     `direccion.ilike.${like}`
   ];
 
-  // si es entero, buscar box exacto también
   const n = Number(q);
   if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
 
-  query = query.or(ors.join(','));
+  // 👇 paréntesis explícitos
+  query = query.or(`(${ors.join(',')})`);
 
   const { data, error } = await query;
   if (error) {
