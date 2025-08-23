@@ -126,7 +126,7 @@
 
   <div class="loading" id="loading"><div class="spinner"></div></div>
 
-  <!-- Dependencias del portal — ORDEN como el original -->
+  <!-- Dependencias del portal (login del viejo: guard antes de portal) -->
   <script src="./config.js"></script>
   <script src="./guard.js"></script>
   <script src="./portal.js"></script>
@@ -192,7 +192,7 @@
     let s = String(code);
     // Reglas mínimas: quitar sufijos/ruido y barras
     s = s.replace(/\]c1|\+c1|\]|\|/gi,'');
-    s = s.replace(/[\\\/] /g,' '); // reemplazar \/ o / por espacio
+    s = s.replace(/[\\\/]+/g,' '); // reemplazar / o \ por espacio
     return s.trim(); // trim solo extremos
   }
 
@@ -292,12 +292,12 @@
       if(!rows.length){ toast('No hay filas para guardar.', 'err'); return }
       $('#btnSave').disabled = true; showLoading(true); toast('Creando lote…');
 
-      // Crear lote (REST)
+      // Crear lote (REST) -> usa columnas reales
       const expected = rows.length;
       const batch = await rest(`/rest/v1/upload_batches`, {
         method:'POST',
         headers:{ 'Prefer':'return=representation' },
-        body: [{ expected_rows: expected, user: email, account }]
+        body: [{ expected_rows: expected, created_by_email: email, cuenta: account }]
       });
       batchId = (batch && batch[0] && (batch[0].id||batch[0].batch_id)) || null;
       $('#batchInfo').textContent = batchId || '—';
@@ -306,20 +306,20 @@
       const mlRows = rows.filter(r=>r.isML);
       const newRows = rows.filter(r=>!r.isML);
 
-      // 1) Actualizar ML (parcial, uno por uno porque cada weight/batch puede variar)
+      // 1) Actualizar ML (parcial, uno por uno)
       let updatedML=0;
       if(mlRows.length){
         toast(`Actualizando ${mlRows.length} ML…`);
         for(const r of mlRows){
-          // PATCH por tracking_corrected exacto (forzando exported=false y cuenta)
-          const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}`;
+          // SOLO ml=true
+          const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}&ml=is.true`;
           const body = { weight_lbs: r.weight, batch_id: batchId, status: 'Centro de Dist. PSC', cuenta: account, exported: false };
           await rest(path, { method:'PATCH', body, headers:{ 'Prefer':'return=representation' } });
           updatedML++;
         }
       }
 
-      // 2) Insertar NO-ML (bulk, todo de una; se permiten duplicados)
+      // 2) Insertar NO-ML (bulk, duplicados permitidos)
       let inserted = 0;
       if(newRows.length){
         toast(`Insertando ${newRows.length} nuevos…`);
@@ -332,7 +332,6 @@
           cuenta: account,
           exported: false,
         }));
-        // Nota: si alguna fila falla, PostgREST aborta el bulk -> nada insertado
         const ins = await rest(`/rest/v1/trackings`, {
           method:'POST',
           headers:{ 'Prefer':'return=representation' },
