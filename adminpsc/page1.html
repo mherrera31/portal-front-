@@ -3,18 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PSC · Cargar corte (simple, Postgres REST)</title>
+  <title>PSC · Cargar corte (PostgREST, sin login)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root{
       --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb;
-      --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; --sel:#2325d4;
+      --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111;
     }
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    /* NAV */
     .nav{position:sticky;top:0;z-index:100;background:var(--card);border-bottom:1px solid var(--border)}
     .navin{max-width:1100px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;gap:12px;justify-content:space-between}
     .brand{font-weight:700}
@@ -28,7 +27,6 @@
     .controls label{font-size:12px;color:var(--muted)}
     .btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;cursor:pointer;font-weight:600}
     .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-    .btn.warn{background:#fff3; border-color:var(--warn); color:var(--warn)}
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     textarea.paste{width:100%;min-height:160px;border:1px dashed var(--border);border-radius:16px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;outline:none}
     .hint{font-size:12px;color:var(--muted)}
@@ -37,8 +35,8 @@
     thead th{position:sticky;top:0;background:#fff;font-size:12px;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);padding:10px}
     tbody td{padding:10px;border-bottom:1px solid #f1f2f4;font-size:13px}
     tbody tr:nth-child(even){background:#fafafa}
-    tbody tr.ml{background:#fff8cc} /* amarillo preview */
-    tbody tr.dup{background:#ffe8e8} /* duplicado (rojo suave) */
+    tbody tr.ml{background:#fff8cc}
+    tbody tr.dup{background:#ffe8e8}
     .badge{border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px}
     .badge.ml{border-color:#facc15;color:#8a6a00;background:#fef9c3}
     .badge.dup{border-color:#ef4444;color:#9f1239;background:#ffe4e6}
@@ -58,7 +56,7 @@
   </style>
 </head>
 <body>
-  <!-- Navegador superior -->
+  <!-- Top bar -->
   <nav class="nav">
     <div class="navin">
       <div class="brand">PSC · Portal</div>
@@ -100,7 +98,11 @@
       <div>
         <div style="font-weight:600;margin-bottom:6px">Pegar tabla de factura</div>
         <textarea id="txtPaste" class="paste" placeholder="Pega aquí…"></textarea>
-        <div class="hint">Se detecta: <b>tracking_original</b> (código) y <b>weight_lbs</b> (peso). La vista previa marca <span class="badge ml">ML</span> en amarillo y <span class="badge dup">DUP</span> en rojo (solo aviso).</div>
+        <div class="hint">
+          Se detecta: <b>tracking_original</b> (código) y <b>weight_lbs</b> (peso).
+          La vista previa marca <span class="badge ml">ML</span> en amarillo y
+          <span class="badge dup">DUP</span> en rojo (solo aviso).
+        </div>
       </div>
       <div id="toast" class="toast"></div>
       <div style="margin-top:6px" class="small">Lote: <span id="batchInfo">—</span></div>
@@ -126,44 +128,38 @@
 
   <div class="loading" id="loading"><div class="spinner"></div></div>
 
-  <!-- Dependencias del portal — ORDEN correcto para el login -->
+  <!-- Solo config.js (sin guard ni portal) -->
   <script src="./config.js"></script>
-  <script src="./guard.js"></script>
-  <script src="./portal.js"></script>
 
   <script>
-  // ============ Utiles de UI ============
+  // ===== Utilidades UI =====
   const $ = (s)=>document.querySelector(s);
   const $$ = (s)=>Array.from(document.querySelectorAll(s));
   const showLoading = (on)=> $('#loading').classList.toggle('show', !!on);
   const toast = (msg, type='')=>{ const t=$('#toast'); t.className='toast '+type; t.textContent=msg||'' }
 
-  // ============ Config y sesión ============
+  // ===== Config desde config.js =====
   const CFG = window.PSC_CONFIG || {};
-  const API_BASE = (CFG.url||'').replace(/\/$/,''); // https://xxxx.supabase.co
-  const API_KEY  = CFG.apikey || CFG.anon || CFG.anonKey || '';
+  const API_BASE = (CFG.url||'').replace(/\/$/,'');         // https://xxxx.supabase.co
+  const API_KEY  = CFG.apikey || CFG.anonKey || CFG.anon || '';
   const FUNCS    = (CFG.functionsBase||'').replace(/\/$/,'');
+  const USER_EMAIL = (CFG.userEmail || (CFG.user && CFG.user.email) || CFG.email || '').trim();
 
-  // Detectar email de usuario del login global
-  function detectUserEmail(){
-    const fromPSC = window.PSC && window.PSC.user && window.PSC.user.email;
-    const fromUser = window.PSC_USER && (window.PSC_USER.email||window.PSC_USER.mail);
-    const fromLS = localStorage.getItem('psc_user');
-    const fromQS = new URLSearchParams(location.search).get('user');
-    return (fromPSC||fromUser||fromLS||fromQS||'').trim();
+  // Mostrar usuario (solo informativo)
+  $('#userEmail').textContent = USER_EMAIL || '—';
+
+  // ===== Helpers =====
+  function needConfig(){
+    if(!API_BASE || !API_KEY) throw new Error('Falta PSC_CONFIG.url o PSC_CONFIG.apikey en config.js');
   }
-
-  // Cuenta seleccionada (persistida)
   function getSelectedAccount(){
     const v = (localStorage.getItem('psc_account')||'').trim();
     if(v){ const el = document.querySelector(`input[name=account][value="${v}"]`); if(el) el.checked=true; }
     return document.querySelector('input[name=account]:checked')?.value||'';
   }
   function setSelectedAccount(v){ localStorage.setItem('psc_account', v||''); $('#statAccount').textContent=v||'—'; }
-
-  // Wrapper de fetch a PostgREST
   async function rest(path, {method='GET', body, headers={}}={}){
-    if(!API_BASE||!API_KEY) throw new Error('Falta PSC_CONFIG.url o PSC_CONFIG.apikey en config.js');
+    needConfig();
     const res = await fetch(`${API_BASE}${path}`,{
       method,
       headers:{
@@ -175,45 +171,44 @@
       body: body? JSON.stringify(body): undefined
     });
     if(!res.ok){
-      let detail=''; try{ detail = await res.text() }catch(_){/*noop*/}
+      let detail=''; try{ detail = await res.text() }catch(_){}
       throw new Error(`HTTP ${res.status} ${res.statusText} ${detail||''}`);
     }
     const ct=res.headers.get('content-type')||'';
-    if(ct.includes('application/json')) return res.json();
-    return res;
+    return ct.includes('application/json') ? res.json() : res;
   }
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+  function chunk(arr, size){ const res=[]; for(let i=0;i<arr.length;i+=size) res.push(arr.slice(i,i+size)); return res; }
 
-  // ============ Parsing & Preview ============
+  // ===== Parsing & Preview =====
   let rows = [];    // {original, corrected, weight, status, account, isML, isDup}
   let parsing = false, mlChecking = false, batchId = null;
 
   function minimalNormalize(code){
     if(code==null) return '';
     let s = String(code);
-    // Reglas mínimas: quitar sufijos/ruido y barras
     s = s.replace(/\]c1|\+c1|\]|\|/gi,'');
-    s = s.replace(/[\\\/]+/g,' '); // reemplazar / o \ por espacio (todas)
-    return s.trim(); // trim solo extremos
+    s = s.replace(/[\\\/]+/g,' ');   // <- reemplaza TODAS las barras
+    return s.trim();
   }
-
   function parsePasted(text){
     const out=[];
     const lines = String(text||'').split(/\r?\n/).filter(l=>l.trim());
     for(const ln of lines){
-      // Separar por tab o por múltiples espacios
       const parts = ln.split(/\t|\s{2,}/).map(s=>s.trim());
       if(!parts.length) continue;
-      const code = parts[0]||'';               // 1a col: código
-      const pesoStr = (parts[parts.length-1]||'').replace(',', '.'); // última col: peso
+      const code = parts[0]||'';
+      const pesoStr = (parts[parts.length-1]||'').replace(',', '.');
       const peso = pesoStr && !isNaN(Number(pesoStr)) ? Number(pesoStr) : null;
-      const original = code;                    // tal cual viene
-      const corrected = minimalNormalize(code); // limpieza mínima
-      const status = 'Centro de Dist. PSC';     // por defecto
+      const original = code;
+      const corrected = minimalNormalize(code);
+      const status = 'Centro de Dist. PSC';
       out.push({ original, corrected, weight:peso, status, account:getSelectedAccount(), isML:false, isDup:false });
     }
     return out;
   }
-
   function markDuplicates(){
     const counts = new Map();
     for(const r of rows){
@@ -222,7 +217,6 @@
     }
     rows = rows.map(r=>({ ...r, isDup: (r.corrected && counts.get(r.corrected)>1) }));
   }
-
   function renderTable(){
     const tb = $('#tbody'); tb.innerHTML='';
     rows.forEach((r,i)=>{
@@ -246,24 +240,14 @@
     $('#statRows').textContent = String(rows.length);
     $('#statML').textContent = String(rows.filter(x=>x.isML).length);
     $('#statDup').textContent = String(rows.filter(x=>x.isDup).length);
-    // Habilitar Guardar solo si no estamos parseando/chequeando y hay cuenta y filas
-    const okReady = !parsing && !mlChecking && rows.length>0 && getSelectedAccount();
+    const okReady = !parsing && !mlChecking && rows.length>0 && getSelectedAccount() && USER_EMAIL;
     $('#btnSave').disabled = !okReady;
-  }
-
-  function escapeHtml(s){
-    return String(s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-  }
-
-  function chunk(arr, size){
-    const res=[]; for(let i=0;i<arr.length;i+=size) res.push(arr.slice(i,i+size)); return res;
   }
 
   async function checkMLPreview(){
     if(!rows.length) return;
     mlChecking = true; showLoading(true); toast('Chequeando ML…');
     try{
-      // Lista única de corrected
       const list = Array.from(new Set(rows.map(r=>r.corrected).filter(Boolean)));
       const chunks = chunk(list, 100);
       const found = new Set();
@@ -275,29 +259,25 @@
       }
       rows = rows.map(r=>({ ...r, isML: found.has(r.corrected) }));
       toast('Vista previa lista. ML en amarillo, duplicados en rojo.', 'ok');
-    }catch(e){
-      console.error(e); toast('No se pudo chequear ML: '+e.message, 'err');
-    }finally{
-      mlChecking = false; markDuplicates(); showLoading(false); renderTable();
-    }
+    }catch(e){ console.error(e); toast('No se pudo chequear ML: '+e.message, 'err'); }
+    finally{ mlChecking = false; markDuplicates(); showLoading(false); renderTable(); }
   }
 
-  // ============ Guardar (crear lote + insertar + actualizar ML) ============
+  // ===== Guardar (crear lote + insertar + actualizar ML) =====
   async function saveAll(){
     try{
-      const email = detectUserEmail();
-      if(!email){ toast('No hay usuario logueado.', 'err'); return }
+      if(!USER_EMAIL){ toast('Configura PSC_CONFIG.userEmail en config.js', 'err'); return }
       const account = getSelectedAccount();
       if(!account){ toast('Selecciona la cuenta (PSC / C10PA).', 'err'); return }
       if(!rows.length){ toast('No hay filas para guardar.', 'err'); return }
       $('#btnSave').disabled = true; showLoading(true); toast('Creando lote…');
 
-      // Crear lote (REST)
+      // Crear lote (usa columnas reales: created_by_email, cuenta)
       const expected = rows.length;
       const batch = await rest(`/rest/v1/upload_batches`, {
         method:'POST',
         headers:{ 'Prefer':'return=representation' },
-        body: [{ expected_rows: expected, user: email, account }]
+        body: [{ expected_rows: expected, created_by_email: USER_EMAIL, cuenta: account }]
       });
       batchId = (batch && batch[0] && (batch[0].id||batch[0].batch_id)) || null;
       $('#batchInfo').textContent = batchId || '—';
@@ -306,20 +286,19 @@
       const mlRows = rows.filter(r=>r.isML);
       const newRows = rows.filter(r=>!r.isML);
 
-      // 1) Actualizar ML (parcial, uno por uno porque cada weight/batch puede variar)
+      // 1) Actualizar ML (solo donde ml IS TRUE)
       let updatedML=0;
       if(mlRows.length){
         toast(`Actualizando ${mlRows.length} ML…`);
         for(const r of mlRows){
-          // PATCH por tracking_corrected exacto, y SOLO filas ml=true
           const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}&ml=is.true`;
           const body = { weight_lbs: r.weight, batch_id: batchId, status: 'Centro de Dist. PSC', cuenta: account, exported: false };
-          await rest(path, { method:'PATCH', body, headers:{ 'Prefer':'return=representation' } });
-          updatedML++;
+          const rep = await rest(path, { method:'PATCH', body, headers:{ 'Prefer':'return=representation' } });
+          if (Array.isArray(rep) && rep.length>0) updatedML++;
         }
       }
 
-      // 2) Insertar NO-ML (bulk, todo de una; se permiten duplicados)
+      // 2) Insertar NO-ML (duplicados permitidos)
       let inserted = 0;
       if(newRows.length){
         toast(`Insertando ${newRows.length} nuevos…`);
@@ -332,7 +311,6 @@
           cuenta: account,
           exported: false,
         }));
-        // Nota: si alguna fila falla, PostgREST aborta el bulk -> nada insertado
         const ins = await rest(`/rest/v1/trackings`, {
           method:'POST',
           headers:{ 'Prefer':'return=representation' },
@@ -342,16 +320,11 @@
       }
 
       toast(`Listo. Insertados ${inserted}, ML actualizados ${updatedML}.`, 'ok');
-    }catch(e){
-      console.error(e);
-      toast('Error guardando: '+e.message, 'err');
-    }finally{
-      showLoading(false);
-      renderTable();
-    }
+    }catch(e){ console.error(e); toast('Error guardando: '+e.message, 'err'); }
+    finally{ showLoading(false); renderTable(); }
   }
 
-  // ============ Exportar (edge existente) ============
+  // ===== Exportar (edge opcional) =====
   async function exportToday(){
     if(!FUNCS){ toast('Falta PSC_CONFIG.functionsBase', 'err'); return }
     try{
@@ -361,51 +334,29 @@
       const blob = await res.blob();
       const exported = res.headers.get('X-Exported-Count') || res.headers.get('x-exported-count') || '0';
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'cargar_corte.xlsx'; a.click();
+      const a = document.createElement('a'); a.href = url; a.download = 'cargar_corte.xlsx'; a.click();
       URL.revokeObjectURL(url);
       toast(`Exportado. Filas: ${exported}`, 'ok');
-    }catch(e){
-      console.error(e); toast('Error exportando: '+e.message, 'err');
-    }finally{
-      $('#btnExport').disabled = false; showLoading(false);
-    }
+    }catch(e){ console.error(e); toast('Error exportando: '+e.message, 'err'); }
+    finally{ $('#btnExport').disabled = false; showLoading(false); }
   }
 
-  // ============ Eventos ============
+  // ===== Eventos =====
   window.addEventListener('DOMContentLoaded', ()=>{
-    $('#userEmail').textContent = detectUserEmail() || '—';
     const a0 = getSelectedAccount(); if(a0) setSelectedAccount(a0);
-
-    // cuenta change
-    $$('input[name=account]').forEach(r=>{
-      r.addEventListener('change', (e)=>{ setSelectedAccount(e.target.value); renderTable(); })
-    });
-
-    // Pegar
+    $$('input[name=account]').forEach(r=>{ r.addEventListener('change', (e)=>{ setSelectedAccount(e.target.value); renderTable(); }) });
     $('#txtPaste').addEventListener('input', async (e)=>{
       parsing = true; showLoading(true); toast('Parseando…');
       try{
         rows = parsePasted(e.target.value);
-        // asociar cuenta actual a todas
         const acc = getSelectedAccount(); rows = rows.map(r=>({...r, account: acc }));
-        markDuplicates();
-        renderTable();
-        // ML preview (asíncrono)
+        markDuplicates(); renderTable();
         await checkMLPreview();
-      } finally {
-        parsing = false; showLoading(false); renderTable();
-      }
+      } finally { parsing = false; showLoading(false); renderTable(); }
     });
-
-    // Guardar
     $('#btnSave').addEventListener('click', saveAll);
-    // Exportar (edge)
     $('#btnExport').addEventListener('click', exportToday);
-    // Limpiar
-    $('#btnClear').addEventListener('click', ()=>{
-      rows=[]; $('#txtPaste').value=''; batchId=null; $('#batchInfo').textContent='—'; toast(''); renderTable();
-    });
+    $('#btnClear').addEventListener('click', ()=>{ rows=[]; $('#txtPaste').value=''; batchId=null; $('#batchInfo').textContent='—'; toast(''); renderTable(); });
 
     renderTable();
   });
