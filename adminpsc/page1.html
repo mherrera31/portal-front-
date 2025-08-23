@@ -8,7 +8,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root{ --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb; --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; --sel:#2325d4; }
+    :root{
+      --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb;
+      --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; --sel:#2325d4;
+    }
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     /* NAV */
@@ -123,28 +126,10 @@
 
   <div class="loading" id="loading"><div class="spinner"></div></div>
 
-  <!-- Dependencias del portal -->
+  <!-- Dependencias del portal | **mismo orden que el original** -->
   <script src="./config.js"></script>
+  <script src="./guard.js"></script>
   <script src="./portal.js"></script>
-
-  <!-- Bootstrap del usuario ANTES del guard para evitar cierre inmediato -->
-  <script>
-  (function(){
-    try{
-      var qs=new URL(location.href).searchParams.get('user');
-      var p1=(window.PSC&&window.PSC.user&&window.PSC.user.email)||null;
-      var p2=(typeof window.PSC_USER==='string')?window.PSC_USER:(window.PSC_USER&&(window.PSC_USER.email||window.PSC_USER.mail));
-      var p3=localStorage.getItem('psc_user')||localStorage.getItem('psc_user_email')||localStorage.getItem('email');
-      var cand=[qs,p1,p2,p3].find(function(x){return x&&x.indexOf('@')>0;})||null;
-      if(cand){
-        try{localStorage.setItem('psc_user',cand);}catch(e){}
-        window.PSC=window.PSC||{};
-        window.PSC.user={email:cand};
-      }
-    }catch(e){}
-  })();
-  </script>
-  <script src="./guard.js" defer></script>
 
   <script>
   // ============ Utiles de UI ============
@@ -159,12 +144,12 @@
   const API_KEY  = CFG.apikey || CFG.anon || CFG.anonKey || '';
   const FUNCS    = (CFG.functionsBase||'').replace(/\/$/,'');
 
-  // Detectar email de usuario del login global (tolerante)
+  // Detectar email de usuario del login global
   function detectUserEmail(){
-    var fromPSC = window.PSC && window.PSC.user && window.PSC.user.email;
-    var fromUser = (typeof window.PSC_USER === 'string') ? window.PSC_USER : (window.PSC_USER && (window.PSC_USER.email||window.PSC_USER.mail));
-    var fromLS = localStorage.getItem('psc_user') || localStorage.getItem('psc_user_email') || localStorage.getItem('email');
-    var fromQS = new URLSearchParams(location.search).get('user');
+    const fromPSC = window.PSC && window.PSC.user && window.PSC.user.email;
+    const fromUser = window.PSC_USER && (window.PSC_USER.email||window.PSC_USER.mail);
+    const fromLS = localStorage.getItem('psc_user');
+    const fromQS = new URLSearchParams(location.search).get('user');
     return (fromPSC||fromUser||fromLS||fromQS||'').trim();
   }
 
@@ -205,23 +190,25 @@
   function minimalNormalize(code){
     if(code==null) return '';
     let s = String(code);
+    // Reglas mínimas: quitar sufijos/ruido y barras
     s = s.replace(/\]c1|\+c1|\]|\|/gi,'');
-    s = s.replace(/[\\\/]+/g,' '); // cubrir / y \\ en cualquier posición
-    return s.trim();
+    s = s.replace(/[\\\/]+/g,' '); // cubrir / y \ en cualquier posición
+    return s.trim(); // trim solo extremos
   }
 
   function parsePasted(text){
     const out=[];
     const lines = String(text||'').split(/\r?\n/).filter(l=>l.trim());
     for(const ln of lines){
+      // Separar por tab o por múltiples espacios
       const parts = ln.split(/\t|\s{2,}/).map(s=>s.trim());
       if(!parts.length) continue;
-      const code = parts[0]||'';
-      const pesoStr = (parts[parts.length-1]||'').replace(',', '.');
+      const code = parts[0]||'';               // 1a col: código
+      const pesoStr = (parts[parts.length-1]||'').replace(',', '.'); // última col: peso
       const peso = pesoStr && !isNaN(Number(pesoStr)) ? Number(pesoStr) : null;
-      const original = code;
-      const corrected = minimalNormalize(code);
-      const status = 'Centro de Dist. PSC';
+      const original = code;                    // tal cual viene
+      const corrected = minimalNormalize(code); // limpieza mínima
+      const status = 'Centro de Dist. PSC';     // por defecto
       out.push({ original, corrected, weight:peso, status, account:getSelectedAccount(), isML:false, isDup:false });
     }
     return out;
@@ -259,6 +246,7 @@
     $('#statRows').textContent = String(rows.length);
     $('#statML').textContent = String(rows.filter(x=>x.isML).length);
     $('#statDup').textContent = String(rows.filter(x=>x.isDup).length);
+    // Habilitar Guardar solo si no estamos parseando/chequeando y hay cuenta y filas
     const okReady = !parsing && !mlChecking && rows.length>0 && getSelectedAccount();
     $('#btnSave').disabled = !okReady;
   }
@@ -267,12 +255,15 @@
     return String(s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   }
 
-  function chunk(arr, size){ const res=[]; for(let i=0;i<arr.length;i+=size) res.push(arr.slice(i,i+size)); return res; }
+  function chunk(arr, size){
+    const res=[]; for(let i=0;i<arr.length;i+=size) res.push(arr.slice(i,i+size)); return res;
+  }
 
   async function checkMLPreview(){
     if(!rows.length) return;
     mlChecking = true; showLoading(true); toast('Chequeando ML…');
     try{
+      // Lista única de corrected
       const list = Array.from(new Set(rows.map(r=>r.corrected).filter(Boolean)));
       const chunks = chunk(list, 100);
       const found = new Set();
@@ -284,8 +275,11 @@
       }
       rows = rows.map(r=>({ ...r, isML: found.has(r.corrected) }));
       toast('Vista previa lista. ML en amarillo, duplicados en rojo.', 'ok');
-    }catch(e){ console.error(e); toast('No se pudo chequear ML: '+e.message, 'err'); }
-    finally{ mlChecking = false; markDuplicates(); showLoading(false); renderTable(); }
+    }catch(e){
+      console.error(e); toast('No se pudo chequear ML: '+e.message, 'err');
+    }finally{
+      mlChecking = false; markDuplicates(); showLoading(false); renderTable();
+    }
   }
 
   // ============ Guardar (crear lote + insertar + actualizar ML) ============
@@ -298,7 +292,7 @@
       if(!rows.length){ toast('No hay filas para guardar.', 'err'); return }
       $('#btnSave').disabled = true; showLoading(true); toast('Creando lote…');
 
-      // Crear lote (REST) con columnas reales
+      // Crear lote (REST) con tus columnas reales
       const expected = rows.length;
       const batch = await rest(`/rest/v1/upload_batches`, {
         method:'POST',
@@ -312,11 +306,12 @@
       const mlRows = rows.filter(r=>r.isML);
       const newRows = rows.filter(r=>!r.isML);
 
-      // 1) Actualizar ML (parcial, uno por uno)
+      // 1) Actualizar ML (parcial, uno por uno porque cada weight/batch puede variar)
       let updatedML=0;
       if(mlRows.length){
         toast(`Actualizando ${mlRows.length} ML…`);
         for(const r of mlRows){
+          // PATCH por tracking_corrected exacto y SOLO si ml=true
           const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}&ml=is.true`;
           const body = { weight_lbs: r.weight, batch_id: batchId, status: 'Centro de Dist. PSC', cuenta: account, exported: false };
           await rest(path, { method:'PATCH', body, headers:{ 'Prefer':'return=representation' } });
@@ -324,7 +319,7 @@
         }
       }
 
-      // 2) Insertar NO-ML (bulk, duplicados permitidos)
+      // 2) Insertar NO-ML (bulk, todo de una; se permiten duplicados)
       let inserted = 0;
       if(newRows.length){
         toast(`Insertando ${newRows.length} nuevos…`);
@@ -337,6 +332,7 @@
           cuenta: account,
           exported: false,
         }));
+        // Nota: si alguna fila falla, PostgREST aborta el bulk -> nada insertado
         const ins = await rest(`/rest/v1/trackings`, {
           method:'POST',
           headers:{ 'Prefer':'return=representation' },
@@ -346,8 +342,13 @@
       }
 
       toast(`Listo. Insertados ${inserted}, ML actualizados ${updatedML}.`, 'ok');
-    }catch(e){ console.error(e); toast('Error guardando: '+e.message, 'err'); }
-    finally{ showLoading(false); renderTable(); }
+    }catch(e){
+      console.error(e);
+      toast('Error guardando: '+e.message, 'err');
+    }finally{
+      showLoading(false);
+      renderTable();
+    }
   }
 
   // ============ Exportar (edge existente) ============
@@ -360,11 +361,15 @@
       const blob = await res.blob();
       const exported = res.headers.get('X-Exported-Count') || res.headers.get('x-exported-count') || '0';
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'cargar_corte.xlsx'; a.click();
+      const a = document.createElement('a');
+      a.href = url; a.download = 'cargar_corte.xlsx'; a.click();
       URL.revokeObjectURL(url);
       toast(`Exportado. Filas: ${exported}`, 'ok');
-    }catch(e){ console.error(e); toast('Error exportando: '+e.message, 'err'); }
-    finally{ $('#btnExport').disabled = false; showLoading(false); }
+    }catch(e){
+      console.error(e); toast('Error exportando: '+e.message, 'err');
+    }finally{
+      $('#btnExport').disabled = false; showLoading(false);
+    }
   }
 
   // ============ Eventos ============
@@ -372,24 +377,39 @@
     $('#userEmail').textContent = detectUserEmail() || '—';
     const a0 = getSelectedAccount(); if(a0) setSelectedAccount(a0);
 
-    $$('input[name=account]').forEach(r=>{ r.addEventListener('change', (e)=>{ setSelectedAccount(e.target.value); renderTable(); }) });
+    // cuenta change
+    $$('input[name=account]').forEach(r=>{
+      r.addEventListener('change', (e)=>{ setSelectedAccount(e.target.value); renderTable(); })
+    });
 
+    // Pegar
     $('#txtPaste').addEventListener('input', async (e)=>{
       parsing = true; showLoading(true); toast('Parseando…');
       try{
         rows = parsePasted(e.target.value);
+        // asociar cuenta actual a todas
         const acc = getSelectedAccount(); rows = rows.map(r=>({...r, account: acc }));
-        markDuplicates(); renderTable();
+        markDuplicates();
+        renderTable();
+        // ML preview (asíncrono)
         await checkMLPreview();
-      } finally { parsing = false; showLoading(false); renderTable(); }
+      } finally {
+        parsing = false; showLoading(false); renderTable();
+      }
     });
 
+    // Guardar
     $('#btnSave').addEventListener('click', saveAll);
+    // Exportar (edge)
     $('#btnExport').addEventListener('click', exportToday);
-    $('#btnClear').addEventListener('click', ()=>{ rows=[]; $('#txtPaste').value=''; batchId=null; $('#batchInfo').textContent='—'; toast(''); renderTable(); });
+    // Limpiar
+    $('#btnClear').addEventListener('click', ()=>{
+      rows=[]; $('#txtPaste').value=''; batchId=null; $('#batchInfo').textContent='—'; toast(''); renderTable();
+    });
 
     renderTable();
   });
   </script>
 </body>
 </html>
+
