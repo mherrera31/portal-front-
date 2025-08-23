@@ -238,15 +238,16 @@
 
   const like = `%${q}%`;  // comodín
   const ors = [
-    `nombre.ilike.${like}`,
-    `email.ilike.${like}`,
-    `telefono.ilike.${like}`,
-    `sucursal.ilike.${like}`,
-    `direccion.ilike.${like}`
-  ];
-  const n = Number(q);
-  if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
-
+  `nombre.ilike.${like}`,
+  `email.ilike.${like}`,
+  `telefono.ilike.${like}`,
+  `sucursal.ilike.${like}`,
+  `direccion.ilike.${like}`
+];
+const n = Number(q);
+if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
+query = query.or(ors.join(','));
+      
   console.log("[OR string]", ors.join(','));  // debug: NO debe tener paréntesis
   query = query.or([
   `nombre.ilike.${like}`,
