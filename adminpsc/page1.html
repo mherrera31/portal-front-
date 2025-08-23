@@ -126,7 +126,7 @@
 
   <div class="loading" id="loading"><div class="spinner"></div></div>
 
-  <!-- Dependencias del portal | **mismo orden que el original** -->
+  <!-- Dependencias del portal — ORDEN como el original -->
   <script src="./config.js"></script>
   <script src="./guard.js"></script>
   <script src="./portal.js"></script>
@@ -192,7 +192,7 @@
     let s = String(code);
     // Reglas mínimas: quitar sufijos/ruido y barras
     s = s.replace(/\]c1|\+c1|\]|\|/gi,'');
-    s = s.replace(/[\\\/]+/g,' '); // cubrir / y \ en cualquier posición
+    s = s.replace(/[\\\/] /g,' '); // reemplazar \/ o / por espacio
     return s.trim(); // trim solo extremos
   }
 
@@ -292,12 +292,12 @@
       if(!rows.length){ toast('No hay filas para guardar.', 'err'); return }
       $('#btnSave').disabled = true; showLoading(true); toast('Creando lote…');
 
-      // Crear lote (REST) con tus columnas reales
+      // Crear lote (REST)
       const expected = rows.length;
       const batch = await rest(`/rest/v1/upload_batches`, {
         method:'POST',
         headers:{ 'Prefer':'return=representation' },
-        body: [{ expected_rows: expected, created_by_email: email, cuenta: account }]
+        body: [{ expected_rows: expected, user: email, account }]
       });
       batchId = (batch && batch[0] && (batch[0].id||batch[0].batch_id)) || null;
       $('#batchInfo').textContent = batchId || '—';
@@ -311,8 +311,8 @@
       if(mlRows.length){
         toast(`Actualizando ${mlRows.length} ML…`);
         for(const r of mlRows){
-          // PATCH por tracking_corrected exacto y SOLO si ml=true
-          const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}&ml=is.true`;
+          // PATCH por tracking_corrected exacto (forzando exported=false y cuenta)
+          const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}`;
           const body = { weight_lbs: r.weight, batch_id: batchId, status: 'Centro de Dist. PSC', cuenta: account, exported: false };
           await rest(path, { method:'PATCH', body, headers:{ 'Prefer':'return=representation' } });
           updatedML++;
@@ -412,4 +412,3 @@
   </script>
 </body>
 </html>
-
