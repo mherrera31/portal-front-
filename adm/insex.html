@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PSC · Cargar corte (PostgREST, sin login)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb;
+      --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .nav{position:sticky;top:0;z-index:100;background:var(--card);border-bottom:1px solid var(--border)}
+    .navin{max-width:1100px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;gap:12px;justify-content:space-between}
+    .brand{font-weight:700}
+    .navbtn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600}
+    .wrap{max-width:1100px;margin:16px auto 24px;padding:0 12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.04)}
+    header.card{padding:16px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+    header h1{font-size:18px;margin:0;font-weight:700}
+    .controls{padding:16px}
+    .controls .group{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .controls label{font-size:12px;color:var(--muted)}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    textarea.paste{width:100%;min-height:160px;border:1px dashed var(--border);border-radius:16px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;outline:none}
+    .hint{font-size:12px;color:var(--muted)}
+    .table-wrap{margin-top:14px;border-top:1px solid var(--border)}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#fff;font-size:12px;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);padding:10px}
+    tbody td{padding:10px;border-bottom:1px solid #f1f2f4;font-size:13px}
+    tbody tr:nth-child(even){background:#fafafa}
+    tbody tr.ml{background:#fff8cc}
+    tbody tr.dup{background:#ffe8e8}
+    .badge{border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px}
+    .badge.ml{border-color:#facc15;color:#8a6a00;background:#fef9c3}
+    .badge.dup{border-color:#ef4444;color:#9f1239;background:#ffe4e6}
+    .right{display:flex;gap:8px;align-items:center}
+    .stats{display:flex;gap:14px;align-items:center}
+    .stat{font-size:12px;color:var(--muted)}
+    .stat b{color:var(--fg)}
+    .toast{margin-top:8px;font-size:13px}
+    .toast.ok{color:var(--ok)}
+    .toast.err{color:var(--err)}
+    .loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.6);backdrop-filter:saturate(140%) blur(2px);z-index:50}
+    .loading.show{display:flex}
+    .spinner{width:36px;height:36px;border-radius:50%;border:3px solid #ddd;border-top-color:#333;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .small{font-size:12px;color:var(--muted)}
+    .sep{height:1px;background:var(--border);margin:8px 0}
+  </style>
+</head>
+<body>
+  <!-- Top bar -->
+  <nav class="nav">
+    <div class="navin">
+      <div class="brand">PSC · Portal</div>
+      <div class="right">
+        <button class="navbtn" onclick="history.back()">← Volver</button>
+        <a class="navbtn" href="/">Inicio</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header class="card">
+      <h1>PSC — Cargar corte</h1>
+      <div class="right">
+        <div id="userBox" class="small">Usuario: <b id="userEmail">–</b></div>
+        <div class="stats">
+          <div class="stat">Vista previa: <b id="statRows">0</b></div>
+          <div class="stat">ML detectados: <b id="statML">0</b></div>
+          <div class="stat">Duplicados: <b id="statDup">0</b></div>
+          <div class="stat">Cuenta: <b id="statAccount">–</b></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="card controls" id="controls">
+      <div class="group" style="justify-content:space-between;width:100%">
+        <div>
+          <div style="font-weight:600;margin-bottom:6px">Cuenta</div>
+          <label><input type="radio" name="account" value="PSC"> PSC</label>
+          <label><input type="radio" name="account" value="C10PA"> C10PA</label>
+        </div>
+        <div class="right">
+          <button class="btn" id="btnExport">Exportar hoy</button>
+          <button class="btn" id="btnClear">Limpiar</button>
+          <button class="btn primary" id="btnSave" disabled>Guardar lote</button>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <div>
+        <div style="font-weight:600;margin-bottom:6px">Pegar tabla de factura</div>
+        <textarea id="txtPaste" class="paste" placeholder="Pega aquí…"></textarea>
+        <div class="hint">
+          Se detecta: <b>tracking_original</b> (código) y <b>weight_lbs</b> (peso).
+          La vista previa marca <span class="badge ml">ML</span> en amarillo y
+          <span class="badge dup">DUP</span> en rojo (solo aviso).
+        </div>
+      </div>
+      <div id="toast" class="toast"></div>
+      <div style="margin-top:6px" class="small">Lote: <span id="batchInfo">—</span></div>
+    </div>
+
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:56px">#</th>
+            <th>Original</th>
+            <th>Corregido</th>
+            <th style="width:110px">Peso (lbs)</th>
+            <th style="width:160px">Estado</th>
+            <th style="width:120px">Cuenta</th>
+            <th style="width:80px">ML/DUP</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="loading" id="loading"><div class="spinner"></div></div>
+
+  <!-- Solo config.js (sin guard ni portal) -->
+  <script src="./config.js"></script>
+
+  <script>
+  // ===== Utilidades UI =====
+  const $ = (s)=>document.querySelector(s);
+  const $$ = (s)=>Array.from(document.querySelectorAll(s));
+  const showLoading = (on)=> $('#loading').classList.toggle('show', !!on);
+  const toast = (msg, type='')=>{ const t=$('#toast'); t.className='toast '+type; t.textContent=msg||'' }
+
+  // ===== Config desde config.js =====
+  const CFG = window.PSC_CONFIG || {};
+  const API_BASE = (CFG.url||'').replace(/\/$/,'');         // https://xxxx.supabase.co
+  const API_KEY  = CFG.apikey || CFG.anonKey || CFG.anon || '';
+  const FUNCS    = (CFG.functionsBase||'').replace(/\/$/,'');
+  const USER_EMAIL = (CFG.userEmail || (CFG.user && CFG.user.email) || CFG.email || '').trim();
+
+  // Mostrar usuario (solo informativo)
+  $('#userEmail').textContent = USER_EMAIL || '—';
+
+  // ===== Helpers =====
+  function needConfig(){
+    if(!API_BASE || !API_KEY) throw new Error('Falta PSC_CONFIG.url o PSC_CONFIG.apikey en config.js');
+  }
+  function getSelectedAccount(){
+    const v = (localStorage.getItem('psc_account')||'').trim();
+    if(v){ const el = document.querySelector(`input[name=account][value="${v}"]`); if(el) el.checked=true; }
+    return document.querySelector('input[name=account]:checked')?.value||'';
+  }
+  function setSelectedAccount(v){ localStorage.setItem('psc_account', v||''); $('#statAccount').textContent=v||'—'; }
+  async function rest(path, {method='GET', body, headers={}}={}){
+    needConfig();
+    const res = await fetch(`${API_BASE}${path}`,{
+      method,
+      headers:{
+        'apikey': API_KEY,
+        'Authorization': 'Bearer '+API_KEY,
+        'Content-Type':'application/json',
+        ...headers
+      },
+      body: body? JSON.stringify(body): undefined
+    });
+    if(!res.ok){
+      let detail=''; try{ detail = await res.text() }catch(_){}
+      throw new Error(`HTTP ${res.status} ${res.statusText} ${detail||''}`);
+    }
+    const ct=res.headers.get('content-type')||'';
+    return ct.includes('application/json') ? res.json() : res;
+  }
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+  function chunk(arr, size){ const res=[]; for(let i=0;i<arr.length;i+=size) res.push(arr.slice(i,i+size)); return res; }
+
+  // ===== Parsing & Preview =====
+  let rows = [];    // {original, corrected, weight, status, account, isML, isDup}
+  let parsing = false, mlChecking = false, batchId = null;
+
+  function minimalNormalize(code){
+    if(code==null) return '';
+    let s = String(code);
+    s = s.replace(/\]c1|\+c1|\]|\|/gi,'');
+    s = s.replace(/[\\\/]+/g,' ');   // <- reemplaza TODAS las barras
+    return s.trim();
+  }
+  function parsePasted(text){
+    const out=[];
+    const lines = String(text||'').split(/\r?\n/).filter(l=>l.trim());
+    for(const ln of lines){
+      const parts = ln.split(/\t|\s{2,}/).map(s=>s.trim());
+      if(!parts.length) continue;
+      const code = parts[0]||'';
+      const pesoStr = (parts[parts.length-1]||'').replace(',', '.');
+      const peso = pesoStr && !isNaN(Number(pesoStr)) ? Number(pesoStr) : null;
+      const original = code;
+      const corrected = minimalNormalize(code);
+      const status = 'Centro de Dist. PSC';
+      out.push({ original, corrected, weight:peso, status, account:getSelectedAccount(), isML:false, isDup:false });
+    }
+    return out;
+  }
+  function markDuplicates(){
+    const counts = new Map();
+    for(const r of rows){
+      const key = r.corrected||'';
+      counts.set(key, (counts.get(key)||0)+1);
+    }
+    rows = rows.map(r=>({ ...r, isDup: (r.corrected && counts.get(r.corrected)>1) }));
+  }
+  function renderTable(){
+    const tb = $('#tbody'); tb.innerHTML='';
+    rows.forEach((r,i)=>{
+      const tr = document.createElement('tr');
+      if(r.isML) tr.classList.add('ml');
+      if(r.isDup) tr.classList.add('dup');
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${escapeHtml(r.original)}</td>
+        <td>${escapeHtml(r.corrected)}</td>
+        <td>${r.weight ?? ''}</td>
+        <td>${escapeHtml(r.status)}</td>
+        <td>${escapeHtml(r.account||'')}</td>
+        <td>
+          ${r.isML? '<span class="badge ml">ML</span>': ''}
+          ${r.isDup? '<span class="badge dup">DUP</span>': ''}
+        </td>
+      `;
+      tb.appendChild(tr);
+    });
+    $('#statRows').textContent = String(rows.length);
+    $('#statML').textContent = String(rows.filter(x=>x.isML).length);
+    $('#statDup').textContent = String(rows.filter(x=>x.isDup).length);
+    const okReady = !parsing && !mlChecking && rows.length>0 && getSelectedAccount() && USER_EMAIL;
+    $('#btnSave').disabled = !okReady;
+  }
+
+  async function checkMLPreview(){
+    if(!rows.length) return;
+    mlChecking = true; showLoading(true); toast('Chequeando ML…');
+    try{
+      const list = Array.from(new Set(rows.map(r=>r.corrected).filter(Boolean)));
+      const chunks = chunk(list, 100);
+      const found = new Set();
+      for(const ch of chunks){
+        const quoted = ch.map(v=>`\"${v.replaceAll('"','\\"')}\"`).join(',');
+        const url = `/rest/v1/trackings?select=tracking_corrected&tracking_corrected=in.(${encodeURIComponent(quoted)})&ml=is.true`;
+        const js = await rest(url, { method:'GET' });
+        (js||[]).forEach(row=>{ if(row.tracking_corrected) found.add(row.tracking_corrected) });
+      }
+      rows = rows.map(r=>({ ...r, isML: found.has(r.corrected) }));
+      toast('Vista previa lista. ML en amarillo, duplicados en rojo.', 'ok');
+    }catch(e){ console.error(e); toast('No se pudo chequear ML: '+e.message, 'err'); }
+    finally{ mlChecking = false; markDuplicates(); showLoading(false); renderTable(); }
+  }
+
+  // ===== Guardar (crear lote + insertar + actualizar ML) =====
+  async function saveAll(){
+    try{
+      if(!USER_EMAIL){ toast('Configura PSC_CONFIG.userEmail en config.js', 'err'); return }
+      const account = getSelectedAccount();
+      if(!account){ toast('Selecciona la cuenta (PSC / C10PA).', 'err'); return }
+      if(!rows.length){ toast('No hay filas para guardar.', 'err'); return }
+      $('#btnSave').disabled = true; showLoading(true); toast('Creando lote…');
+
+      // Crear lote (usa columnas reales: created_by_email, cuenta)
+      const expected = rows.length;
+      const batch = await rest(`/rest/v1/upload_batches`, {
+        method:'POST',
+        headers:{ 'Prefer':'return=representation' },
+        body: [{ expected_rows: expected, created_by_email: USER_EMAIL, cuenta: account }]
+      });
+      batchId = (batch && batch[0] && (batch[0].id||batch[0].batch_id)) || null;
+      $('#batchInfo').textContent = batchId || '—';
+
+      // Separar ML vs NO-ML
+      const mlRows = rows.filter(r=>r.isML);
+      const newRows = rows.filter(r=>!r.isML);
+
+      // 1) Actualizar ML (solo donde ml IS TRUE)
+      let updatedML=0;
+      if(mlRows.length){
+        toast(`Actualizando ${mlRows.length} ML…`);
+        for(const r of mlRows){
+          const path = `/rest/v1/trackings?tracking_corrected=eq.${encodeURIComponent(r.corrected)}&ml=is.true`;
+          const body = { weight_lbs: r.weight, batch_id: batchId, status: 'Centro de Dist. PSC', cuenta: account, exported: false };
+          const rep = await rest(path, { method:'PATCH', body, headers:{ 'Prefer':'return=representation' } });
+          if (Array.isArray(rep) && rep.length>0) updatedML++;
+        }
+      }
+
+      // 2) Insertar NO-ML (duplicados permitidos)
+      let inserted = 0;
+      if(newRows.length){
+        toast(`Insertando ${newRows.length} nuevos…`);
+        const payload = newRows.map(r=>({
+          tracking_original: r.original,
+          tracking_corrected: r.corrected,
+          weight_lbs: r.weight,
+          status: r.status || 'Centro de Dist. PSC',
+          batch_id: batchId,
+          cuenta: account,
+          exported: false,
+        }));
+        const ins = await rest(`/rest/v1/trackings`, {
+          method:'POST',
+          headers:{ 'Prefer':'return=representation' },
+          body: payload
+        });
+        inserted = Array.isArray(ins)? ins.length : 0;
+      }
+
+      toast(`Listo. Insertados ${inserted}, ML actualizados ${updatedML}.`, 'ok');
+    }catch(e){ console.error(e); toast('Error guardando: '+e.message, 'err'); }
+    finally{ showLoading(false); renderTable(); }
+  }
+
+  // ===== Exportar (edge opcional) =====
+  async function exportToday(){
+    if(!FUNCS){ toast('Falta PSC_CONFIG.functionsBase', 'err'); return }
+    try{
+      $('#btnExport').disabled = true; showLoading(true); toast('Exportando…');
+      const res = await fetch(`${FUNCS}/export-today`, { method:'POST' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const exported = res.headers.get('X-Exported-Count') || res.headers.get('x-exported-count') || '0';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'cargar_corte.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+      toast(`Exportado. Filas: ${exported}`, 'ok');
+    }catch(e){ console.error(e); toast('Error exportando: '+e.message, 'err'); }
+    finally{ $('#btnExport').disabled = false; showLoading(false); }
+  }
+
+  // ===== Eventos =====
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const a0 = getSelectedAccount(); if(a0) setSelectedAccount(a0);
+    $$('input[name=account]').forEach(r=>{ r.addEventListener('change', (e)=>{ setSelectedAccount(e.target.value); renderTable(); }) });
+    $('#txtPaste').addEventListener('input', async (e)=>{
+      parsing = true; showLoading(true); toast('Parseando…');
+      try{
+        rows = parsePasted(e.target.value);
+        const acc = getSelectedAccount(); rows = rows.map(r=>({...r, account: acc }));
+        markDuplicates(); renderTable();
+        await checkMLPreview();
+      } finally { parsing = false; showLoading(false); renderTable(); }
+    });
+    $('#btnSave').addEventListener('click', saveAll);
+    $('#btnExport').addEventListener('click', exportToday);
+    $('#btnClear').addEventListener('click', ()=>{ rows=[]; $('#txtPaste').value=''; batchId=null; $('#batchInfo').textContent='—'; toast(''); renderTable(); });
+
+    renderTable();
+  });
+  </script>
+</body>
+</html>
