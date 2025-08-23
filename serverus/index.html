@@ -234,24 +234,22 @@
     .limit(100);
 
   q = (q || "").trim();
-if (!q) return renderEmpty();
+  if (!q) return renderEmpty();
 
-const like = `*${q}*`;
-const ors = [
-  `nombre.ilike.${like}`,
-  `email.ilike.${like}`,
-  `telefono.ilike.${like}`,
-  `sucursal.ilike.${like}`,
-  `direccion.ilike.${like}`
-];
-
-
+  const like = `*${q}*`;  // comodín
+  const ors = [
+    `nombre.ilike.${like}`,
+    `email.ilike.${like}`,
+    `telefono.ilike.${like}`,
+    `sucursal.ilike.${like}`,
+    `direccion.ilike.${like}`
+  ];
   const n = Number(q);
-if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
-      
-  // 👇 paréntesis explícitos
-  query = query.or(ors.join(','));
-      
+  if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
+
+  console.log("[OR string]", ors.join(','));  // debug: NO debe tener paréntesis
+  query = query.or(ors.join(','));            // <- sin paréntesis
+
   const { data, error } = await query;
   if (error) {
     console.error(error);
