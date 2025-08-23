@@ -254,6 +254,9 @@
 
   // Ejecuta en paralelo
   const results = await Promise.all(queries.map(p => p));
+      const { data, error, count } = await query;
+console.log("[buscar resp]", { count, error, data }); // ← LOG CLAVE
+
 
   // Si alguna trae error “duro”, muestra el primero
   const hardErr = results.find(r => r.error);
