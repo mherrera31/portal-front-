@@ -227,42 +227,54 @@
     }
 
     async function cargarClientes(q=""){
-  let query = sb
-    .from("clientes")
-    .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .limit(100);
-
   q = (q || "").trim();
-  if (!q) return renderEmpty();
+  if (!q) return renderEmpty(); // vacío hasta buscar
 
-  const like = `%${q}%`;  // comodín
-  const ors = [
-  `nombre.ilike.${like}`,
-  `email.ilike.${like}`,
-  `telefono.ilike.${like}`,
-  `sucursal.ilike.${like}`,
-  `direccion.ilike.${like}`
-];
-const n = Number(q);
-if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
-query = query.or(ors.join(','));
-      
-  console.log("[OR string]", ors.join(','));  // debug: NO debe tener paréntesis
-  query = query.or([
-  `nombre.ilike.${like}`,
-  `email.ilike.${like}`,
-  `telefono.ilike.${like}`,
-  `sucursal.ilike.${like}`,
-  `direccion.ilike.${like}`
-].join(','));            // <- sin paréntesis
+  const like = `%${q}%`;
+  const num  = Number(q);
+  const isInt = Number.isInteger(num);
 
-  const { data, error } = await query;
-  if (error) {
-    console.error(error);
+  // columnas que pintamos siempre
+  const cols = "id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3";
+
+  // 5 búsquedas en paralelo (nombre, email, tel, sucursal, dirección)
+  const queries = [
+    sb.from("clientes").select(cols).ilike("nombre", like).limit(100),
+    sb.from("clientes").select(cols).ilike("email", like).limit(100),
+    sb.from("clientes").select(cols).ilike("telefono", like).limit(100),
+    sb.from("clientes").select(cols).ilike("sucursal", like).limit(100),
+    sb.from("clientes").select(cols).ilike("direccion", like).limit(100),
+  ];
+
+  // si es entero, también buscamos por box exacto
+  if (isInt) {
+    queries.push(sb.from("clientes").select(cols).eq("box", num).limit(100));
+  }
+
+  // Ejecuta en paralelo
+  const results = await Promise.all(queries.map(p => p));
+
+  // Si alguna trae error “duro”, muestra el primero
+  const hardErr = results.find(r => r.error);
+  if (hardErr?.error) {
+    console.error(hardErr.error);
     return renderEmpty("Error al cargar clientes.");
   }
-  renderRows(data || []);
+
+  // Une y deduplica por id
+  const map = new Map();
+  for (const r of results) {
+    for (const row of (r.data || [])) {
+      map.set(row.id, row);
+    }
+  }
+
+  const rows = Array.from(map.values())
+    // orden aproximado por created_at no disponible aquí; si lo necesitas, añade created_at a 'cols'
+    .slice(0, 100);
+
+  if (!rows.length) return renderEmpty("No hay resultados para la búsqueda.");
+  renderRows(rows);
 }
 
 
