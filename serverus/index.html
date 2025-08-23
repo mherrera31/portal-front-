@@ -227,33 +227,40 @@
     }
 
     async function cargarClientes(q=""){
-      let query = sb
-        .from("clientes")
-        .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .limit(100);
+  // columnas que pinta la tabla
+  let query = sb
+    .from("clientes")
+    .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .limit(100);
 
-      q = (q || "").trim();
-      if (q) {
-        const like = `%${q}%`;
-        const ors = [
-          `nombre.ilike.${like}`,
-          `email.ilike.${like}`,
-          `sucursal.ilike.${like}`
-        ].join(',');
-        query = query.or(ors);
-      } else {
-        // si no hay término, dejamos la tabla en mensaje "use el buscador"
-        return renderEmpty();
-      }
+  q = (q || "").trim();
+  if (!q) return renderEmpty(); // vacío hasta que busques
 
-      const { data, error } = await query;
-      if (error) {
-        console.error(error);
-        return renderEmpty("Error al cargar clientes.");
-      }
-      renderRows(data || []);
-    }
+  // armar OR correctamente
+  const like = `%${q}%`;
+  const ors = [
+    `nombre.ilike.${like}`,
+    `email.ilike.${like}`,
+    `telefono.ilike.${like}`,
+    `sucursal.ilike.${like}`,
+    `direccion.ilike.${like}`
+  ];
+
+  // si es entero, buscar box exacto también
+  const n = Number(q);
+  if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
+
+  query = query.or(ors.join(','));
+
+  const { data, error } = await query;
+  if (error) {
+    console.error(error);
+    return renderEmpty("Error al cargar clientes.");
+  }
+  renderRows(data || []);
+}
+
 
     // ===== Crear / Editar =====
     function resetModal(){
