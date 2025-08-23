@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <title>Clientes | PSC Cargas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <!-- Config con URL y ANON KEY -->
   <script src="config.js"></script>
   <style>
     body { background: #f7f8fa; }
@@ -14,8 +12,6 @@
     .btn-primary { background:#0d6efd; }
     .table thead th { white-space: nowrap; }
     .modal-content { border-radius: 14px; }
-    .hidden { display:none !important; }
-    /* Evita que "Acciones" se corte */
     table thead th:last-child,
     table tbody td:last-child { white-space: nowrap; width: 1%; }
     table tbody td:last-child .btn { white-space: nowrap; }
@@ -28,15 +24,46 @@
       <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCliente" id="btnNuevo">Crear cliente</button>
     </div>
 
-    <!-- Buscador -->
+    <!-- Filtros -->
     <div class="card p-3 mb-3">
       <div class="row g-2 align-items-end">
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label">Desde</label>
+          <input id="fltDesde" type="date" class="form-control" />
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label">Hasta</label>
+          <input id="fltHasta" type="date" class="form-control" />
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label">Sucursal</label>
+          <select id="fltSucursal" class="form-select">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label class="form-label">Source</label>
+          <select id="fltSource" class="form-select">
+            <option value="">Todos</option>
+            <option value="staff">staff</option>
+            <option value="web">web</option>
+            <option value="app">app</option>
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-1">
+          <label class="form-label">Box</label>
+          <input id="fltBox" type="number" min="1" class="form-control" />
+        </div>
+      </div>
+
+      <div class="row g-2 align-items-end mt-1">
         <div class="col-sm-6 col-md-4">
           <label class="form-label">Buscar</label>
-          <input id="q" type="search" class="form-control" placeholder="Nombre, email, teléfono, sucursal, dirección o box..." />
+          <input id="q" type="search" class="form-control" placeholder="Nombre, email, teléfono o dirección..." />
         </div>
         <div class="col-auto">
           <button id="btnBuscar" type="button" class="btn btn-outline-primary">Buscar</button>
+          <button id="btnLimpiar" type="button" class="btn btn-outline-secondary">Limpiar</button>
         </div>
       </div>
     </div>
@@ -47,11 +74,13 @@
         <table class="table table-hover m-0">
           <thead class="table-light">
             <tr>
+              <th>Fecha</th>
               <th>Nombre</th>
               <th>Box</th>
               <th>Email</th>
               <th>Teléfono</th>
               <th>Sucursal</th>
+              <th>Source</th>
               <th>Dirección</th>
               <th>Tarifa 1</th>
               <th>Tarifa 2</th>
@@ -59,9 +88,7 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            <!-- Se llena al iniciar y al buscar -->
-          </tbody>
+          <tbody></tbody>
         </table>
       </div>
     </div>
@@ -131,11 +158,8 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ===== Config =====
     const sb = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
-    window.sb = sb; // para pruebas en consola
 
-    // ===== Utils =====
     const $  = (s, p=document) => p.querySelector(s);
     const $$ = (s, p=document) => [...p.querySelectorAll(s)];
     const norm      = s => (s||"").trim();
@@ -147,233 +171,114 @@
     const escapeHtml = (s) =>
       String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     function fmtNum(n){ if(n==null) return ""; try {return Number(n).toFixed(2);} catch { return String(n);} }
+    function fmtDate(iso){
+      if(!iso) return "";
+      try {
+        const d = new Date(iso);
+        return d.toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" });
+      } catch { return iso; }
+    }
 
-    // ===== Refs DOM =====
     const tableBody   = document.querySelector("table tbody");
     const inputQ      = $('#q');
     const btnBuscar   = $('#btnBuscar');
-    const btnNuevo    = $('#btnNuevo');
-
-    // Modal + campos
-    const modalEl     = $('#modalCliente');
-    const modal       = new bootstrap.Modal(modalEl);
+    const btnLimpiar  = $('#btnLimpiar');
+    const fltDesde    = $('#fltDesde');
+    const fltHasta    = $('#fltHasta');
+    const fltSucursal = $('#fltSucursal');
+    const fltSource   = $('#fltSource');
+    const fltBox      = $('#fltBox');
+    const fldSucursal = $('#sucursal');
     const form        = $('#formCliente');
     const modalTitle  = $('#modalTitle');
-    const fldNombre   = $('#nombre');
-    const fldEmail    = $('#email');
-    const fldTel      = $('#telefono');
-    const fldFecha    = $('#fecha_nac');
-    const fldTar1     = $('#tarifa1');
-    const fldTar2     = $('#tarifa2');
-    const fldTar3     = $('#tarifa3');
-    const fldDir      = $('#direccion');
-    const fldSucursal = $('#sucursal');
+    const modal       = new bootstrap.Modal($('#modalCliente'));
 
-    let editingId = null; // null => crear; uuid => editar
-
-    // ===== Sucursales =====
+    // Sucursales
     async function cargarSucursales() {
       fldSucursal.innerHTML = "<option value=''>Cargando...</option>";
-      const { data, error } = await sb
-        .from("sucursales")
-        .select("id,sucursal")
-        .order("sucursal", { ascending: true });
-
-      if (error) {
-        console.error(error);
-        fldSucursal.innerHTML = "<option value=''>Error al cargar</option>";
-        alert("No se pudieron cargar las sucursales.");
-        return;
-      }
+      fltSucursal.innerHTML = "<option value=''>Todas</option>";
+      const { data, error } = await sb.from("sucursales").select("id,sucursal").order("sucursal");
+      if (error) return;
       fldSucursal.innerHTML = "<option value=''>Seleccione sucursal</option>";
-      for (const row of (data || [])) {
-        const opt = document.createElement("option");
-        opt.value = row.id;             // UUID
-        opt.textContent = row.sucursal; // texto
-        fldSucursal.appendChild(opt);
+      for (const row of (data||[])) {
+        const opt1 = document.createElement("option");
+        opt1.value = row.sucursal; // nombre en vez de id
+        opt1.textContent = row.sucursal;
+        fldSucursal.appendChild(opt1);
+        const opt2 = document.createElement("option");
+        opt2.value = row.sucursal;
+        opt2.textContent = row.sucursal;
+        fltSucursal.appendChild(opt2);
       }
     }
 
-    // ===== Render tabla =====
-    function renderEmpty(msg="No hay clientes aún.") {
-      tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-muted">${msg}</td></tr>`;
+    function renderEmpty(msg="No hay clientes.") {
+      tableBody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-muted">${msg}</td></tr>`;
     }
 
     function renderRows(rows){
       if (!rows.length) return renderEmpty();
       tableBody.innerHTML = rows.map(r => `
         <tr>
+          <td>${fmtDate(r.created_at)}</td>
           <td>${escapeHtml(r.nombre || "")}</td>
           <td>${r.box ?? ""}</td>
           <td>${escapeHtml(r.email || "")}</td>
           <td>${escapeHtml(r.telefono || "")}</td>
           <td>${escapeHtml(r.sucursal || "")}</td>
+          <td>${escapeHtml(r.source || "")}</td>
           <td>${escapeHtml(r.direccion || "")}</td>
           <td>${fmtNum(r.tarifa_1)}</td>
           <td>${fmtNum(r.tarifa_2)}</td>
           <td>${fmtNum(r.tarifa_3)}</td>
-          <td>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-primary" data-edit="${r.id}">Editar</button>
-              <button class="btn btn-sm btn-danger"  data-del="${r.id}">Eliminar</button>
-            </div>
-          </td>
+          <td>...</td>
         </tr>
       `).join("");
-
-      $$("button[data-edit]").forEach(b => b.addEventListener("click", () => abrirEditar(b.dataset.edit)));
-      $$("button[data-del]").forEach(b => b.addEventListener("click", () => eliminar(b.dataset.del)));
     }
 
-    // ===== Listar/Buscar =====
-    async function cargarClientes(q = "") {
-      const cols = "id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3";
-
-      // base: últimas 200 filas
-      let query = sb
-        .from("clientes")
-        .select(cols, { count: "exact" })
-        .order("created_at", { ascending: false })
+    async function cargarClientes(q="") {
+      let query = sb.from("clientes")
+        .select("id,created_at,box,nombre,email,telefono,sucursal,source,direccion,tarifa_1,tarifa_2,tarifa_3")
+        .order("created_at",{ascending:false})
         .limit(200);
 
-      q = (q || "").trim();
+      if (fltDesde.value) query = query.gte("created_at", `${fltDesde.value}T00:00:00Z`);
+      if (fltHasta.value) query = query.lte("created_at", `${fltHasta.value}T23:59:59Z`);
+      if (fltSucursal.value) query = query.eq("sucursal", fltSucursal.value);
+      if (fltSource.value) query = query.eq("source", fltSource.value);
+      if (fltBox.value) query = query.eq("box", Number(fltBox.value));
 
+      q = q.trim();
       if (q) {
         const like = `%${q}%`;
-        const ors = [
+        query = query.or([
           `nombre.ilike.${like}`,
           `email.ilike.${like}`,
           `telefono.ilike.${like}`,
-          `sucursal.ilike.${like}`,
           `direccion.ilike.${like}`
-        ];
-        const n = Number(q);
-        if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
-        query = query.or(ors.join(',')); // sin paréntesis
+        ].join(','));
       }
 
       const { data, error } = await query;
-      if (error) {
-        console.error(error);
-        return renderEmpty("Error al cargar clientes.");
-      }
-      if ((!data || data.length === 0) && !q) return renderEmpty("No hay clientes aún.");
-      renderRows(data || []);
-    }
-    window.cargarClientes = cargarClientes; // para pruebas en consola
-
-    // ===== Crear / Editar =====
-    function resetModal(){
-      editingId = null;
-      modalTitle.textContent = "Crear cliente";
-      form.reset();
-      fldSucursal.value = "";
-    }
-    btnNuevo?.addEventListener("click", resetModal);
-
-    async function abrirEditar(id){
-      const { data, error } = await sb
-        .from("clientes")
-        .select("id, box, nombre, email, telefono, fecha_nac, direccion, sucursal, sucursal_id, tarifa_1, tarifa_2, tarifa_3")
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        console.error(error);
-        return alert("No se pudo cargar el cliente.");
-      }
-
-      editingId = id;
-      modalTitle.textContent = `Editar cliente (Box ${data.box ?? "-"})`;
-      fldNombre.value = data.nombre || "";
-      fldEmail.value  = data.email || "";
-      fldTel.value    = data.telefono || "";
-      fldFecha.value  = data.fecha_nac || "";
-      fldTar1.value   = data.tarifa_1 ?? "";
-      fldTar2.value   = data.tarifa_2 ?? "";
-      fldTar3.value   = data.tarifa_3 ?? "";
-      fldDir.value    = data.direccion || "";
-
-      if (data.sucursal_id) {
-        fldSucursal.value = data.sucursal_id;
-      } else {
-        const opt = [...fldSucursal.options].find(o => o.textContent === data.sucursal);
-        if (opt) fldSucursal.value = opt.value;
-      }
-
-      modal.show();
+      if (error) { console.error(error); return renderEmpty("Error cargando."); }
+      renderRows(data||[]);
     }
 
-    form?.addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      const payload = {
-        nombre:    norm(fldNombre.value),
-        email:     normEmail(fldEmail.value),
-        telefono:  norm(fldTel.value) || null,
-        fecha_nac: fldFecha.value || null,
-        tarifa_1:  toNum(fldTar1.value),
-        tarifa_2:  toNum(fldTar2.value),
-        tarifa_3:  toNum(fldTar3.value),
-        direccion: norm(fldDir.value) || null,
-        sucursal_id: fldSucursal.value || null,
-        sucursal: fldSucursal.selectedOptions[0]?.textContent || null,
-        source: "staff"
-      };
-
-      if (!payload.nombre || !payload.email || !payload.sucursal_id) {
-        return alert("Nombre, Email y Sucursal son obligatorios.");
-      }
-
-      let err;
-      if (editingId) {
-        const { error } = await sb.from("clientes")
-          .update(payload, { returning: "minimal" })
-          .eq("id", editingId);
-        err = error;
-      } else {
-        const { error } = await sb.from("clientes")
-          .insert(payload, { returning: "minimal" });
-        err = error;
-      }
-
-      if (err) {
-        console.error(err);
-        if (err.code === "23505") alert("Este email ya está registrado.");
-        else alert(err.message || "Error al guardar");
-        return;
-      }
-
-      modal.hide();
-      await cargarClientes(inputQ.value); // recarga lista (filtrada o completa)
-      alert("Guardado ✅");
-    });
-
-    // ===== Eliminar =====
-    async function eliminar(id){
-      if (!confirm("¿Eliminar este cliente? Esta acción no se puede deshacer.")) return;
-      const { error } = await sb.from("clientes").delete().eq("id", id);
-      if (error) {
-        console.error(error);
-        return alert(error.message || "No se pudo eliminar");
-      }
-      await cargarClientes(inputQ.value);
-      alert("Eliminado 🗑️");
-    }
-
-    // ===== Enganche de búsqueda y carga inicial =====
-    document.addEventListener("DOMContentLoaded", async () => {
-      // listeners de búsqueda
-      btnBuscar?.addEventListener("click", () => cargarClientes(inputQ.value));
-      inputQ?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); cargarClientes(inputQ.value); }
+    document.addEventListener("DOMContentLoaded", async ()=>{
+      btnBuscar.addEventListener("click", ()=>cargarClientes(inputQ.value));
+      btnLimpiar.addEventListener("click", ()=>{
+        fltDesde.value="";fltHasta.value="";fltSucursal.value="";fltSource.value="";fltBox.value="";inputQ.value="";
+        cargarClientes();
       });
-
+      [fltDesde,fltHasta,fltSucursal,fltSource,fltBox].forEach(el=>{
+        el.addEventListener("change",()=>cargarClientes(inputQ.value));
+      });
       await cargarSucursales();
-      await cargarClientes(); // ← lista toda la tabla al cargar
+      await cargarClientes();
     });
   </script>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
 
