@@ -148,7 +148,8 @@
       String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
     // ===== Refs DOM =====
-    const tableBody   = document.querySelector("table tbody");
+    const tableBody   = document.querySelecnt
+      tor("table tbody");
     const inputQ      = $('#q');
     const btnBuscar   = $('#btnBuscar');
     const btnNuevo    = $('#btnNuevo');
@@ -227,55 +228,35 @@
       $$("button[data-del]").forEach(b => b.addEventListener("click", () => eliminar(b.dataset.del)));
     }
 
-    async function cargarClientes(q=""){
+    async function cargarClientes(q = ""){
   q = (q || "").trim();
-if (!q) return renderEmpty();
+  if (!q) return renderEmpty();
 
-const like = `%${q}%`;
-const ors = [
-  `nombre.ilike.${like}`,
-  `email.ilike.${like}`,
-  `telefono.ilike.${like}`,
-  `sucursal.ilike.${like}`,
-  `direccion.ilike.${like}`
-];
-const n = Number(q);
-if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
+  let query = sb
+    .from("clientes")
+    .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .limit(100);
 
-query = query.or(ors.join(',')); // ← SIN paréntesis
+  const like = `%${q}%`;
+  const ors = [
+    `nombre.ilike.${like}`,
+    `email.ilike.${like}`,
+    `telefono.ilike.${like}`,
+    `sucursal.ilike.${like}`,
+    `direccion.ilike.${like}`
+  ];
+  const n = Number(q);
+  if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
 
-  // si es entero, también buscamos por box exacto
-  if (isInt) {
-    queries.push(sb.from("clientes").select(cols).eq("box", num).limit(100));
-  }
+  query = query.or(ors.join(',')); // ← sin paréntesis
 
-  // Ejecuta en paralelo
-  const results = await Promise.all(queries.map(p => p));
-      const { data, error, count } = await query;
-console.log("[buscar resp]", { count, error, data }); // ← LOG CLAVE
-
-
-  // Si alguna trae error “duro”, muestra el primero
-  const hardErr = results.find(r => r.error);
-  if (hardErr?.error) {
-    console.error(hardErr.error);
+  const { data, error } = await query;
+  if (error) {
+    console.error(error);
     return renderEmpty("Error al cargar clientes.");
   }
-
-  // Une y deduplica por id
-  const map = new Map();
-  for (const r of results) {
-    for (const row of (r.data || [])) {
-      map.set(row.id, row);
-    }
-  }
-
-  const rows = Array.from(map.values())
-    // orden aproximado por created_at no disponible aquí; si lo necesitas, añade created_at a 'cols'
-    .slice(0, 100);
-
-  if (!rows.length) return renderEmpty("No hay resultados para la búsqueda.");
-  renderRows(rows);
+  renderRows(data || []);
 }
 
 window.cargarClientes = cargarClientes;
@@ -398,6 +379,32 @@ window.cargarClientes = cargarClientes;
       await cargarSucursales();
       renderEmpty();
     });
+
+    document.addEventListener("DOMContentLoaded", () => {
+  const inputQ = document.getElementById('q');
+  const btnBuscar = document.getElementById('btnBuscar');
+
+  // seguridad por si faltaran los nodos
+  if (!inputQ || !btnBuscar) {
+    console.error("[Clientes] Falta #q o #btnBuscar");
+    return;
+  }
+
+  btnBuscar.type = "button"; // evita submits
+  btnBuscar.addEventListener("click", () => {
+    const q = (inputQ.value || "").trim();
+    cargarClientes(q);
+  });
+
+  inputQ.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const q = (inputQ.value || "").trim();
+      cargarClientes(q);
+    }
+  });
+});
+
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
