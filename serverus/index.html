@@ -77,7 +77,7 @@
       sel.innerHTML = "<option value=''>Cargando...</option>";
 
       const { data, error } = await sb
-        .from("sucursales")
+        .from("public.sucursales")
         .select("id,sucursal")
         .order("sucursal", { ascending: true });
 
