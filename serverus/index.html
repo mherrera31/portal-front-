@@ -33,10 +33,10 @@
       <div class="row g-2 align-items-end">
         <div class="col-sm-6 col-md-4">
           <label class="form-label">Buscar</label>
-          <input id="q" type="search" class="form-control" placeholder="Nombre, email o sucursal..." />
+          <input id="q" type="search" class="form-control" placeholder="Nombre, email, teléfono, sucursal, dirección o box..." />
         </div>
         <div class="col-auto">
-          <button id="btnBuscar" class="btn btn-outline-primary">Buscar</button>
+          <button id="btnBuscar" type="button" class="btn btn-outline-primary">Buscar</button>
         </div>
       </div>
     </div>
@@ -133,7 +133,7 @@
 
     // ===== Config =====
     const sb = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
-    window.sb = sb; 
+    window.sb = sb; // para pruebas en consola
 
     // ===== Utils =====
     const $  = (s, p=document) => p.querySelector(s);
@@ -146,10 +146,10 @@
     };
     const escapeHtml = (s) =>
       String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    function fmtNum(n){ if(n==null) return ""; try {return Number(n).toFixed(2);} catch { return String(n);} }
 
     // ===== Refs DOM =====
-    const tableBody   = document.querySelecnt
-      tor("table tbody");
+    const tableBody   = document.querySelector("table tbody");
     const inputQ      = $('#q');
     const btnBuscar   = $('#btnBuscar');
     const btnNuevo    = $('#btnNuevo');
@@ -194,9 +194,7 @@
       }
     }
 
-    // ===== Listado / Búsqueda (vacío hasta buscar) =====
-    function fmtNum(n){ if(n==null) return ""; try {return Number(n).toFixed(2);} catch { return String(n);} }
-
+    // ===== Render tabla =====
     function renderEmpty(msg="Use el buscador para listar clientes.") {
       tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-muted">${msg}</td></tr>`;
     }
@@ -228,38 +226,38 @@
       $$("button[data-del]").forEach(b => b.addEventListener("click", () => eliminar(b.dataset.del)));
     }
 
+    // ===== Buscar (vacío hasta buscar) =====
     async function cargarClientes(q = ""){
-  q = (q || "").trim();
-  if (!q) return renderEmpty();
+      q = (q || "").trim();
+      if (!q) return renderEmpty();
 
-  let query = sb
-    .from("clientes")
-    .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .limit(100);
+      let query = sb
+        .from("clientes")
+        .select("id, box, nombre, email, telefono, sucursal, direccion, tarifa_1, tarifa_2, tarifa_3", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(100);
 
-  const like = `%${q}%`;
-  const ors = [
-    `nombre.ilike.${like}`,
-    `email.ilike.${like}`,
-    `telefono.ilike.${like}`,
-    `sucursal.ilike.${like}`,
-    `direccion.ilike.${like}`
-  ];
-  const n = Number(q);
-  if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
+      const like = `%${q}%`;
+      const ors = [
+        `nombre.ilike.${like}`,
+        `email.ilike.${like}`,
+        `telefono.ilike.${like}`,
+        `sucursal.ilike.${like}`,
+        `direccion.ilike.${like}`
+      ];
+      const n = Number(q);
+      if (Number.isInteger(n)) ors.push(`box.eq.${n}`);
 
-  query = query.or(ors.join(',')); // ← sin paréntesis
+      query = query.or(ors.join(',')); // SIN paréntesis
 
-  const { data, error } = await query;
-  if (error) {
-    console.error(error);
-    return renderEmpty("Error al cargar clientes.");
-  }
-  renderRows(data || []);
-}
-
-window.cargarClientes = cargarClientes;
+      const { data, error } = await query;
+      if (error) {
+        console.error(error);
+        return renderEmpty("Error al cargar clientes.");
+      }
+      renderRows(data || []);
+    }
+    window.cargarClientes = cargarClientes; // para pruebas en consola
 
     // ===== Crear / Editar =====
     function resetModal(){
@@ -344,7 +342,6 @@ window.cargarClientes = cargarClientes;
       }
 
       modal.hide();
-      // Si hay un término de búsqueda activo, refresca la lista; si no, deja vacío.
       const q = inputQ.value || "";
       if (q.trim()) await cargarClientes(q);
       else renderEmpty();
@@ -365,49 +362,26 @@ window.cargarClientes = cargarClientes;
       alert("Eliminado 🗑️");
     }
 
-    // ===== Eventos de búsqueda =====
-    btnBuscar?.addEventListener("click", () => cargarClientes(inputQ.value));
-    inputQ?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        cargarClientes(inputQ.value);
-      }
-    });
-
-    // ===== Init: solo carga sucursales; clientes queda vacío hasta buscar =====
+    // ===== Enganche de eventos de búsqueda y carga de sucursales =====
     document.addEventListener("DOMContentLoaded", async () => {
+      // listeners de búsqueda
+      btnBuscar?.addEventListener("click", () => {
+        const q = (inputQ.value || "").trim();
+        cargarClientes(q);
+      });
+      inputQ?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const q = (inputQ.value || "").trim();
+          cargarClientes(q);
+        }
+      });
+
       await cargarSucursales();
-      renderEmpty();
+      renderEmpty(); // vacío hasta buscar
     });
-
-    document.addEventListener("DOMContentLoaded", () => {
-  const inputQ = document.getElementById('q');
-  const btnBuscar = document.getElementById('btnBuscar');
-
-  // seguridad por si faltaran los nodos
-  if (!inputQ || !btnBuscar) {
-    console.error("[Clientes] Falta #q o #btnBuscar");
-    return;
-  }
-
-  btnBuscar.type = "button"; // evita submits
-  btnBuscar.addEventListener("click", () => {
-    const q = (inputQ.value || "").trim();
-    cargarClientes(q);
-  });
-
-  inputQ.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const q = (inputQ.value || "").trim();
-      cargarClientes(q);
-    }
-  });
-});
-
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
