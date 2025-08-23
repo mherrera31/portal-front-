@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <title>Clientes | PSC Cargas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Estilos mínimos (puedes cambiarlos por los tuyos) -->
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <!-- Carga la configuración (URL + ANON KEY) -->
+  <!-- Config con URL y ANON KEY -->
   <script src="config.js"></script>
   <style>
     body { background: #f7f8fa; }
@@ -15,6 +15,10 @@
     .table thead th { white-space: nowrap; }
     .modal-content { border-radius: 14px; }
     .hidden { display:none !important; }
+    /* Evita que "Acciones" se corte */
+    table thead th:last-child,
+    table tbody td:last-child { white-space: nowrap; width: 1%; }
+    table tbody td:last-child .btn { white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -56,7 +60,7 @@
             </tr>
           </thead>
           <tbody>
-            <!-- filas dinámicas -->
+            <!-- Vacío al cargar: se llena al presionar Buscar -->
           </tbody>
         </table>
       </div>
@@ -163,7 +167,7 @@
     const fldDir      = $('#direccion');
     const fldSucursal = $('#sucursal');
 
-    let editingId = null; // si es null => crear, si tiene uuid => editar
+    let editingId = null; // null => crear; uuid => editar
 
     // ===== Sucursales =====
     async function cargarSucursales() {
@@ -188,15 +192,16 @@
       }
     }
 
-    // ===== Listado / Búsqueda =====
+    // ===== Listado / Búsqueda (vacío hasta buscar) =====
     function fmtNum(n){ if(n==null) return ""; try {return Number(n).toFixed(2);} catch { return String(n);} }
 
-    function renderEmpty(msg="No hay clientes para mostrar.") {
+    function renderEmpty(msg="Use el buscador para listar clientes.") {
       tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-muted">${msg}</td></tr>`;
     }
+    renderEmpty(); // vacío al cargar
 
     function renderRows(rows){
-      if (!rows.length) return renderEmpty();
+      if (!rows.length) return renderEmpty("No hay resultados para la búsqueda.");
       tableBody.innerHTML = rows.map(r => `
         <tr>
           <td>${escapeHtml(r.nombre || "")}</td>
@@ -228,10 +233,18 @@
         .order("created_at", { ascending: false })
         .limit(100);
 
-      q = norm(q);
+      q = (q || "").trim();
       if (q) {
         const like = `%${q}%`;
-        query = query.or(`nombre.ilike.${like},email.ilike.${like},sucursal.ilike.${like}`);
+        const ors = [
+          `nombre.ilike.${like}`,
+          `email.ilike.${like}`,
+          `sucursal.ilike.${like}`
+        ].join(',');
+        query = query.or(ors);
+      } else {
+        // si no hay término, dejamos la tabla en mensaje "use el buscador"
+        return renderEmpty();
       }
 
       const { data, error } = await query;
@@ -249,7 +262,6 @@
       form.reset();
       fldSucursal.value = "";
     }
-
     btnNuevo?.addEventListener("click", resetModal);
 
     async function abrirEditar(id){
@@ -279,7 +291,6 @@
       if (data.sucursal_id) {
         fldSucursal.value = data.sucursal_id;
       } else {
-        // fallback por texto
         const opt = [...fldSucursal.options].find(o => o.textContent === data.sucursal);
         if (opt) fldSucursal.value = opt.value;
       }
@@ -300,7 +311,7 @@
         direccion: norm(fldDir.value) || null,
         sucursal_id: fldSucursal.value || null,
         sucursal: fldSucursal.selectedOptions[0]?.textContent || null,
-        source: "staff" // este front es staff
+        source: "staff"
       };
 
       if (!payload.nombre || !payload.email || !payload.sucursal_id) {
@@ -327,7 +338,10 @@
       }
 
       modal.hide();
-      await cargarClientes(inputQ.value);
+      // Si hay un término de búsqueda activo, refresca la lista; si no, deja vacío.
+      const q = inputQ.value || "";
+      if (q.trim()) await cargarClientes(q);
+      else renderEmpty();
       alert("Guardado ✅");
     });
 
@@ -339,7 +353,9 @@
         console.error(error);
         return alert(error.message || "No se pudo eliminar");
       }
-      await cargarClientes(inputQ.value);
+      const q = inputQ.value || "";
+      if (q.trim()) await cargarClientes(q);
+      else renderEmpty();
       alert("Eliminado 🗑️");
     }
 
@@ -352,13 +368,14 @@
       }
     });
 
-    // ===== Init =====
+    // ===== Init: solo carga sucursales; clientes queda vacío hasta buscar =====
     document.addEventListener("DOMContentLoaded", async () => {
       await cargarSucursales();
-      await cargarClientes();
+      renderEmpty();
     });
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
