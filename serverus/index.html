@@ -133,6 +133,7 @@
 
     // ===== Config =====
     const sb = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+    window.sb = sb; 
 
     // ===== Utils =====
     const $  = (s, p=document) => p.querySelector(s);
@@ -268,6 +269,8 @@
       map.set(row.id, row);
     }
   }
+      window.cargarClientes = cargarClientes;
+
 
   const rows = Array.from(map.values())
     // orden aproximado por created_at no disponible aquí; si lo necesitas, añade created_at a 'cols'
