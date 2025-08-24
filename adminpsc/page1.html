@@ -8,12 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root{
-      --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb;
-      --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; --sel:#2325d4;
-    }
+    :root{ --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb; --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; --sel:#2325d4; --header-z:999999; --header-offset:88px; }
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; padding-top: var(--header-offset); }
     /* NAV */
     .nav{position:sticky;top:0;z-index:100;background:var(--card);border-bottom:1px solid var(--border)}
     .navin{max-width:1100px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;gap:12px;justify-content:space-between}
@@ -55,15 +52,15 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .small{font-size:12px;color:var(--muted)}
     .sep{height:1px;background:var(--border);margin:8px 0}
-      /* Offset para header global del portal (inyectado por portal.js) */
-    body{ padding-top: clamp(56px, 7vh, 100px); }
-    /* Ocultar header LEGACY si existiera (no toca .psc-header del portal) */
+      /* Header del portal siempre al frente; aplicamos offset global */
     body > header:not(.psc-header),
     body > nav:not(.psc-header),
     body > .header-legacy,
     body > #legacy-header,
     body > .legacy-header,
     body > .nav-legacy { display:none !important; }
+      /* Oculta la barra legacy local si existe; el portal inyecta .psc-header */
+    .app-bar{ display:none !important; }
   </style>
 </head>
 <body><div class="wrap">
@@ -412,5 +409,22 @@
   <script>(function(){try{var url=new URL(location.href);var qUser=url.searchParams.get('user');var email=null;function ok(e){return typeof e==='string'&&e.indexOf('@')>0&&e.indexOf('.')>0}if(ok(qUser)) email=qUser;var pscEmail=(window.PSC&&window.PSC.user&&window.PSC.user.email)||null;if(!email&&ok(pscEmail)) email=pscEmail;var ls=localStorage.getItem('psc_user_email')||localStorage.getItem('email')||localStorage.getItem('psc_user');if(!email&&ok(ls)) email=ls;if(email){try{localStorage.setItem('psc_user',email)}catch{} window.PSC=window.PSC||{}; window.PSC.user={email:email}}}catch(e){}})();</script>
   <!-- Kill-switch para header LEGACY que no sea el del portal (.psc-header) -->
   <script>(function(){try{var kids=[].slice.call(document.body.children,0,3);kids.forEach(function(el){var t=(el.tagName||'').toLowerCase();if((t==='nav'||t==='header')&&!el.classList.contains('psc-header')){el.style.display='none';}});}catch(e){}})();</script>
+  <!-- Asegurar que si el portal NO inyecta header, mostramos la app-bar como fallback -->
+  <script>(function(){
+    function ensureHeader(){
+      var portal = document.querySelector('.psc-header');
+      var appbar = document.querySelector('.app-bar');
+      if (portal) {
+        if (appbar) appbar.style.display = 'none';
+        document.body.style.paddingTop = getComputedStyle(document.documentElement).getPropertyValue('--header-offset')||'88px';
+      } else {
+        if (appbar) appbar.style.display = '';
+        document.body.style.paddingTop = '12px';
+      }
+    }
+    window.addEventListener('load', ensureHeader);
+    setTimeout(ensureHeader, 700);
+  })();</script>
 </body>
 </html>
+
