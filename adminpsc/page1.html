@@ -163,6 +163,13 @@
   }
 
   // Cuenta seleccionada (persistida)
+  function detectUserName(){
+    const p1 = (window.PSC && window.PSC.user && (window.PSC.user.name || window.PSC.user.fullname || window.PSC.user.displayName)) || '';
+    const p2 = (window.PSC_USER && (window.PSC_USER.name || window.PSC_USER.fullname)) || '';
+    const ls = localStorage.getItem('psc_user_name') || '';
+    return (p1 || p2 || ls || '').trim();
+  }
+
   function getSelectedAccount(){
     const v = (localStorage.getItem('psc_account')||'').trim();
     if(v){ const el = document.querySelector(`input[name=account][value="${v}"]`); if(el) el.checked=true; }
@@ -306,7 +313,7 @@
       const batch = await rest(`/rest/v1/upload_batches`, {
         method:'POST',
         headers:{ 'Prefer':'return=representation' },
-        body: [{ expected_rows: expected, user: email, cuenta: account }]
+        body: [{ expected_rows: expected, cuenta: account, created_by_email: email, created_by_name: detectUserName() || null }]
       });
       batchId = (batch && batch[0] && (batch[0].id||batch[0].batch_id)) || null;
       $('#batchInfo').textContent = batchId || '—';
