@@ -132,10 +132,26 @@
   const toast = (msg, type='')=>{ const t=$('#toast'); t.className='toast '+type; t.textContent=msg||'' }
 
   // ============ Config y sesión ============
-  const CFG = window.PSC_CONFIG || {};
-  const API_BASE = (CFG.url||'').replace(/\/$/,''); // https://xxxx.supabase.co
-  const API_KEY  = CFG.apikey || CFG.anon || CFG.anonKey || '';
-  const FUNCS    = (CFG.functionsBase||'').replace(/\/$/,'');
+  const CFG  = window.PSC_CONFIG || {};
+  const CFG2 = window.__PSC_CONFIG__ || {};
+  const API_BASE = (
+    CFG.url || CFG.restUrl || CFG.supabaseUrl || CFG.baseUrl ||
+    CFG2.SUPABASE_URL || CFG2.url || CFG2.supabaseUrl || CFG2.baseUrl ||
+    ''
+  ).replace(/\/$/, ''); // https://xxxx.supabase.co // https://xxxx.supabase.co
+  const API_KEY  = (
+    CFG.apikey || CFG.apiKey || CFG.anon || CFG.anonKey || CFG.publicAnonKey ||
+    CFG2.SUPABASE_ANON_KEY || CFG2.ANON_KEY || CFG2.apiKey ||
+    ''
+  );
+  let FUNCS    = (
+    CFG.functionsBase || CFG.functions_url || CFG2.FUNCTIONS_BASE || CFG2.functionsBase || ''
+  ).replace(/\/$/, '');
+  if(!FUNCS && API_BASE){
+    try{ const u=new URL(API_BASE); if(u.hostname.endsWith('.supabase.co')){
+      FUNCS = `${u.protocol}//${u.hostname.replace('.supabase.co','.functions.supabase.co')}`;
+    }}catch(_){}
+  }
 
   // Detectar email de usuario del login global
   function detectUserEmail(){
@@ -156,7 +172,7 @@
 
   // Wrapper de fetch a PostgREST
   async function rest(path, {method='GET', body, headers={}}={}){
-    if(!API_BASE||!API_KEY) throw new Error('Falta PSC_CONFIG.url o PSC_CONFIG.apikey en config.js');
+    if(!API_BASE||!API_KEY) throw new Error('Falta configuración de Supabase (url o apikey) — revisa config.js (PSC_CONFIG o __PSC_CONFIG__)');
     const res = await fetch(`${API_BASE}${path}`,{
       method,
       headers:{
@@ -422,4 +438,3 @@
   <script>(function(){try{var wrap=document.querySelector('.wrap');if(wrap){var n=wrap.previousElementSibling;while(n){if(!n.classList.contains('psc-header')){n.style.display='none';}n=n.previousElementSibling;}}}catch(e){}})();</script>
 </body>
 </html>
-
