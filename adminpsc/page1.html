@@ -306,7 +306,7 @@
       const batch = await rest(`/rest/v1/upload_batches`, {
         method:'POST',
         headers:{ 'Prefer':'return=representation' },
-        body: [{ expected_rows: expected, user: email, account }]
+        body: [{ expected_rows: expected, user: email, cuenta: account }]
       });
       batchId = (batch && batch[0] && (batch[0].id||batch[0].batch_id)) || null;
       $('#batchInfo').textContent = batchId || '—';
