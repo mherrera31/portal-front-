@@ -60,7 +60,6 @@
       .psc-back-main:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(0,122,255,.35),0 12px 32px rgba(0,0,0,.2)}
     </style>
 
-    <!-- Global -->
     <link rel="stylesheet" href="portal.css" />
     <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -92,6 +91,10 @@
               <label class="label" for="nombre">Nombre *</label>
               <input id="nombre" name="nombre" type="text" autocomplete="name" required placeholder="Ej. Juan Pérez" />
             </div>
+            <div class="field">
+              <label class="label" for="saco">Saco/CB</label>
+              <input id="saco" name="saco" type="text" autocomplete="off" placeholder="Ej. Saco 123" />
+            </div>
           </div>
 
           <div class="actions" style="margin-top: 16px">
@@ -113,6 +116,7 @@
         tracking: document.getElementById("tracking"),
         casillero: document.getElementById("casillero"),
         nombre: document.getElementById("nombre"),
+        saco: document.getElementById("saco"), // <-- Añadir referencia al nuevo input
         btnSubmit: document.getElementById("btnSubmit"),
         btnClear: document.getElementById("btnClear"),
         status: document.getElementById("status"),
@@ -194,6 +198,7 @@
         const tracking  = trimv(ui.tracking.value);
         const casillero = trimv(ui.casillero.value);
         const nombre    = trimv(ui.nombre.value);
+        const saco      = trimv(ui.saco.value); // <-- Obtener el valor del nuevo campo
 
         if (!tracking || tracking.length < 5) { setStatus("Tracking inválido (mínimo 5).", "warn"); ui.tracking.focus(); return; }
         if (!casillero) { setStatus("N.º de casillero es requerido.", "warn"); ui.casillero.focus(); return; }
@@ -211,7 +216,7 @@
             const res = await fetch(ML_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tracking, num_casillero: casillero, name: nombre }),
+              body: JSON.stringify({ tracking, num_casillero: casillero, name: nombre, registro_ml: saco }), // <-- Añadir 'saco' al body
             });
             const js = await res.json().catch(() => ({}));
             if (!res.ok || js?.ok !== true) {
@@ -242,6 +247,7 @@
               tracking,
               num_casillero: casillero,
               name: nombre,
+              registro_ml: saco, // <-- Añadir 'saco' al body también aquí
             }),
           });
           const js = await res.json().catch(() => ({}));
