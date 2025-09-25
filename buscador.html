@@ -14,9 +14,9 @@
         .result-item:hover { background-color: #f9f9f9; }
         .result-item:last-child { border-bottom: none; }
         .item-info { display: flex; flex-direction: column; }
-        .item-info .tracking { font-weight: bold; font-size: 1.1em; color: #2980b9; }
+        .item-info .tracking { font-weight: bold; font-size: 1.1em; color: #2980b9; word-break: break-all; }
         .item-info .weight { font-size: 0.9em; color: #7f8c8d; }
-        .action-button { padding: 8px 15px; font-size: 14px; color: #fff; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        .action-button { padding: 8px 15px; font-size: 14px; color: #fff; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
         .action-button:hover { background-color: #2980b9; }
         .action-button:disabled { background-color: #95a5a6; cursor: not-allowed; }
         .section-divider { margin-top: 40px; }
@@ -27,10 +27,10 @@
 <body>
 
     <div class="container">
-        <h1>Buscador de Paquetes 📦 (Supabase)</h1>
+        <h1>Buscador de Paquetes 📦</h1>
 
         <section>
-            <h2>Paquetes Cargados</h2>
+            <h2>Tabla: paquetes_cargados</h2>
             <input type="text" id="buscadorCargados" class="search-box" placeholder="Buscar por tracking en paquetes cargados...">
             <ul id="resultadosCargados" class="results-list">
                 <li class="status-message">Cargando datos...</li>
@@ -40,7 +40,7 @@
         <hr class="section-divider">
 
         <section>
-            <h2>Paquetes Exportados (Historial - Tabla 'trackings')</h2>
+            <h2>Tabla: trackings</h2>
             <input type="text" id="buscadorExportados" class="search-box" placeholder="Buscar por tracking en el historial...">
             <ul id="resultadosExportados" class="results-list">
                 <li class="status-message">Cargando datos...</li>
@@ -50,10 +50,12 @@
     </div>
 
     <script>
-        // --- 2. CONFIGURACIÓN DE SUPABASE ---
+        // --- 2. CONFIGURACIÓN Y CONEXIÓN A SUPABASE ---
         const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // ¡CORRECCIÓN IMPORTANTE! Se crea un cliente con un nombre único.
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --- VARIABLES PARA GUARDAR LOS DATOS ---
         let paquetesCargados = [];
@@ -67,10 +69,10 @@
         
         // --- FUNCIÓN PARA CARGAR LOS DATOS INICIALES ---
         async function cargarDatosIniciales() {
-            // Cargar paquetes cargados
-            const { data: cargados, error: errorCargados } = await supabase
+            // Cargar desde 'paquetes_cargados'
+            const { data: cargados, error: errorCargados } = await supabaseClient
                 .from('paquetes_cargados')
-                .select('*');
+                .select('id, tracking, peso, cargados'); // Seleccionamos solo las columnas necesarias
             
             if (errorCargados) {
                 console.error('Error cargando paquetes_cargados:', errorCargados);
@@ -80,10 +82,10 @@
                 resultadosCargados.innerHTML = `<li class="status-message">Listo para buscar.</li>`;
             }
 
-            // Cargar trackings (historial)
-            const { data: trackings, error: errorTrackings } = await supabase
+            // Cargar desde 'trackings'
+            const { data: trackings, error: errorTrackings } = await supabaseClient
                 .from('trackings')
-                .select('*');
+                .select('id, tracking_corrected, weight_lbs, exported'); // Seleccionamos solo las columnas necesarias
 
             if (errorTrackings) {
                 console.error('Error cargando trackings:', errorTrackings);
@@ -94,7 +96,7 @@
             }
         }
 
-        // --- FUNCIONES PARA MOSTRAR RESULTADOS (sin cambios) ---
+        // --- FUNCIONES PARA MOSTRAR RESULTADOS ---
         function mostrarResultadosCargados(resultados) {
             resultadosCargados.innerHTML = '';
             if (resultados.length === 0) {
@@ -107,9 +109,9 @@
                 li.innerHTML = `
                     <div class="item-info">
                         <span class="tracking">${paquete.tracking}</span>
-                        <span class="weight">Peso: ${paquete.peso} lbs</span>
+                        <span class="weight">Peso: ${paquete.peso || 'N/A'} lbs</span>
                     </div>
-                    <button class="action-button" data-id="${paquete.id}">➡️ Marcar como NO Cargado</button>
+                    <button class="action-button" data-id="${paquete.id}">➡️ Poner "cargados" en false</button>
                 `;
                 resultadosCargados.appendChild(li);
             });
@@ -127,15 +129,15 @@
                 li.innerHTML = `
                     <div class="item-info">
                         <span class="tracking">${paquete.tracking_corrected}</span>
-                        <span class="weight">Peso: ${paquete.weight_lbs} lbs</span>
+                        <span class="weight">Peso: ${paquete.weight_lbs || 'N/A'} lbs</span>
                     </div>
-                    <button class="action-button" data-id="${paquete.id}">➡️ Marcar como NO Exportado</button>
+                    <button class="action-button" data-id="${paquete.id}">➡️ Poner "exported" en false</button>
                 `;
                 resultadosExportados.appendChild(li);
             });
         }
 
-        // --- EVENT LISTENERS PARA BÚSQUEDA (sin cambios en la lógica) ---
+        // --- EVENT LISTENERS PARA BÚSQUEDA ---
         buscadorCargados.addEventListener('input', (e) => {
             const termino = e.target.value.toLowerCase().trim();
             if (termino === '') {
@@ -152,21 +154,18 @@
                 resultadosExportados.innerHTML = '';
                 return;
             }
-            const filtrados = paquetesExportados.filter(p => 
-                (p.tracking_corrected && p.tracking_corrected.toLowerCase().includes(termino)) || 
-                (p.tracking_original && p.tracking_original.toLowerCase().includes(termino))
-            );
+            const filtrados = paquetesExportados.filter(p => p.tracking_corrected && p.tracking_corrected.toLowerCase().includes(termino));
             mostrarResultadosExportados(filtrados);
         });
 
-        // --- EVENT LISTENERS PARA LOS BOTONES DE ACCIÓN (MODIFICADOS PARA SUPABASE) ---
+        // --- EVENT LISTENERS PARA LOS BOTONES DE ACCIÓN (CONECTADOS A SUPABASE) ---
         resultadosCargados.addEventListener('click', async (e) => {
             if (e.target.tagName === 'BUTTON') {
                 const paqueteId = e.target.dataset.id;
                 e.target.disabled = true;
                 e.target.textContent = 'Actualizando...';
 
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('paquetes_cargados')
                     .update({ cargados: false })
                     .eq('id', paqueteId);
@@ -175,13 +174,10 @@
                     console.error('Error al actualizar:', error);
                     alert(`Error al actualizar el paquete. Revisa la consola.`);
                     e.target.disabled = false;
-                    e.target.textContent = '➡️ Marcar como NO Cargado';
+                    e.target.textContent = '➡️ Poner "cargados" en false';
                 } else {
                     alert(`Paquete actualizado en la base de datos.`);
                     e.target.textContent = '✅ Actualizado';
-                    // Opcional: actualizar el dato localmente para que no se pueda volver a cambiar
-                    const paqueteLocal = paquetesCargados.find(p => p.id == paqueteId);
-                    if(paqueteLocal) paqueteLocal.cargados = false;
                 }
             }
         });
@@ -192,7 +188,7 @@
                 e.target.disabled = true;
                 e.target.textContent = 'Actualizando...';
 
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('trackings')
                     .update({ exported: false })
                     .eq('id', paqueteId);
@@ -201,13 +197,10 @@
                     console.error('Error al actualizar:', error);
                     alert(`Error al actualizar el tracking. Revisa la consola.`);
                     e.target.disabled = false;
-                    e.target.textContent = '➡️ Marcar como NO Exportado';
+                    e.target.textContent = '➡️ Poner "exported" en false';
                 } else {
                     alert(`Tracking actualizado en la base de datos.`);
                     e.target.textContent = '✅ Actualizado';
-                    // Opcional: actualizar el dato localmente
-                    const paqueteLocal = paquetesExportados.find(p => p.id == paqueteId);
-                    if(paqueteLocal) paqueteLocal.exported = false;
                 }
             }
         });
