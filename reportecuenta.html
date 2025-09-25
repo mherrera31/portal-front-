@@ -13,8 +13,9 @@
         .filters .form-group { display: flex; flex-direction: column; gap: 4px; }
         .filters label { font-size: 12px; font-weight: 600; color: #64748b; }
         .filters input, .filters select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-        .btn { padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+        .btn { padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: background-color 0.2s; }
         .btn.primary { background-color: #2563eb; color: white; border-color: #2563eb; }
+        .btn.primary:disabled { background-color: #93c5fd; cursor: not-allowed; }
         .btn.secondary { background-color: #e2e8f0; color: #1e293b; border-color: #cbd5e1; }
         .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
         .stat { background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
@@ -25,7 +26,6 @@
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background-color: #f1f5f9; font-size: 12px; text-transform: uppercase; color: #64748b; }
         tbody tr:hover { background-color: #f8fafc; }
-        #loading { text-align: center; padding: 40px; font-weight: 600; color: #64748b; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -85,14 +85,13 @@
                         <th>#</th>
                         <th>Tracking</th>
                         <th>Cuenta</th>
-                        <th>Sucursal</th> <th>Peso (lbs)</th>
+                        <th>Sucursal</th>
+                        <th>Peso (lbs)</th>
                         <th>Costo ($)</th>
                     </tr>
                 </thead>
                 <tbody id="reportBody">
-                    <tr>
-                        <td colspan="6" id="loading">Cargando datos iniciales...</td> </tr>
-                </tbody>
+                    </tbody>
             </table>
         </div>
     </div>
@@ -107,29 +106,23 @@
         const dateFromInput = document.getElementById('dateFrom');
         const dateToInput = document.getElementById('dateTo');
         const cuentaFilterSelect = document.getElementById('cuentaFilter');
-        const sucursalFilterSelect = document.getElementById('sucursalFilter'); // Nuevo selector
+        const sucursalFilterSelect = document.getElementById('sucursalFilter');
         const btnGenerate = document.getElementById('btnGenerate');
         const btnClear = document.getElementById('btnClear');
         const statTotalLibras = document.getElementById('statTotalLibras');
         const statTotalRetirado = document.getElementById('statTotalRetirado');
         const statTotalTrackings = document.getElementById('statTotalTrackings');
         const reportBody = document.getElementById('reportBody');
-        const loadingMessage = document.getElementById('loading');
         
-        // Almacén para todos los datos
+        // --- GESTIÓN DE ESTADO ---
         let allTrackings = [];
+        let isDataLoaded = false; // <-- NUEVO: Bandera para saber si ya cargamos los datos
 
-        // --- LÓGICA PRINCIPAL ---
-
+        // --- FUNCIONES AUXILIARES ---
         async function fetchAllRows(tableName, columns) {
-            let allRows = [];
-            let page = 0;
-            const pageSize = 1000;
+            let allRows = []; let page = 0; const pageSize = 1000;
             while (true) {
-                const { data, error } = await supabaseClient
-                    .from(tableName)
-                    .select(columns)
-                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                const { data, error } = await supabaseClient.from(tableName).select(columns).range(page * pageSize, (page + 1) * pageSize - 1);
                 if (error) { console.error(`Error cargando ${tableName}:`, error); return null; }
                 if (data.length > 0) allRows = allRows.concat(data);
                 if (data.length < pageSize) break;
@@ -140,40 +133,24 @@
 
         function populateFilters(trackings) {
             const cuentas = new Set(trackings.map(t => t.cuenta).filter(Boolean));
-            cuentas.forEach(cuenta => {
-                const option = document.createElement('option');
-                option.value = cuenta;
-                option.textContent = cuenta;
-                cuentaFilterSelect.appendChild(option);
-            });
-            
-            // NUEVA LÓGICA PARA LLENAR EL FILTRO DE SUCURSAL
             const sucursales = new Set(trackings.map(t => t.sucursal).filter(Boolean));
-            sucursales.forEach(sucursal => {
-                const option = document.createElement('option');
-                option.value = sucursal;
-                option.textContent = sucursal;
-                sucursalFilterSelect.appendChild(option);
-            });
+            
+            // Limpiar filtros antes de llenarlos para evitar duplicados
+            cuentaFilterSelect.innerHTML = '<option value="">-- Todas las Cuentas --</option>';
+            sucursalFilterSelect.innerHTML = '<option value="">-- Todas las Sucursales --</option>';
+
+            cuentas.forEach(c => cuentaFilterSelect.add(new Option(c, c)));
+            sucursales.forEach(s => sucursalFilterSelect.add(new Option(s, s)));
         }
         
         function generateReport() {
-            const fromValue = dateFromInput.value;
-            const toValue = dateToInput.value;
-            const cuentaValue = cuentaFilterSelect.value;
-            const sucursalValue = sucursalFilterSelect.value; // Nuevo valor de filtro
-
+            const fromValue = dateFromInput.value, toValue = dateToInput.value, cuentaValue = cuentaFilterSelect.value, sucursalValue = sucursalFilterSelect.value;
             const fromDate = fromValue ? new Date(fromValue + 'T00:00:00') : null;
             const toDate = toValue ? new Date(toValue + 'T23:59:59') : null;
             
-            let filteredData = allTrackings.filter(row => {
-                // Filtro por cuenta
+            const filteredData = allTrackings.filter(row => {
                 if (cuentaValue && row.cuenta !== cuentaValue) return false;
-                
-                // Filtro por sucursal
                 if (sucursalValue && row.sucursal !== sucursalValue) return false;
-
-                // Filtro por fecha
                 if (fromDate || toDate) {
                     if (!row.created_at) return false;
                     const rowDate = new Date(row.created_at);
@@ -182,86 +159,86 @@
                 }
                 return true;
             });
-
             updateSummaryAndTable(filteredData);
         }
 
         function updateSummaryAndTable(data) {
             const totalLibras = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0), 0);
-            const totalCosto = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0) * 1.55, 0);
-            const totalTrackings = data.length;
-
+            const totalCosto = totalLibras * 1.55;
+            
             statTotalLibras.textContent = totalLibras.toFixed(2);
             statTotalRetirado.textContent = totalCosto.toFixed(2);
-            statTotalTrackings.textContent = totalTrackings;
+            statTotalTrackings.textContent = data.length;
             
             reportBody.innerHTML = '';
             if (data.length === 0) {
-                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">No se encontraron resultados.</td></tr>';
+                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">No se encontraron resultados para los filtros seleccionados.</td></tr>';
                 return;
             }
             
             data.forEach((row, index) => {
                 const costo = (Number(row.weight_lbs) || 0) * 1.55;
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${row.tracking_corrected || 'N/A'}</td>
-                    <td>${row.cuenta || 'N/A'}</td>
-                    <td>${row.sucursal || 'N/A'}</td> <td>${(Number(row.weight_lbs) || 0).toFixed(2)}</td>
-                    <td>${costo.toFixed(2)}</td>
-                `;
+                tr.innerHTML = `<td>${index + 1}</td><td>${row.tracking_corrected || 'N/A'}</td><td>${row.cuenta || 'N/A'}</td><td>${row.sucursal || 'N/A'}</td><td>${(Number(row.weight_lbs) || 0).toFixed(2)}</td><td>${costo.toFixed(2)}</td>`;
                 reportBody.appendChild(tr);
             });
         }
         
         function clearFilters() {
-            dateFromInput.value = '';
-            dateToInput.value = '';
-            cuentaFilterSelect.value = '';
-            sucursalFilterSelect.value = ''; // Limpiar nuevo filtro
+            dateFromInput.value = ''; dateToInput.value = '';
+            cuentaFilterSelect.value = ''; sucursalFilterSelect.value = '';
+            // Si los datos ya se cargaron, muestra la tabla completa. Si no, limpia la tabla.
+            if (isDataLoaded) {
+                generateReport();
+            } else {
+                updateSummaryAndTable([]); // Pasa un array vacío para limpiar estadísticas y tabla
+                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
+            }
+        }
+
+        // --- NUEVO MANEJADOR PRINCIPAL PARA EL BOTÓN ---
+        async function handleGenerateReportClick() {
+            // Si los datos no se han cargado, los carga primero
+            if (!isDataLoaded) {
+                btnGenerate.disabled = true;
+                btnGenerate.textContent = 'Cargando...';
+                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Cargando todos los datos, por favor espere...</td></tr>';
+
+                const [trackingsData, paquetesData] = await Promise.all([
+                    fetchAllRows('trackings', 'tracking_corrected, weight_lbs, cuenta, created_at'),
+                    fetchAllRows('paquetes', 'tracking, sucursal')
+                ]);
+
+                if (!trackingsData) {
+                    reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:red;">Error al cargar los datos de trackings.</td></tr>';
+                    btnGenerate.disabled = false; btnGenerate.textContent = 'Generar Reporte';
+                    return;
+                }
+
+                const sucursalMap = new Map();
+                if (paquetesData) {
+                    paquetesData.forEach(p => p.tracking && p.sucursal && sucursalMap.set(p.tracking, p.sucursal));
+                }
+                
+                allTrackings = trackingsData.map(t => ({...t, sucursal: sucursalMap.get(t.tracking_corrected) || null}));
+                
+                populateFilters(allTrackings);
+                isDataLoaded = true; // Marcamos que los datos ya están listos
+
+                btnGenerate.disabled = false;
+                btnGenerate.textContent = 'Generar Reporte';
+            }
+            // Una vez que los datos están cargados (sea la primera vez o no), genera el reporte
             generateReport();
         }
 
-        // --- FUNCIÓN DE INICIALIZACIÓN (MODIFICADA) ---
-        async function initialize() {
-            loadingMessage.textContent = 'Cargando trackings...';
-            // 1. Cargar ambas tablas en paralelo para mayor eficiencia
-            const [trackingsData, paquetesData] = await Promise.all([
-                fetchAllRows('trackings', 'tracking_corrected, weight_lbs, cuenta, created_at'),
-                fetchAllRows('paquetes', 'tracking, sucursal')
-            ]);
+        // --- INICIALIZACIÓN ---
+        function initialize() {
+            // Establece el mensaje inicial
+            reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
 
-            if (!trackingsData) {
-                loadingMessage.textContent = 'Error al cargar los datos de trackings.';
-                return;
-            }
-
-            loadingMessage.textContent = 'Uniendo información de sucursales...';
-
-            // 2. Crear un mapa de búsqueda para las sucursales (tracking -> sucursal)
-            const sucursalMap = new Map();
-            if (paquetesData) {
-                for (const paquete of paquetesData) {
-                    if (paquete.tracking && paquete.sucursal) {
-                        sucursalMap.set(paquete.tracking, paquete.sucursal);
-                    }
-                }
-            }
-            
-            // 3. Unir los datos: añadir la sucursal a cada tracking
-            allTrackings = trackingsData.map(tracking => ({
-                ...tracking,
-                sucursal: sucursalMap.get(tracking.tracking_corrected) || null // O 'N/A' si prefieres
-            }));
-
-            // 4. Poblar los filtros y mostrar el reporte inicial
-            populateFilters(allTrackings);
-            generateReport();
-            loadingMessage.parentElement.parentElement.remove(); // Quita la fila de "cargando" de la tabla
-
-            // 5. Añadir listeners a los botones
-            btnGenerate.addEventListener('click', generateReport);
+            // Asigna los eventos a los botones
+            btnGenerate.addEventListener('click', handleGenerateReportClick);
             btnClear.addEventListener('click', clearFilters);
         }
 
