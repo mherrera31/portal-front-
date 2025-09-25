@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte de Cuentas</title>
+    <title>Reporte de Cuentas y Sucursales</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
@@ -32,7 +32,7 @@
 <body>
 
     <div class="container">
-        <h1>📈 Reporte de Cuentas</h1>
+        <h1>📈 Reporte de Cuentas y Sucursales</h1>
 
         <div class="card filters">
             <div class="form-group">
@@ -47,6 +47,12 @@
                 <label for="cuentaFilter">Cuenta</label>
                 <select id="cuentaFilter">
                     <option value="">-- Todas las Cuentas --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="sucursalFilter">Sucursal</label>
+                <select id="sucursalFilter">
+                    <option value="">-- Todas las Sucursales --</option>
                 </select>
             </div>
             <div class="form-group" style="margin-top: 18px;">
@@ -79,14 +85,13 @@
                         <th>#</th>
                         <th>Tracking</th>
                         <th>Cuenta</th>
-                        <th>Peso (lbs)</th>
+                        <th>Sucursal</th> <th>Peso (lbs)</th>
                         <th>Costo ($)</th>
                     </tr>
                 </thead>
                 <tbody id="reportBody">
                     <tr>
-                        <td colspan="5" id="loading">Cargando datos iniciales...</td>
-                    </tr>
+                        <td colspan="6" id="loading">Cargando datos iniciales...</td> </tr>
                 </tbody>
             </table>
         </div>
@@ -102,6 +107,7 @@
         const dateFromInput = document.getElementById('dateFrom');
         const dateToInput = document.getElementById('dateTo');
         const cuentaFilterSelect = document.getElementById('cuentaFilter');
+        const sucursalFilterSelect = document.getElementById('sucursalFilter'); // Nuevo selector
         const btnGenerate = document.getElementById('btnGenerate');
         const btnClear = document.getElementById('btnClear');
         const statTotalLibras = document.getElementById('statTotalLibras');
@@ -132,13 +138,22 @@
             return allRows;
         }
 
-        function populateCuentaFilter(trackings) {
-            const cuentas = new Set(trackings.map(t => t.cuenta).filter(Boolean)); // Filtra nulos o vacíos
+        function populateFilters(trackings) {
+            const cuentas = new Set(trackings.map(t => t.cuenta).filter(Boolean));
             cuentas.forEach(cuenta => {
                 const option = document.createElement('option');
                 option.value = cuenta;
                 option.textContent = cuenta;
                 cuentaFilterSelect.appendChild(option);
+            });
+            
+            // NUEVA LÓGICA PARA LLENAR EL FILTRO DE SUCURSAL
+            const sucursales = new Set(trackings.map(t => t.sucursal).filter(Boolean));
+            sucursales.forEach(sucursal => {
+                const option = document.createElement('option');
+                option.value = sucursal;
+                option.textContent = sucursal;
+                sucursalFilterSelect.appendChild(option);
             });
         }
         
@@ -146,21 +161,20 @@
             const fromValue = dateFromInput.value;
             const toValue = dateToInput.value;
             const cuentaValue = cuentaFilterSelect.value;
+            const sucursalValue = sucursalFilterSelect.value; // Nuevo valor de filtro
 
-            // Convierte las fechas de los inputs a objetos Date para la comparación
-            // Se pone la hora a 00:00:00 del día seleccionado
             const fromDate = fromValue ? new Date(fromValue + 'T00:00:00') : null;
-            // Para la fecha "hasta", tomamos el final de ese día (o el inicio del día siguiente)
             const toDate = toValue ? new Date(toValue + 'T23:59:59') : null;
             
             let filteredData = allTrackings.filter(row => {
                 // Filtro por cuenta
-                if (cuentaValue && row.cuenta !== cuentaValue) {
-                    return false;
-                }
+                if (cuentaValue && row.cuenta !== cuentaValue) return false;
+                
+                // Filtro por sucursal
+                if (sucursalValue && row.sucursal !== sucursalValue) return false;
+
                 // Filtro por fecha
                 if (fromDate || toDate) {
-                    // Si no hay fecha en el registro, no lo incluimos en el filtro de fecha
                     if (!row.created_at) return false;
                     const rowDate = new Date(row.created_at);
                     if (fromDate && rowDate < fromDate) return false;
@@ -173,20 +187,17 @@
         }
 
         function updateSummaryAndTable(data) {
-            // 1. Calcular totales
             const totalLibras = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0), 0);
             const totalCosto = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0) * 1.55, 0);
             const totalTrackings = data.length;
 
-            // 2. Actualizar las estadísticas en la UI
             statTotalLibras.textContent = totalLibras.toFixed(2);
             statTotalRetirado.textContent = totalCosto.toFixed(2);
             statTotalTrackings.textContent = totalTrackings;
             
-            // 3. Renderizar la tabla
-            reportBody.innerHTML = ''; // Limpiar la tabla
+            reportBody.innerHTML = '';
             if (data.length === 0) {
-                reportBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">No se encontraron resultados para los filtros seleccionados.</td></tr>';
+                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">No se encontraron resultados.</td></tr>';
                 return;
             }
             
@@ -197,7 +208,7 @@
                     <td>${index + 1}</td>
                     <td>${row.tracking_corrected || 'N/A'}</td>
                     <td>${row.cuenta || 'N/A'}</td>
-                    <td>${(Number(row.weight_lbs) || 0).toFixed(2)}</td>
+                    <td>${row.sucursal || 'N/A'}</td> <td>${(Number(row.weight_lbs) || 0).toFixed(2)}</td>
                     <td>${costo.toFixed(2)}</td>
                 `;
                 reportBody.appendChild(tr);
@@ -208,21 +219,48 @@
             dateFromInput.value = '';
             dateToInput.value = '';
             cuentaFilterSelect.value = '';
-            generateReport(); // Volver a generar el reporte con todos los datos
+            sucursalFilterSelect.value = ''; // Limpiar nuevo filtro
+            generateReport();
         }
 
-        // --- INICIALIZACIÓN ---
+        // --- FUNCIÓN DE INICIALIZACIÓN (MODIFICADA) ---
         async function initialize() {
-            const data = await fetchAllRows('trackings', 'tracking_corrected, weight_lbs, cuenta, created_at');
-            if (data) {
-                allTrackings = data;
-                populateCuentaFilter(allTrackings);
-                generateReport(); // Mostrar todos los datos al inicio
-                loadingMessage.remove();
-            } else {
-                loadingMessage.textContent = 'Error al cargar los datos. Revisa la consola.';
+            loadingMessage.textContent = 'Cargando trackings...';
+            // 1. Cargar ambas tablas en paralelo para mayor eficiencia
+            const [trackingsData, paquetesData] = await Promise.all([
+                fetchAllRows('trackings', 'tracking_corrected, weight_lbs, cuenta, created_at'),
+                fetchAllRows('paquetes', 'tracking, sucursal')
+            ]);
+
+            if (!trackingsData) {
+                loadingMessage.textContent = 'Error al cargar los datos de trackings.';
+                return;
             }
 
+            loadingMessage.textContent = 'Uniendo información de sucursales...';
+
+            // 2. Crear un mapa de búsqueda para las sucursales (tracking -> sucursal)
+            const sucursalMap = new Map();
+            if (paquetesData) {
+                for (const paquete of paquetesData) {
+                    if (paquete.tracking && paquete.sucursal) {
+                        sucursalMap.set(paquete.tracking, paquete.sucursal);
+                    }
+                }
+            }
+            
+            // 3. Unir los datos: añadir la sucursal a cada tracking
+            allTrackings = trackingsData.map(tracking => ({
+                ...tracking,
+                sucursal: sucursalMap.get(tracking.tracking_corrected) || null // O 'N/A' si prefieres
+            }));
+
+            // 4. Poblar los filtros y mostrar el reporte inicial
+            populateFilters(allTrackings);
+            generateReport();
+            loadingMessage.parentElement.parentElement.remove(); // Quita la fila de "cargando" de la tabla
+
+            // 5. Añadir listeners a los botones
             btnGenerate.addEventListener('click', generateReport);
             btnClear.addEventListener('click', clearFilters);
         }
