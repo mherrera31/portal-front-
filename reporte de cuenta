@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Cuentas</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
+        h1 { color: #2c3e50; margin-bottom: 0; }
+        .card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .filters { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+        .filters .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .filters label { font-size: 12px; font-weight: 600; color: #64748b; }
+        .filters input, .filters select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .btn { padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+        .btn.primary { background-color: #2563eb; color: white; border-color: #2563eb; }
+        .btn.secondary { background-color: #e2e8f0; color: #1e293b; border-color: #cbd5e1; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
+        .stat { background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .stat-title { font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f1f5f9; font-size: 12px; text-transform: uppercase; color: #64748b; }
+        tbody tr:hover { background-color: #f8fafc; }
+        #loading { text-align: center; padding: 40px; font-weight: 600; color: #64748b; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📈 Reporte de Cuentas</h1>
+
+        <div class="card filters">
+            <div class="form-group">
+                <label for="dateFrom">Desde</label>
+                <input type="date" id="dateFrom">
+            </div>
+            <div class="form-group">
+                <label for="dateTo">Hasta</label>
+                <input type="date" id="dateTo">
+            </div>
+            <div class="form-group">
+                <label for="cuentaFilter">Cuenta</label>
+                <select id="cuentaFilter">
+                    <option value="">-- Todas las Cuentas --</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 18px;">
+                <button id="btnGenerate" class="btn primary">Generar Reporte</button>
+            </div>
+            <div class="form-group" style="margin-top: 18px;">
+                <button id="btnClear" class="btn secondary">Limpiar Filtros</button>
+            </div>
+        </div>
+
+        <div class="card summary">
+            <div class="stat">
+                <div class="stat-title">Total de Libras</div>
+                <div id="statTotalLibras" class="stat-value">0.00</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">Total Retirado ($)</div>
+                <div id="statTotalRetirado" class="stat-value">0.00</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">Cantidad de Paquetes</div>
+                <div id="statTotalTrackings" class="stat-value">0</div>
+            </div>
+        </div>
+
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Tracking</th>
+                        <th>Cuenta</th>
+                        <th>Peso (lbs)</th>
+                        <th>Costo ($)</th>
+                    </tr>
+                </thead>
+                <tbody id="reportBody">
+                    <tr>
+                        <td colspan="5" id="loading">Cargando datos iniciales...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN DE SUPABASE ---
+        const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- REFERENCIAS AL DOM ---
+        const dateFromInput = document.getElementById('dateFrom');
+        const dateToInput = document.getElementById('dateTo');
+        const cuentaFilterSelect = document.getElementById('cuentaFilter');
+        const btnGenerate = document.getElementById('btnGenerate');
+        const btnClear = document.getElementById('btnClear');
+        const statTotalLibras = document.getElementById('statTotalLibras');
+        const statTotalRetirado = document.getElementById('statTotalRetirado');
+        const statTotalTrackings = document.getElementById('statTotalTrackings');
+        const reportBody = document.getElementById('reportBody');
+        const loadingMessage = document.getElementById('loading');
+        
+        // Almacén para todos los datos
+        let allTrackings = [];
+
+        // --- LÓGICA PRINCIPAL ---
+
+        async function fetchAllRows(tableName, columns) {
+            let allRows = [];
+            let page = 0;
+            const pageSize = 1000;
+            while (true) {
+                const { data, error } = await supabaseClient
+                    .from(tableName)
+                    .select(columns)
+                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                if (error) { console.error(`Error cargando ${tableName}:`, error); return null; }
+                if (data.length > 0) allRows = allRows.concat(data);
+                if (data.length < pageSize) break;
+                page++;
+            }
+            return allRows;
+        }
+
+        function populateCuentaFilter(trackings) {
+            const cuentas = new Set(trackings.map(t => t.cuenta).filter(Boolean)); // Filtra nulos o vacíos
+            cuentas.forEach(cuenta => {
+                const option = document.createElement('option');
+                option.value = cuenta;
+                option.textContent = cuenta;
+                cuentaFilterSelect.appendChild(option);
+            });
+        }
+        
+        function generateReport() {
+            const fromValue = dateFromInput.value;
+            const toValue = dateToInput.value;
+            const cuentaValue = cuentaFilterSelect.value;
+
+            // Convierte las fechas de los inputs a objetos Date para la comparación
+            // Se pone la hora a 00:00:00 del día seleccionado
+            const fromDate = fromValue ? new Date(fromValue + 'T00:00:00') : null;
+            // Para la fecha "hasta", tomamos el final de ese día (o el inicio del día siguiente)
+            const toDate = toValue ? new Date(toValue + 'T23:59:59') : null;
+            
+            let filteredData = allTrackings.filter(row => {
+                // Filtro por cuenta
+                if (cuentaValue && row.cuenta !== cuentaValue) {
+                    return false;
+                }
+                // Filtro por fecha
+                if (fromDate || toDate) {
+                    // Si no hay fecha en el registro, no lo incluimos en el filtro de fecha
+                    if (!row.created_at) return false;
+                    const rowDate = new Date(row.created_at);
+                    if (fromDate && rowDate < fromDate) return false;
+                    if (toDate && rowDate > toDate) return false;
+                }
+                return true;
+            });
+
+            updateSummaryAndTable(filteredData);
+        }
+
+        function updateSummaryAndTable(data) {
+            // 1. Calcular totales
+            const totalLibras = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0), 0);
+            const totalCosto = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0) * 1.55, 0);
+            const totalTrackings = data.length;
+
+            // 2. Actualizar las estadísticas en la UI
+            statTotalLibras.textContent = totalLibras.toFixed(2);
+            statTotalRetirado.textContent = totalCosto.toFixed(2);
+            statTotalTrackings.textContent = totalTrackings;
+            
+            // 3. Renderizar la tabla
+            reportBody.innerHTML = ''; // Limpiar la tabla
+            if (data.length === 0) {
+                reportBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">No se encontraron resultados para los filtros seleccionados.</td></tr>';
+                return;
+            }
+            
+            data.forEach((row, index) => {
+                const costo = (Number(row.weight_lbs) || 0) * 1.55;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${row.tracking_corrected || 'N/A'}</td>
+                    <td>${row.cuenta || 'N/A'}</td>
+                    <td>${(Number(row.weight_lbs) || 0).toFixed(2)}</td>
+                    <td>${costo.toFixed(2)}</td>
+                `;
+                reportBody.appendChild(tr);
+            });
+        }
+        
+        function clearFilters() {
+            dateFromInput.value = '';
+            dateToInput.value = '';
+            cuentaFilterSelect.value = '';
+            generateReport(); // Volver a generar el reporte con todos los datos
+        }
+
+        // --- INICIALIZACIÓN ---
+        async function initialize() {
+            const data = await fetchAllRows('trackings', 'tracking_corrected, weight_lbs, cuenta, created_at');
+            if (data) {
+                allTrackings = data;
+                populateCuentaFilter(allTrackings);
+                generateReport(); // Mostrar todos los datos al inicio
+                loadingMessage.remove();
+            } else {
+                loadingMessage.textContent = 'Error al cargar los datos. Revisa la consola.';
+            }
+
+            btnGenerate.addEventListener('click', generateReport);
+            btnClear.addEventListener('click', clearFilters);
+        }
+
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html>
