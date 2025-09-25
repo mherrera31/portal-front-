@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Paquetes</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        .results-list {
+            list-style: none;
+            padding: 0;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+        .result-item:hover {
+            background-color: #f9f9f9;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        .item-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .item-info .tracking {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #2980b9;
+        }
+        .item-info .weight {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .action-button {
+            padding: 8px 15px;
+            font-size: 14px;
+            color: #fff;
+            background-color: #3498db;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .action-button:hover {
+            background-color: #2980b9;
+        }
+        .action-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .section-divider {
+            margin-top: 40px;
+        }
+        .no-results {
+            color: #999;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Buscador de Paquetes 📦</h1>
+
+        <section>
+            <h2>Paquetes Cargados</h2>
+            <input type="text" id="buscadorCargados" class="search-box" placeholder="Buscar por tracking en paquetes cargados...">
+            <ul id="resultadosCargados" class="results-list"></ul>
+        </section>
+
+        <hr class="section-divider">
+
+        <section>
+            <h2>Paquetes Exportados (Historial)</h2>
+            <input type="text" id="buscadorExportados" class="search-box" placeholder="Buscar por tracking en paquetes exportados...">
+            <ul id="resultadosExportados" class="results-list"></ul>
+        </section>
+
+    </div>
+
+    <script>
+        // --- DATOS ---
+        // Tus datos JSON pegados directamente aquí
+        const paquetesCargados = [{"idx":0,"id":"fb9926b9-8989-48c8-a52a-bf8f1978d46f","fecha_bodega":"2025-09-24 15:13:17.257-05","tracking":"psc69878","status":"Cargado Manualmente","cliente_box":"21","peso":"5.00","valor":null,"cargados":true},{"idx":6,"id":"cf9e5cba-b186-480d-9c26-bab4342f68d8","fecha_bodega":"2025-09-24 11:25:52.75567-05","tracking":"TBA324509417235","status":"Centro de Dist. PSC","cliente_box":null,"peso":"6.00","valor":null,"cargados":true},{"idx":11,"id":"4a1e20b4-8c72-4ddd-ba2c-7a19a5c5b13c","fecha_bodega":"2025-09-24 11:25:52.75567-05","tracking":"420331729239590198175418367182","status":"Centro de Dist. PSC","cliente_box":null,"peso":"2.00","valor":null,"cargados":true}];
+        
+        const paquetesExportados = [{"idx":0,"id":"001a6298-734f-4ba1-b436-67f87a4723da","tracking_original":"gf6493015617636","tracking_corrected":"gf6493015617636","weight_lbs":"1.00","status":"Centro de Dist. PSC","created_at":"2025-08-28 13:06:48.935605-05","updated_at":"2025-08-28 13:06:57.34645-05","batch_id":"6de4b792-4b78-469b-a31b-d5c84147b323","tracking_corrected_upper":"GF6493015617636","tracking_corrected_lower":"gf6493015617636","tracking_original_upper":"GF6493015617636","tracking_original_lower":"gf6493015617636","cuenta":"PSC","num_casillero":null,"saco/cb":null,"costo":"1.55","exported":true,"exported_at":"2025-08-28 13:06:57.306-05","exported_by":null,"last_modified_by":null,"name":null,"ml":false,"registro_ml":null,"express":null},{"idx":1,"id":"002bf49c-00c7-4649-a6c2-0803133ac60d","tracking_original":"]c142033172|92001903651784300224606824","tracking_corrected":"4203317292001903651784300224606824","weight_lbs":"1.00","status":"Centro de Dist. PSC","created_at":"2025-08-14 15:52:49.693377-05","updated_at":"2025-08-15 17:39:38.412206-05","batch_id":"2b8d3d93-cc82-4f10-9e12-453cafc643ef","tracking_corrected_upper":"4203317292001903651784300224606824","tracking_corrected_lower":"4203317292001903651784300224606824","tracking_original_upper":"]C142033172|92001903651784300224606824","tracking_original_lower":"]c142033172|92001903651784300224606824","cuenta":"PSC","num_casillero":null,"saco/cb":null,"costo":"1.55","exported":true,"exported_at":null,"exported_by":null,"last_modified_by":null,"name":null,"ml":false,"registro_ml":null,"express":null},{"idx":2,"id":"002c8fb5-f0a5-499d-aee4-e8d3ca30cd18","tracking_original":"4203317230499200190391325214064272","tracking_corrected":"4203317230499200190391325214064272","weight_lbs":"1.00","status":"Centro de Dist. PSC","created_at":"2025-09-01 12:23:46.191354-05","updated_at":"2025-09-01 12:23:54.718085-05","batch_id":"819ee0d2-365a-4dbd-aa4c-6a10baf1bcba","tracking_corrected_upper":"4203317230499200190391325214064272","tracking_corrected_lower":"4203317230499200190391325214064272","tracking_original_upper":"4203317230499200190391325214064272","tracking_original_lower":"4203317230499200190391325214064272","cuenta":"PSC","num_casillero":null,"saco/cb":null,"costo":"1.55","exported":true,"exported_at":"2025-09-01 12:23:54.678-05","exported_by":null,"last_modified_by":null,"name":null,"ml":false,"registro_ml":null,"express":null},{"idx":3,"id":"0030b31b-3ba1-40d5-baa8-8ef7b5324c99","tracking_original":"9631091350201745463900478827441464//9261290359835161998749","tracking_corrected":"9631091350201745463900478827441464 9261290359835161998749","weight_lbs":"4.00","status":"Centro de Dist. PSC","created_at":"2025-09-10 14:37:23.022297-05","updated_at":"2025-09-10 14:37:26.394031-05","batch_id":"eee8ee6a-dc74-4b87-9cdc-72e99e42a613","tracking_corrected_upper":"9631091350201745463900478827441464 9261290359835161998749","tracking_corrected_lower":"9631091350201745463900478827441464 9261290359835161998749","tracking_original_upper":"9631091350201745463900478827441464//9261290359835161998749","tracking_original_lower":"9631091350201745463900478827441464//9261290359835161998749","cuenta":"PSC","num_casillero":null,"saco/cb":null,"costo":"1.55","exported":true,"exported_at":"2025-09-10 14:37:26.339-05","exported_by":null,"last_modified_by":null,"name":null,"ml":false,"registro_ml":null,"express":null},{"idx":4,"id":"00325f5c-e002-4214-adf7-9f46768d1008","tracking_original":"spxmia056764051445","tracking_corrected":"spxmia056764051445","weight_lbs":"2.00","status":"Centro de Dist. PSC","created_at":"2025-09-10 14:35:59.138879-05","updated_at":"2025-09-10 14:37:26.394031-05","batch_id":"eaaf89e9-f3dc-4f70-acb5-8986b3208f1e","tracking_corrected_upper":"SPXMIA056764051445","tracking_corrected_lower":"spxmia056764051445","tracking_original_upper":"SPXMIA056764051445","tracking_original_lower":"spxmia056764051445","cuenta":"C10PA","num_casillero":null,"saco/cb":null,"costo":"1.55","exported":true,"exported_at":"2025-09-10 14:37:26.339-05","exported_by":null,"last_modified_by":null,"name":null,"ml":false,"registro_ml":null,"express":null}];
+
+        // --- REFERENCIAS A ELEMENTOS DEL DOM ---
+        const buscadorCargados = document.getElementById('buscadorCargados');
+        const resultadosCargados = document.getElementById('resultadosCargados');
+        const buscadorExportados = document.getElementById('buscadorExportados');
+        const resultadosExportados = document.getElementById('resultadosExportados');
+
+        // --- FUNCIÓN PARA MOSTRAR RESULTADOS (CARGADOS) ---
+        function mostrarResultadosCargados(resultados) {
+            resultadosCargados.innerHTML = ''; // Limpiar resultados anteriores
+            if (resultados.length === 0) {
+                resultadosCargados.innerHTML = '<li class="no-results">No se encontraron paquetes.</li>';
+                return;
+            }
+            resultados.forEach(paquete => {
+                const li = document.createElement('li');
+                li.className = 'result-item';
+                li.innerHTML = `
+                    <div class="item-info">
+                        <span class="tracking">${paquete.tracking}</span>
+                        <span class="weight">Peso: ${paquete.peso} lbs</span>
+                    </div>
+                    <button class="action-button" data-id="${paquete.id}">➡️ Marcar como NO Cargado</button>
+                `;
+                resultadosCargados.appendChild(li);
+            });
+        }
+
+        // --- FUNCIÓN PARA MOSTRAR RESULTADOS (EXPORTADOS) ---
+        function mostrarResultadosExportados(resultados) {
+            resultadosExportados.innerHTML = ''; // Limpiar resultados anteriores
+            if (resultados.length === 0) {
+                resultadosExportados.innerHTML = '<li class="no-results">No se encontraron paquetes.</li>';
+                return;
+            }
+            resultados.forEach(paquete => {
+                const li = document.createElement('li');
+                li.className = 'result-item';
+                li.innerHTML = `
+                    <div class="item-info">
+                        <span class="tracking">${paquete.tracking_corrected}</span>
+                        <span class="weight">Peso: ${paquete.weight_lbs} lbs</span>
+                    </div>
+                    <button class="action-button" data-id="${paquete.id}">➡️ Marcar como NO Exportado</button>
+                `;
+                resultadosExportados.appendChild(li);
+            });
+        }
+
+
+        // --- EVENT LISTENERS PARA BÚSQUEDA ---
+        buscadorCargados.addEventListener('input', (e) => {
+            const termino = e.target.value.toLowerCase().trim();
+            if (termino === '') {
+                resultadosCargados.innerHTML = '';
+                return;
+            }
+            const filtrados = paquetesCargados.filter(p => 
+                p.tracking.toLowerCase().includes(termino)
+            );
+            mostrarResultadosCargados(filtrados);
+        });
+
+        buscadorExportados.addEventListener('input', (e) => {
+            const termino = e.target.value.toLowerCase().trim();
+            if (termino === '') {
+                resultadosExportados.innerHTML = '';
+                return;
+            }
+            const filtrados = paquetesExportados.filter(p => 
+                p.tracking_corrected.toLowerCase().includes(termino) || 
+                p.tracking_original.toLowerCase().includes(termino)
+            );
+            mostrarResultadosExportados(filtrados);
+        });
+
+
+        // --- EVENT LISTENERS PARA LOS BOTONES DE ACCIÓN ---
+        resultadosCargados.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const paqueteId = e.target.dataset.id;
+                const paquete = paquetesCargados.find(p => p.id === paqueteId);
+                if (paquete) {
+                    paquete.cargados = false;
+                    alert(`Paquete ${paquete.tracking} actualizado.\nNuevo estado 'cargados': ${paquete.cargados}`);
+                    e.target.textContent = '✅ Actualizado';
+                    e.target.disabled = true;
+                    // Opcional: ver el objeto actualizado en la consola del navegador
+                    console.log('Objeto actualizado:', paquete); 
+                }
+            }
+        });
+
+        resultadosExportados.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const paqueteId = e.target.dataset.id;
+                const paquete = paquetesExportados.find(p => p.id === paqueteId);
+                if (paquete) {
+                    paquete.exported = false;
+                    alert(`Paquete ${paquete.tracking_corrected} actualizado.\nNuevo estado 'exported': ${paquete.exported}`);
+                    e.target.textContent = '✅ Actualizado';
+                    e.target.disabled = true;
+                    // Opcional: ver el objeto actualizado en la consola del navegador
+                    console.log('Objeto actualizado:', paquete);
+                }
+            }
+        });
+
+    </script>
+
+</body>
+</html>
