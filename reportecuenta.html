@@ -47,12 +47,14 @@
                 <label for="cuentaFilter">Cuenta</label>
                 <select id="cuentaFilter">
                     <option value="">-- Todas las Cuentas --</option>
+                    <option value="PSC">PSC</option>
+                    <option value="C10PA">C10PA</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="sucursalFilter">Sucursal</label>
                 <select id="sucursalFilter">
-                    <option value="">-- Todas las Sucursales --</option>
+                    <option value="">Cargando sucursales...</option>
                 </select>
             </div>
             <div class="form-group" style="margin-top: 18px;">
@@ -116,7 +118,7 @@
         
         // --- GESTIÓN DE ESTADO ---
         let allTrackings = [];
-        let isDataLoaded = false; // <-- NUEVO: Bandera para saber si ya cargamos los datos
+        let isDataLoaded = false;
 
         // --- FUNCIONES AUXILIARES ---
         async function fetchAllRows(tableName, columns) {
@@ -129,18 +131,6 @@
                 page++;
             }
             return allRows;
-        }
-
-        function populateFilters(trackings) {
-            const cuentas = new Set(trackings.map(t => t.cuenta).filter(Boolean));
-            const sucursales = new Set(trackings.map(t => t.sucursal).filter(Boolean));
-            
-            // Limpiar filtros antes de llenarlos para evitar duplicados
-            cuentaFilterSelect.innerHTML = '<option value="">-- Todas las Cuentas --</option>';
-            sucursalFilterSelect.innerHTML = '<option value="">-- Todas las Sucursales --</option>';
-
-            cuentas.forEach(c => cuentaFilterSelect.add(new Option(c, c)));
-            sucursales.forEach(s => sucursalFilterSelect.add(new Option(s, s)));
         }
         
         function generateReport() {
@@ -171,9 +161,10 @@
             statTotalTrackings.textContent = data.length;
             
             reportBody.innerHTML = '';
-            if (data.length === 0) {
+            if (data.length === 0 && isDataLoaded) { // Muestra mensaje solo si ya se cargaron los datos
                 reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">No se encontraron resultados para los filtros seleccionados.</td></tr>';
-                return;
+            } else if (!isDataLoaded) {
+                 reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
             }
             
             data.forEach((row, index) => {
@@ -187,18 +178,14 @@
         function clearFilters() {
             dateFromInput.value = ''; dateToInput.value = '';
             cuentaFilterSelect.value = ''; sucursalFilterSelect.value = '';
-            // Si los datos ya se cargaron, muestra la tabla completa. Si no, limpia la tabla.
             if (isDataLoaded) {
                 generateReport();
             } else {
-                updateSummaryAndTable([]); // Pasa un array vacío para limpiar estadísticas y tabla
-                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
+                updateSummaryAndTable([]);
             }
         }
 
-        // --- NUEVO MANEJADOR PRINCIPAL PARA EL BOTÓN ---
         async function handleGenerateReportClick() {
-            // Si los datos no se han cargado, los carga primero
             if (!isDataLoaded) {
                 btnGenerate.disabled = true;
                 btnGenerate.textContent = 'Cargando...';
@@ -221,21 +208,26 @@
                 }
                 
                 allTrackings = trackingsData.map(t => ({...t, sucursal: sucursalMap.get(t.tracking_corrected) || null}));
-                
-                populateFilters(allTrackings);
-                isDataLoaded = true; // Marcamos que los datos ya están listos
+                isDataLoaded = true;
 
                 btnGenerate.disabled = false;
                 btnGenerate.textContent = 'Generar Reporte';
             }
-            // Una vez que los datos están cargados (sea la primera vez o no), genera el reporte
             generateReport();
         }
+        
+        // --- FUNCIÓN DE INICIALIZACIÓN (MODIFICADA) ---
+        async function initialize() {
+            // Carga solo las sucursales para llenar el filtro al inicio
+            const paquetes = await fetchAllRows('paquetes', 'sucursal');
+            sucursalFilterSelect.innerHTML = '<option value="">-- Todas las Sucursales --</option>';
+            if (paquetes) {
+                const sucursales = new Set(paquetes.map(p => p.sucursal).filter(Boolean));
+                sucursales.forEach(s => sucursalFilterSelect.add(new Option(s, s)));
+            }
 
-        // --- INICIALIZACIÓN ---
-        function initialize() {
             // Establece el mensaje inicial
-            reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
+            updateSummaryAndTable([]);
 
             // Asigna los eventos a los botones
             btnGenerate.addEventListener('click', handleGenerateReportClick);
