@@ -10,13 +10,13 @@
         h1, h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .search-box { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 20px; box-sizing: border-box; }
         .results-list { list-style: none; padding: 0; min-height: 50px; }
-        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; transition: background-color 0.2s; }
+        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; transition: background-color: 0.2s; }
         .result-item:hover { background-color: #f9f9f9; }
         .result-item:last-child { border-bottom: none; }
         .item-info { display: flex; flex-direction: column; }
         .item-info .tracking { font-weight: bold; font-size: 1.1em; color: #2980b9; word-break: break-all; }
         .item-info .weight { font-size: 0.9em; color: #7f8c8d; }
-        .action-button { padding: 8px 15px; font-size: 14px; color: #fff; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
+        .action-button { padding: 8px 15px; font-size: 14px; color: #fff; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background-color: 0.2s; white-space: nowrap; }
         .action-button:hover { background-color: #2980b9; }
         .action-button:disabled { background-color: #95a5a6; cursor: not-allowed; }
         .section-divider { margin-top: 40px; }
@@ -54,7 +54,6 @@
         const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
         
-        // ¡CORRECCIÓN IMPORTANTE! Se crea un cliente con un nombre único.
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --- VARIABLES PARA GUARDAR LOS DATOS ---
@@ -67,32 +66,57 @@
         const buscadorExportados = document.getElementById('buscadorExportados');
         const resultadosExportados = document.getElementById('resultadosExportados');
         
-        // --- FUNCIÓN PARA CARGAR LOS DATOS INICIALES ---
+        // --- FUNCIÓN PARA CARGAR TODAS LAS FILAS USANDO PAGINACIÓN ---
+        async function fetchAllRows(tableName, columns) {
+            let allRows = [];
+            let page = 0;
+            const pageSize = 1000; // El límite por defecto de Supabase
+
+            while (true) {
+                const { data, error } = await supabaseClient
+                    .from(tableName)
+                    .select(columns)
+                    .range(page * pageSize, (page + 1) * pageSize - 1);
+
+                if (error) {
+                    console.error(`Error cargando la tabla ${tableName}:`, error);
+                    return null; // Devuelve null si hay un error
+                }
+
+                if (data.length > 0) {
+                    allRows = allRows.concat(data);
+                }
+
+                // Si devuelve menos de 1000 filas, es la última página
+                if (data.length < pageSize) {
+                    break;
+                }
+
+                page++;
+            }
+            return allRows;
+        }
+
+        // --- FUNCIÓN DE CARGA INICIAL (MODIFICADA PARA USAR LA NUEVA FUNCIÓN) ---
         async function cargarDatosIniciales() {
             // Cargar desde 'paquetes_cargados'
-            const { data: cargados, error: errorCargados } = await supabaseClient
-                .from('paquetes_cargados')
-                .select('id, tracking, peso, cargados'); // Seleccionamos solo las columnas necesarias
+            const cargados = await fetchAllRows('paquetes_cargados', 'id, tracking, peso, cargados');
             
-            if (errorCargados) {
-                console.error('Error cargando paquetes_cargados:', errorCargados);
+            if (cargados === null) {
                 resultadosCargados.innerHTML = `<li class="status-message">Error al cargar datos.</li>`;
             } else {
                 paquetesCargados = cargados;
-                resultadosCargados.innerHTML = `<li class="status-message">Listo para buscar.</li>`;
+                resultadosCargados.innerHTML = `<li class="status-message">Listo para buscar (${cargados.length} registros cargados).</li>`;
             }
 
             // Cargar desde 'trackings'
-            const { data: trackings, error: errorTrackings } = await supabaseClient
-                .from('trackings')
-                .select('id, tracking_corrected, weight_lbs, exported'); // Seleccionamos solo las columnas necesarias
+            const trackings = await fetchAllRows('trackings', 'id, tracking_corrected, weight_lbs, exported');
 
-            if (errorTrackings) {
-                console.error('Error cargando trackings:', errorTrackings);
+            if (trackings === null) {
                 resultadosExportados.innerHTML = `<li class="status-message">Error al cargar datos.</li>`;
             } else {
                 paquetesExportados = trackings;
-                resultadosExportados.innerHTML = `<li class="status-message">Listo para buscar.</li>`;
+                resultadosExportados.innerHTML = `<li class="status-message">Listo para buscar (${trackings.length} registros cargados).</li>`;
             }
         }
 
@@ -158,7 +182,7 @@
             mostrarResultadosExportados(filtrados);
         });
 
-        // --- EVENT LISTENERS PARA LOS BOTONES DE ACCIÓN (CONECTADOS A SUPABASE) ---
+        // --- EVENT LISTENERS PARA LOS BOTONES DE ACCIÓN ---
         resultadosCargados.addEventListener('click', async (e) => {
             if (e.target.tagName === 'BUTTON') {
                 const paqueteId = e.target.dataset.id;
