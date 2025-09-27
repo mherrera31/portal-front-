@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador con Escáner QR (Supabase)</title>
+    <title>Buscador con Sugerencias (Supabase)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <style>
@@ -43,7 +42,7 @@
         <h1>Buscador con Sugerencias 🔎</h1>
         <section>
             <div class="search-wrapper">
-                <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe, escanea, y presiona Enter..." autofocus>
+                <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe para ver sugerencias, luego presiona Enter o haz clic..." autofocus>
                 <button id="scan-qr-button" title="Escanear Código QR">📷</button>
             </div>
             <ul id="unifiedResults" class="results-list">
@@ -58,19 +57,17 @@
     </div>
 
     <script>
-        // --- CONFIGURACIÓN Y CONEXIÓN A SUPABASE ---
         const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --- REFERENCIAS A ELEMENTOS DEL DOM ---
         const unifiedSearch = document.getElementById('unifiedSearch');
         const unifiedResults = document.getElementById('unifiedResults');
         const scanQrButton = document.getElementById('scan-qr-button');
         const qrReaderContainer = document.getElementById('qr-reader-container');
         const stopScanButton = document.getElementById('stop-scan-button');
         
-        let html5QrCode; // Variable para la instancia del escáner
+        let html5QrCode;
 
         function resetInput(enable = true) {
             unifiedSearch.value = '';
@@ -83,12 +80,16 @@
         async function fetchSuggestions(searchTerm) {
             if (searchTerm.length < 3) { unifiedResults.innerHTML = ''; return; }
             unifiedResults.innerHTML = `<li class="status-message">Buscando sugerencias...</li>`;
+
             const { data: paquetes } = await supabaseClient.from('paquetes').select('tracking').ilike('tracking', `%${searchTerm}%`).limit(3);
             const { data: cargados } = await supabaseClient.from('paquetes_cargados').select('tracking').ilike('tracking', `%${searchTerm}%`).limit(3);
+
             const allSuggestions = new Set();
             if (paquetes) paquetes.forEach(p => allSuggestions.add(p.tracking));
             if (cargados) cargados.forEach(p => allSuggestions.add(p.tracking));
+
             if (allSuggestions.size === 0) { unifiedResults.innerHTML = '<li class="status-message">No se encontraron sugerencias.</li>'; return; }
+            
             unifiedResults.innerHTML = '';
             allSuggestions.forEach(tracking => {
                 const li = document.createElement('li');
@@ -102,34 +103,62 @@
         async function executeFinalAction(searchTerm) {
             if (!searchTerm) return;
             unifiedResults.innerHTML = `<li class="status-message">Procesando...</li>`;
-            let { data: paqueteEnSistema } = await supabaseClient.from('paquetes').select('status, tracking').eq('tracking', searchTerm);
+
+            // --- CORRECCIÓN AQUÍ: Se cambió .eq() por .ilike() para una búsqueda flexible ---
+            let { data: paqueteEnSistema } = await supabaseClient.from('paquetes').select('status, anaquel, tracking').ilike('tracking', searchTerm);
+
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
-                if (paqueteEnSistema[0].status === 'En Sucursal') {
-                    unifiedResults.innerHTML = `<li class="info-item" style="background-color: #e8f6f3;"><div class="item-info"><span class="tracking">${paqueteEnSistema[0].tracking}</span><span class="details">✅ <b>DETENIDO:</b> Ya está <b>En Sucursal</b>.</span></div></li>`;
+                const paquete = paqueteEnSistema[0];
+                if (paquete.status === 'En Sucursal') {
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #e8f6f3;">
+                            <div class="item-info">
+                                <span class="tracking">${paquete.tracking}</span>
+                                <span class="details">✅ <b>PROCESO DETENIDO:</b> Este paquete ya se encuentra <b>En Sucursal</b>.</span>
+                            </div>
+                        </li>`;
                     resetInput();
                     return;
                 }
             }
-            let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').eq('tracking', searchTerm);
+            
+            // --- CORRECCIÓN AQUÍ: Se cambió .eq() por .ilike() para una búsqueda flexible ---
+            let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').ilike('tracking', searchTerm);
+            
             if (paqueteCargado && paqueteCargado.length > 0) {
                 const paquete = paqueteCargado[0];
+                
                 unifiedSearch.disabled = true;
-                unifiedResults.innerHTML = `<li class="info-item" style="background-color: #fcf3cf;"><div class="item-info"><span class="tracking">${paquete.tracking}</span><span class="details"><b>Actualizando automáticamente...</b></span></div></li>`;
+                unifiedResults.innerHTML = `
+                    <li class="info-item" style="background-color: #fcf3cf;">
+                        <div class="item-info">
+                            <span class="tracking">${paquete.tracking}</span>
+                            <span class="details"><b>Actualizando automáticamente...</b></span>
+                        </div>
+                    </li>`;
+
                 const { error } = await supabaseClient.from('paquetes_cargados').update({ cargados: false }).eq('id', paquete.id);
+
                 if (error) {
-                    console.error('Error en la actualización:', error);
-                    unifiedResults.innerHTML = `<li class="info-item" style="background-color: #f5b7b1;"><div class="item-info"><span>ERROR</span></div></li>`;
+                    console.error('Error en la actualización automática:', error);
+                    unifiedResults.innerHTML = `<li class="info-item" style="background-color: #f5b7b1;">... ERROR ...</li>`;
                 } else {
-                    unifiedResults.innerHTML = `<li class="info-item" style="background-color: #fcf3cf;"><div class="item-info"><span class="tracking">${paquete.tracking}</span><span class="details">✅ <b>Éxito:</b> Actualizado a "cargados: false".</span></div></li>`;
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #fcf3cf;">
+                            <div class="item-info">
+                                <span class="tracking">${paquete.tracking}</span>
+                                <span class="details">✅ <b>Éxito:</b> Actualizado a "cargados: false".</span>
+                            </div>
+                        </li>`;
                 }
                 resetInput(true);
                 return;
             }
-            unifiedResults.innerHTML = `<li class="status-message">❌ No requiere acción o no fue encontrado.</li>`;
+
+            unifiedResults.innerHTML = `<li class="status-message">❌ El tracking no requiere acción o no fue encontrado.</li>`;
             resetInput();
         }
 
-        // --- LÓGICA DEL ESCÁNER QR ---
         function onScanSuccess(decodedText, decodedResult) {
             stopScanner();
             unifiedSearch.value = decodedText;
@@ -156,13 +185,14 @@
         
         stopScanButton.addEventListener('click', stopScanner);
 
-        // --- MANEJADORES DE EVENTOS ---
         let debounceTimeout;
         unifiedSearch.addEventListener('input', (e) => {
             clearTimeout(debounceTimeout);
             const searchTerm = e.target.value.trim();
             if (searchTerm) {
-                debounceTimeout = setTimeout(() => fetchSuggestions(searchTerm), 300);
+                debounceTimeout = setTimeout(() => {
+                    fetchSuggestions(searchTerm);
+                }, 300);
             } else {
                 unifiedResults.innerHTML = '<li class="status-message">Listo para buscar.</li>';
             }
