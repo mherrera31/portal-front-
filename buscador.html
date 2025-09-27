@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador de Paquetes (Flujo Rápido)</title>
+    <title>Buscador Automático de Paquetes (Supabase)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .search-box { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 20px; box-sizing: border-box; }
+        .search-box:disabled { background-color: #ecf0f1; cursor: not-allowed; }
         .results-list { list-style: none; padding: 0; min-height: 50px; }
         .result-item, .info-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
-        .result-item:hover { background-color: #f9f9f9; }
         .result-item:last-child, .info-item:last-child { border-bottom: none; }
         .item-info { display: flex; flex-direction: column; gap: 4px; }
         .item-info .tracking { font-weight: bold; font-size: 1.1em; color: #2980b9; word-break: break-all; }
         .item-info .weight, .item-info .details { font-size: 0.9em; color: #7f8c8d; }
         .info-item .item-info .details b { color: #2c3e50; }
-        .action-button { padding: 8px 15px; font-size: 14px; color: #fff; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background-color: 0.2s; white-space: nowrap; }
-        .action-button:hover { background-color: #2980b9; }
-        .action-button:disabled { background-color: #95a5a6; cursor: not-allowed; }
         .status-message { color: #999; text-align: center; padding: 20px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,7 +24,7 @@
 <body>
 
     <div class="container">
-        <h1>Buscador de Paquetes 🔎</h1>
+        <h1>Buscador Automático de Paquetes 🔎</h1>
 
         <section>
             <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe 3 o más caracteres del tracking..." autofocus>
@@ -48,9 +45,12 @@
         const unifiedResults = document.getElementById('unifiedResults');
         
         // --- FUNCIÓN PARA REINICIAR EL CAMPO DE BÚSQUEDA ---
-        function resetInput() {
+        function resetInput(enable = true) {
             unifiedSearch.value = '';
-            unifiedSearch.focus();
+            if(enable) {
+                unifiedSearch.disabled = false;
+                unifiedSearch.focus();
+            }
         }
 
         // --- FUNCIÓN DE BÚSQUEDA "EN VIVO" ---
@@ -62,8 +62,6 @@
 
             unifiedResults.innerHTML = `<li class="status-message">Buscando...</li>`;
             
-            let infoStatusFromPaquetes = null;
-
             // 1. Buscar en la tabla 'paquetes'
             let { data: paqueteEnSistema } = await supabaseClient
                 .from('paquetes')
@@ -82,14 +80,12 @@
                                 <span class="details"><b>Ubicación:</b> ${paquete.anaquel || 'No especificada'}</span>
                             </div>
                         </li>`;
-                    resetInput(); // Limpiar y enfocar el input
+                    resetInput();
                     return; 
-                } else {
-                    infoStatusFromPaquetes = paquete.status;
                 }
             }
 
-            // 2. Buscar en 'paquetes_cargados'
+            // 2. Buscar en 'paquetes_cargados' para la acción automática
             let { data: paqueteCargado } = await supabaseClient
                 .from('paquetes_cargados')
                 .select('id, tracking, peso')
@@ -98,30 +94,51 @@
             
             if (paqueteCargado && paqueteCargado.length > 0) {
                 const paquete = paqueteCargado[0];
-                let resultadoHTML = `
-                    <li class="result-item">
+                
+                // --- INICIO DE LA AUTOMATIZACIÓN ---
+                unifiedSearch.disabled = true; // Bloquear input
+                unifiedResults.innerHTML = `
+                    <li class="info-item" style="background-color: #fcf3cf;">
                         <div class="item-info">
                             <span class="tracking">${paquete.tracking}</span>
-                            <span class="weight">Peso: ${paquete.peso || 'N/A'} lbs</span>
-                            <span class="details" style="color: #e67e22;">Fuente: Tabla 'paquetes_cargados'</span>`;
-
-                if (infoStatusFromPaquetes) {
-                    resultadoHTML += `<span class="details" style="color: #3498db; margin-top: 5px;"><b>Info Adicional:</b> Estado en sistema nuevo es <b>'${infoStatusFromPaquetes}'</b>.</span>`;
-                }
-                
-                resultadoHTML += `
+                            <span class="details"><b>Detectado en 'paquetes_cargados'.</b> Actualizando automáticamente...</span>
                         </div>
-                        <button class="action-button" data-id="${paquete.id}" data-action="update-cargado">➡️ Poner "cargados" en false</button>
                     </li>`;
 
-                unifiedResults.innerHTML = resultadoHTML;
-                resetInput(); // Limpiar y enfocar el input
+                // Realizar la actualización
+                const { error } = await supabaseClient
+                    .from('paquetes_cargados')
+                    .update({ cargados: false })
+                    .eq('id', paquete.id);
+
+                // Manejar el resultado de la actualización
+                if (error) {
+                    console.error('Error en la actualización automática:', error);
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #f5b7b1;">
+                            <div class="item-info">
+                                <span class="tracking">${paquete.tracking}</span>
+                                <span class="details">❌ <b>ERROR:</b> No se pudo actualizar. Revisa la consola.</span>
+                            </div>
+                        </li>`;
+                } else {
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #e8f6f3;">
+                            <div class="item-info">
+                                <span class="tracking">${paquete.tracking}</span>
+                                <span class="details" style="color: #1abc9c;">✅ <b>Éxito:</b> Se ha actualizado a "cargados: false".</span>
+                            </div>
+                        </li>`;
+                }
+                
+                resetInput(true); // Limpiar, desbloquear y enfocar el input
                 return;
+                // --- FIN DE LA AUTOMATIZACIÓN ---
             }
 
             // 3. Si no se encuentra
             unifiedResults.innerHTML = '<li class="status-message">❌ Paquete no registrado.</li>';
-            resetInput(); // Limpiar y enfocar el input
+            resetInput();
         }
 
         // --- DEBOUNCER ---
@@ -129,40 +146,12 @@
         unifiedSearch.addEventListener('input', (e) => {
             clearTimeout(debounceTimeout);
             const searchTerm = e.target.value.trim();
-            // Solo se activa la búsqueda si hay algo escrito
             if (searchTerm) {
                 debounceTimeout = setTimeout(() => {
                     performLiveSearch(searchTerm);
                 }, 300);
             } else {
-                // Si el campo se borra manualmente, se limpia la respuesta anterior
                 unifiedResults.innerHTML = '<li class="status-message">Listo para buscar.</li>';
-            }
-        });
-
-        // --- EVENT LISTENER PARA EL BOTÓN DE ACCIÓN ---
-        unifiedResults.addEventListener('click', async (e) => {
-            if (e.target.tagName !== 'BUTTON' || e.target.dataset.action !== 'update-cargado') return;
-
-            const button = e.target;
-            const paqueteId = button.dataset.id;
-
-            button.disabled = true;
-            button.textContent = 'Actualizando...';
-
-            const { error } = await supabaseClient
-                .from('paquetes_cargados')
-                .update({ cargados: false })
-                .eq('id', paqueteId);
-
-            if (error) {
-                console.error('Error al actualizar en paquetes_cargados:', error);
-                alert('Error al actualizar el paquete. Revisa la consola.');
-                button.disabled = false;
-                button.textContent = '➡️ Poner "cargados" en false';
-            } else {
-                alert('Paquete actualizado correctamente en la tabla \'paquetes_cargados\'.');
-                button.textContent = '✅ Actualizado';
             }
         });
     </script>
