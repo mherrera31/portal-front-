@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador con Escáner QR (Supabase)</title>
+    <title>Buscador de Paquetes (Corregido)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -39,10 +39,10 @@
 <body>
 
     <div class="container">
-        <h1>Buscador con Sugerencias 🔎</h1>
+        <h1>Buscador de Paquetes 🔎</h1>
         <section>
             <div class="search-wrapper">
-                <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe, escanea, y presiona Enter..." autofocus>
+                <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe para ver sugerencias, luego presiona Enter o haz clic..." autofocus>
                 <button id="scan-qr-button" title="Escanear Código QR">📷</button>
             </div>
             <ul id="unifiedResults" class="results-list">
@@ -108,7 +108,9 @@
 
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
                 const paquete = paqueteEnSistema[0];
-                if (paquete.status === 'En Sucursal') {
+                // --- CORRECCIÓN CRÍTICA AQUÍ ---
+                // Se normaliza el texto a minúsculas y sin espacios para una comparación segura.
+                if (paquete.status && paquete.status.trim().toLowerCase() === 'en sucursal') {
                     unifiedResults.innerHTML = `
                         <li class="info-item" style="background-color: #e8f6f3;">
                             <div class="item-info">
@@ -157,14 +159,10 @@
             resetInput();
         }
 
-        // --- LÓGICA DEL ESCÁNER QR (MODIFICADA) ---
         function onScanSuccess(decodedText, decodedResult) {
             stopScanner();
-            // 1. Limpia y coloca el texto escaneado en el buscador.
             unifiedSearch.value = decodedText.trim();
-            // 2. Simula un evento de "input" para que se active la búsqueda de sugerencias.
             unifiedSearch.dispatchEvent(new Event('input', { bubbles: true }));
-            // 3. Devuelve el foco al campo de texto.
             unifiedSearch.focus();
         }
 
@@ -188,7 +186,6 @@
         
         stopScanButton.addEventListener('click', stopScanner);
 
-        // --- MANEJADORES DE EVENTOS ---
         let debounceTimeout;
         unifiedSearch.addEventListener('input', (e) => {
             clearTimeout(debounceTimeout);
