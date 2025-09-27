@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador con Sugerencias (Supabase)</title>
+    <title>Buscador con Escáner QR (Supabase)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -42,7 +42,7 @@
         <h1>Buscador con Sugerencias 🔎</h1>
         <section>
             <div class="search-wrapper">
-                <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe para ver sugerencias, luego presiona Enter o haz clic..." autofocus>
+                <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe, escanea, y presiona Enter..." autofocus>
                 <button id="scan-qr-button" title="Escanear Código QR">📷</button>
             </div>
             <ul id="unifiedResults" class="results-list">
@@ -104,7 +104,6 @@
             if (!searchTerm) return;
             unifiedResults.innerHTML = `<li class="status-message">Procesando...</li>`;
 
-            // --- CORRECCIÓN AQUÍ: Se cambió .eq() por .ilike() para una búsqueda flexible ---
             let { data: paqueteEnSistema } = await supabaseClient.from('paquetes').select('status, anaquel, tracking').ilike('tracking', searchTerm);
 
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
@@ -122,7 +121,6 @@
                 }
             }
             
-            // --- CORRECCIÓN AQUÍ: Se cambió .eq() por .ilike() para una búsqueda flexible ---
             let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').ilike('tracking', searchTerm);
             
             if (paqueteCargado && paqueteCargado.length > 0) {
@@ -159,10 +157,15 @@
             resetInput();
         }
 
+        // --- LÓGICA DEL ESCÁNER QR (MODIFICADA) ---
         function onScanSuccess(decodedText, decodedResult) {
             stopScanner();
-            unifiedSearch.value = decodedText;
-            executeFinalAction(decodedText);
+            // 1. Limpia y coloca el texto escaneado en el buscador.
+            unifiedSearch.value = decodedText.trim();
+            // 2. Simula un evento de "input" para que se active la búsqueda de sugerencias.
+            unifiedSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            // 3. Devuelve el foco al campo de texto.
+            unifiedSearch.focus();
         }
 
         function stopScanner() {
@@ -185,6 +188,7 @@
         
         stopScanButton.addEventListener('click', stopScanner);
 
+        // --- MANEJADORES DE EVENTOS ---
         let debounceTimeout;
         unifiedSearch.addEventListener('input', (e) => {
             clearTimeout(debounceTimeout);
