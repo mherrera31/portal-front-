@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador en Vivo de Paquetes (Conectado a Supabase)</title>
+    <title>Buscador con Info Adicional (Supabase)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -13,7 +13,7 @@
         .result-item, .info-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
         .result-item:hover { background-color: #f9f9f9; }
         .result-item:last-child, .info-item:last-child { border-bottom: none; }
-        .item-info { display: flex; flex-direction: column; }
+        .item-info { display: flex; flex-direction: column; gap: 4px; }
         .item-info .tracking { font-weight: bold; font-size: 1.1em; color: #2980b9; word-break: break-all; }
         .item-info .weight, .item-info .details { font-size: 0.9em; color: #7f8c8d; }
         .info-item .item-info .details b { color: #2c3e50; }
@@ -27,7 +27,7 @@
 <body>
 
     <div class="container">
-        <h1>Buscador en Vivo de Paquetes 🔎</h1>
+        <h1>Buscador de Paquetes 🔎</h1>
 
         <section>
             <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe 3 o más caracteres del tracking...">
@@ -47,21 +47,22 @@
         const unifiedSearch = document.getElementById('unifiedSearch');
         const unifiedResults = document.getElementById('unifiedResults');
         
-        // --- FUNCIÓN DE BÚSQUEDA "EN VIVO" ---
+        // --- FUNCIÓN DE BÚSqueda "EN VIVO" ---
         async function performLiveSearch(searchTerm) {
-            // No buscar si el término es muy corto
             if (searchTerm.length < 3) {
                 unifiedResults.innerHTML = '';
                 return;
             }
 
             unifiedResults.innerHTML = `<li class="status-message">Buscando...</li>`;
+            
+            let infoStatusFromPaquetes = null;
 
-            // 1. Buscar en la tabla 'paquetes' (sistema nuevo)
-            let { data: paqueteEnSistema, error: err1 } = await supabaseClient
+            // 1. Buscar en la tabla 'paquetes' (sistema nuevo) para obtener información
+            let { data: paqueteEnSistema } = await supabaseClient
                 .from('paquetes')
                 .select('id, tracking, status, anaquel')
-                .ilike('tracking', `%${searchTerm}%`) // Usamos ilike para búsqueda flexible
+                .ilike('tracking', `%${searchTerm}%`)
                 .limit(1);
 
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
@@ -71,25 +72,19 @@
                         <li class="info-item" style="background-color: #e8f6f3;">
                             <div class="item-info">
                                 <span class="tracking">${paquete.tracking}</span>
-                                <span class="details">✅ <b>YA EN SISTEMA:</b> Este paquete ya fue procesado y se encuentra <b>En Sucursal</b>.</span>
+                                <span class="details">✅ <b>PROCESO DETENIDO:</b> Este paquete ya se encuentra <b>En Sucursal</b>.</span>
                                 <span class="details"><b>Ubicación:</b> ${paquete.anaquel || 'No especificada'}</span>
                             </div>
                         </li>`;
+                    return; 
                 } else {
-                     unifiedResults.innerHTML = `
-                        <li class="info-item" style="background-color: #fcf3cf;">
-                            <div class="item-info">
-                                <span class="tracking">${paquete.tracking}</span>
-                                <span class="details">⚠️ <b>YA EN SISTEMA:</b> Este paquete ya fue procesado.</span>
-                                <span class="details"><b>Estado actual:</b> ${paquete.status || 'Desconocido'}</span>
-                            </div>
-                        </li>`;
+                    // Si no está 'En Sucursal', guardamos el estado para mostrarlo como info
+                    infoStatusFromPaquetes = paquete.status;
                 }
-                return;
             }
 
-            // 2. Si no, buscar en 'paquetes_cargados'
-            let { data: paqueteCargado, error: err2 } = await supabaseClient
+            // 2. Buscar en 'paquetes_cargados' para la acción principal
+            let { data: paqueteCargado } = await supabaseClient
                 .from('paquetes_cargados')
                 .select('id, tracking, peso')
                 .ilike('tracking', `%${searchTerm}%`)
@@ -97,43 +92,32 @@
             
             if (paqueteCargado && paqueteCargado.length > 0) {
                 const paquete = paqueteCargado[0];
-                unifiedResults.innerHTML = `
+                
+                // Construir el HTML del resultado
+                let resultadoHTML = `
                     <li class="result-item">
                         <div class="item-info">
                             <span class="tracking">${paquete.tracking}</span>
                             <span class="weight">Peso: ${paquete.peso || 'N/A'} lbs</span>
-                            <span class="details" style="color: #e67e22;">Fuente: Tabla 'paquetes_cargados'</span>
+                            <span class="details" style="color: #e67e22;">Fuente: Tabla 'paquetes_cargados'</span>`;
+
+                // **NUEVO**: Añadir la información adicional si existe
+                if (infoStatusFromPaquetes) {
+                    resultadoHTML += `<span class="details" style="color: #3498db; margin-top: 5px;"><b>Info Adicional:</b> Estado en sistema nuevo es <b>'${infoStatusFromPaquetes}'</b>.</span>`;
+                }
+                
+                resultadoHTML += `
                         </div>
                         <button class="action-button" data-id="${paquete.id}" data-action="update-cargado">➡️ Poner "cargados" en false</button>
                     </li>`;
+
+                unifiedResults.innerHTML = resultadoHTML;
                 return;
             }
 
-            // 3. Si no, buscar en 'trackings'
-            let { data: paqueteExportado, error: err3 } = await supabaseClient
-                .from('trackings')
-                .select('id, tracking_corrected, weight_lbs')
-                .ilike('tracking_corrected', `%${searchTerm}%`)
-                .limit(1);
-
-            if (paqueteExportado && paqueteExportado.length > 0) {
-                const paquete = paqueteExportado[0];
-                unifiedResults.innerHTML = `
-                    <li class="result-item">
-                        <div class="item-info">
-                            <span class="tracking">${paquete.tracking_corrected}</span>
-                            <span class="weight">Peso: ${paquete.weight_lbs || 'N/A'} lbs</span>
-                             <span class="details" style="color: #9b59b6;">Fuente: Tabla 'trackings'</span>
-                        </div>
-                        <button class="action-button" data-id="${paquete.id}" data-action="update-exportado">➡️ Poner "exported" en false</button>
-                    </li>`;
-                return;
-            }
-
-            // 4. Si no se encuentra en ninguna tabla
-            unifiedResults.innerHTML = '<li class="status-message">❌ Paquete no registrado en ninguna tabla.</li>';
+            // 3. Si no se encuentra en ninguna de las dos tablas con la lógica aplicada
+            unifiedResults.innerHTML = '<li class="status-message">❌ Paquete no registrado.</li>';
         }
-
 
         // --- DEBOUNCER PARA EVITAR CONSULTAS EXCESIVAS ---
         let debounceTimeout;
@@ -143,49 +127,34 @@
             if (searchTerm) {
                 debounceTimeout = setTimeout(() => {
                     performLiveSearch(searchTerm);
-                }, 300); // Espera 300ms después de teclear
+                }, 300);
             } else {
                 unifiedResults.innerHTML = '<li class="status-message">Listo para buscar.</li>';
             }
         });
 
-        // --- EVENT LISTENER UNIFICADO PARA LOS BOTONES DE ACCIÓN (SIN CAMBIOS) ---
+        // --- EVENT LISTENER PARA EL BOTÓN DE ACCIÓN ---
         unifiedResults.addEventListener('click', async (e) => {
-            if (e.target.tagName !== 'BUTTON') return;
+            if (e.target.tagName !== 'BUTTON' || e.target.dataset.action !== 'update-cargado') return;
 
             const button = e.target;
             const paqueteId = button.dataset.id;
-            const action = button.dataset.action;
 
             button.disabled = true;
             button.textContent = 'Actualizando...';
 
-            let error = null;
-            let tableName = '';
-
-            if (action === 'update-cargado') {
-                tableName = 'paquetes_cargados';
-                const { error: updateError } = await supabaseClient
-                    .from(tableName)
-                    .update({ cargados: false })
-                    .eq('id', paqueteId);
-                error = updateError;
-            } else if (action === 'update-exportado') {
-                tableName = 'trackings';
-                const { error: updateError } = await supabaseClient
-                    .from(tableName)
-                    .update({ exported: false })
-                    .eq('id', paqueteId);
-                error = updateError;
-            }
+            const { error } = await supabaseClient
+                .from('paquetes_cargados')
+                .update({ cargados: false })
+                .eq('id', paqueteId);
 
             if (error) {
-                console.error(`Error al actualizar en ${tableName}:`, error);
-                alert(`Error al actualizar el paquete. Revisa la consola.`);
+                console.error('Error al actualizar en paquetes_cargados:', error);
+                alert('Error al actualizar el paquete. Revisa la consola.');
                 button.disabled = false;
-                button.textContent = action === 'update-cargado' ? '➡️ Poner "cargados" en false' : '➡️ Poner "exported" en false';
+                button.textContent = '➡️ Poner "cargados" en false';
             } else {
-                alert(`Paquete actualizado correctamente en la tabla '${tableName}'.`);
+                alert('Paquete actualizado correctamente en la tabla \'paquetes_cargados\'.');
                 button.textContent = '✅ Actualizado';
             }
         });
