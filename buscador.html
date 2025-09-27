@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador con Info Adicional (Supabase)</title>
+    <title>Buscador de Paquetes (Flujo Rápido)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -30,7 +30,7 @@
         <h1>Buscador de Paquetes 🔎</h1>
 
         <section>
-            <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe 3 o más caracteres del tracking...">
+            <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe 3 o más caracteres del tracking..." autofocus>
             <ul id="unifiedResults" class="results-list">
                 <li class="status-message">Listo para buscar.</li>
             </ul>
@@ -47,7 +47,13 @@
         const unifiedSearch = document.getElementById('unifiedSearch');
         const unifiedResults = document.getElementById('unifiedResults');
         
-        // --- FUNCIÓN DE BÚSqueda "EN VIVO" ---
+        // --- FUNCIÓN PARA REINICIAR EL CAMPO DE BÚSQUEDA ---
+        function resetInput() {
+            unifiedSearch.value = '';
+            unifiedSearch.focus();
+        }
+
+        // --- FUNCIÓN DE BÚSQUEDA "EN VIVO" ---
         async function performLiveSearch(searchTerm) {
             if (searchTerm.length < 3) {
                 unifiedResults.innerHTML = '';
@@ -58,7 +64,7 @@
             
             let infoStatusFromPaquetes = null;
 
-            // 1. Buscar en la tabla 'paquetes' (sistema nuevo) para obtener información
+            // 1. Buscar en la tabla 'paquetes'
             let { data: paqueteEnSistema } = await supabaseClient
                 .from('paquetes')
                 .select('id, tracking, status, anaquel')
@@ -76,14 +82,14 @@
                                 <span class="details"><b>Ubicación:</b> ${paquete.anaquel || 'No especificada'}</span>
                             </div>
                         </li>`;
+                    resetInput(); // Limpiar y enfocar el input
                     return; 
                 } else {
-                    // Si no está 'En Sucursal', guardamos el estado para mostrarlo como info
                     infoStatusFromPaquetes = paquete.status;
                 }
             }
 
-            // 2. Buscar en 'paquetes_cargados' para la acción principal
+            // 2. Buscar en 'paquetes_cargados'
             let { data: paqueteCargado } = await supabaseClient
                 .from('paquetes_cargados')
                 .select('id, tracking, peso')
@@ -92,8 +98,6 @@
             
             if (paqueteCargado && paqueteCargado.length > 0) {
                 const paquete = paqueteCargado[0];
-                
-                // Construir el HTML del resultado
                 let resultadoHTML = `
                     <li class="result-item">
                         <div class="item-info">
@@ -101,7 +105,6 @@
                             <span class="weight">Peso: ${paquete.peso || 'N/A'} lbs</span>
                             <span class="details" style="color: #e67e22;">Fuente: Tabla 'paquetes_cargados'</span>`;
 
-                // **NUEVO**: Añadir la información adicional si existe
                 if (infoStatusFromPaquetes) {
                     resultadoHTML += `<span class="details" style="color: #3498db; margin-top: 5px;"><b>Info Adicional:</b> Estado en sistema nuevo es <b>'${infoStatusFromPaquetes}'</b>.</span>`;
                 }
@@ -112,23 +115,27 @@
                     </li>`;
 
                 unifiedResults.innerHTML = resultadoHTML;
+                resetInput(); // Limpiar y enfocar el input
                 return;
             }
 
-            // 3. Si no se encuentra en ninguna de las dos tablas con la lógica aplicada
+            // 3. Si no se encuentra
             unifiedResults.innerHTML = '<li class="status-message">❌ Paquete no registrado.</li>';
+            resetInput(); // Limpiar y enfocar el input
         }
 
-        // --- DEBOUNCER PARA EVITAR CONSULTAS EXCESIVAS ---
+        // --- DEBOUNCER ---
         let debounceTimeout;
         unifiedSearch.addEventListener('input', (e) => {
             clearTimeout(debounceTimeout);
             const searchTerm = e.target.value.trim();
+            // Solo se activa la búsqueda si hay algo escrito
             if (searchTerm) {
                 debounceTimeout = setTimeout(() => {
                     performLiveSearch(searchTerm);
                 }, 300);
             } else {
+                // Si el campo se borra manualmente, se limpia la respuesta anterior
                 unifiedResults.innerHTML = '<li class="status-message">Listo para buscar.</li>';
             }
         });
