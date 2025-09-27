@@ -9,40 +9,15 @@
     <script src="config.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .sidebar-link { transition: all 0.2s ease; }
-        .sidebar-link.active { background-color: #ecfdf5; color: #059669; font-weight: 600; }
         .code { font-size: 13px; font-weight: 600; color: #94a3b8; margin-right: 12px; background-color: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
-        #sidebar { transition: transform 0.3s ease-in-out; }
         .advanced-filters { transition: all 0.3s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; }
         .advanced-filters.visible { max-height: 500px; opacity: 1; margin-top: 1rem; }
         .modal-content { transition: all 0.3s ease-in-out; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-<script type="module">
-    // Lógica de Autenticación de Supabase
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-    const supabase = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
 
-    (async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            window.location.href = 'login.html';
-            return;
-        }
-    })();
-</script>
-
-<div class="relative min-h-screen md:flex">
-    <div class="bg-white text-slate-800 flex justify-between md:hidden sticky top-0 z-20 shadow-md">
-        <a href="./index.html" class="block p-4 font-bold">SGL1</a>
-        <button id="mobile-menu-button" class="p-4 focus:outline-none focus:bg-slate-200">
-            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
-        </button>
-    </div>
-    
-    <div id="menu-container"></div>
-
+<div class="min-h-screen">
     <main class="flex-1 p-8">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-slate-900 flex items-center"><span class="code">[OP-02]</span>Paquetes Pendientes de Procesar</h1>
@@ -117,34 +92,9 @@
 
     // --- INICIALIZACIÓN ---
     document.addEventListener('DOMContentLoaded', () => {
-        loadNavigationMenu();
         initializeFilterToggle();
         initializeDatabaseLogic();
     });
-    
-    // --- LÓGICA DEL MENÚ DE NAVEGACIÓN ---
-    function loadNavigationMenu() {
-        const menuContainer = document.getElementById('menu-container');
-        if (menuContainer) {
-            const menuHtml = `
-            <div id="sidebar" class="bg-white text-slate-600 w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 z-30 shadow-lg md:shadow-none">
-                <a href="./index.html" class="text-slate-900 text-2xl font-extrabold px-4">SGL1</a>
-                <nav>
-                    <a href="#" class="sidebar-link block py-2.5 px-4 rounded hover:bg-emerald-50 hover:text-emerald-600">Dashboard</a>
-                    <a href="#" class="sidebar-link block py-2.5 px-4 rounded hover:bg-emerald-50 hover:text-emerald-600">Gestión de Paquetes</a>
-                    <a href="#" class="sidebar-link active block py-2.5 px-4 rounded">Paquetes Pendientes</a>
-                    <a href="#" class="sidebar-link block py-2.5 px-4 rounded hover:bg-emerald-50 hover:text-emerald-600">Clientes</a>
-                </nav>
-            </div>`;
-            menuContainer.innerHTML = menuHtml;
-        }
-
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const sidebar = document.getElementById('sidebar');
-        if (mobileMenuButton && sidebar) {
-            mobileMenuButton.addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
-        }
-    }
 
     // --- LÓGICA DE FILTROS Y BASE DE DATOS ---
     function initializeFilterToggle() {
