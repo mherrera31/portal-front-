@@ -1,1 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGL1 - Paquetes Pendientes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="config.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-link.active { background-color: #ecfdf5; color: #059669; font-weight: 600; }
+        .code { font-size: 13px; font-weight: 600; color: #94a3b8; margin-right: 12px; background-color: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        .advanced-filters { transition: all 0.3s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; }
+        .advanced-filters.visible { max-height: 500px; opacity: 1; margin-top: 1rem; }
+        .modal-content { transition: all 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const supabase = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
 
+    (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            window.location.href = 'login.html';
+            return;
+        }
+    })();
+</script>
+
+<div class="relative min-h-screen md:flex">
+    <div class="bg-white text-slate-800 flex justify-between md:hidden sticky top-0 z-20 shadow-md">
+        <a href="./index.html" class="block p-4 font-bold">SGL1</a>
+        <button id="mobile-menu-button" class="p-4 focus:outline-none focus:bg-slate-200">
+            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+        </button>
+    </div>
+    
+    <div id="menu-container"></div>
+
+    <main class="flex-1 p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-slate-900 flex items-center"><span class="code">[OP-02]</span>Paquetes Pendientes de Procesar</h1>
+        </div>
+        <div class="bg-white p-4 rounded-lg border border-slate-200 mb-6">
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="relative flex-grow">
+                    <input id="q" type="search" placeholder="Buscar por tracking, status, box..." class="w-full p-2 pl-10 border border-slate-300 rounded-md">
+                </div>
+                <button id="toggle-filters-btn" class="flex items-center gap-2 p-2 border rounded-md">Filtros Avanzados</button>
+                <button id="btnBuscar" class="bg-emerald-500 text-white font-semibold py-2 px-4 rounded-md">Buscar</button>
+            </div>
+            <div id="advanced-filters" class="advanced-filters">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t mt-4">
+                    <input id="fltDesde" type="date" class="p-2 border rounded-md text-sm text-slate-500" placeholder="Fecha Desde">
+                    <input id="fltHasta" type="date" class="p-2 border rounded-md text-sm text-slate-500" placeholder="Fecha Hasta">
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg border overflow-x-auto">
+            <table class="w-full text-sm whitespace-nowrap">
+                <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                    <tr>
+                        <th class="px-6 py-3 text-left">Fecha Bodega</th>
+                        <th class="px-6 py-3 text-left">Tracking</th>
+                        <th class="px-6 py-3 text-left">Status</th>
+                        <th class="px-6 py-3 text-left">Box Cliente</th>
+                        <th class="px-6 py-3 text-left">Peso (lbs)</th>
+                        <th class="px-6 py-3 text-left">Valor ($)</th>
+                        <th class="px-6 py-3 text-left">Cargado</th>
+                        <th class="px-6 py-3 text-left">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="paquetes-table-body">
+                    <tr>
+                        <td colspan="8" class="text-center p-4 text-slate-500">Cargando paquetes...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<div id="edit-paquete-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-40">
+    <div class="bg-white w-full max-w-2xl rounded-lg shadow-xl p-6 modal-content overflow-y-auto max-h-[95vh]">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-slate-800">Editar Paquete Cargado</h2>
+            <button class="close-modal text-slate-400 hover:text-slate-600 text-3xl font-bold">&times;</button>
+        </div>
+        <form id="form-edit-paquete">
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div><label class="block text-sm font-medium">Tracking</label><input id="edit-tracking" type="text" class="w-full p-1.5 border rounded-md text-sm"></div>
+                <div><label class="block text-sm font-medium">Status</label><input id="edit-status" type="text" class="w-full p-1.5 border rounded-md text-sm"></div>
+                <div><label class="block text-sm font-medium">Box Cliente</label><input id="edit-cliente-box" type="text" class="w-full p-1.5 border rounded-md text-sm"></div>
+                <div><label class="block text-sm font-medium">Fecha Bodega</label><input id="edit-fecha-bodega" type="datetime-local" class="w-full p-1.5 border rounded-md text-sm"></div>
+                <div><label class="block text-sm font-medium">Peso (lbs)</label><input id="edit-peso" type="number" step="0.01" class="w-full p-1.5 border rounded-md text-sm"></div>
+                <div><label class="block text-sm font-medium">Valor ($)</label><input id="edit-valor" type="number" step="0.01" class="w-full p-1.5 border rounded-md text-sm"></div>
+                <div class="flex items-center gap-2 pt-2"><input id="edit-cargados" type="checkbox" class="h-4 w-4 rounded"><label for="edit-cargados" class="text-sm font-medium">Marcado como cargado</label></div>
+            </div>
+            <div class="flex justify-end gap-4 pt-4 mt-4 border-t">
+                <button type="button" class="close-modal bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-md hover:bg-slate-200">Cancelar</button>
+                <button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeFilterToggle();
+        initializeDatabaseLogic();
+    });
+
+    function initializeFilterToggle() {
+        const toggleButton = document.getElementById('toggle-filters-btn');
+        const filtersDiv = document.getElementById('advanced-filters');
+        if (toggleButton) toggleButton.addEventListener('click', () => filtersDiv.classList.toggle('visible'));
+    }
+
+    async function initializeDatabaseLogic() {
+        try {
+            const sb = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+            
+            let todosLosPaquetes = []; 
+            const tableBody = document.querySelector("#paquetes-table-body");
+            const inputQ = document.getElementById('q');
+            const btnBuscar = document.getElementById('btnBuscar');
+            const fltDesde = document.getElementById('fltDesde');
+            const fltHasta = document.getElementById('fltHasta');
+            const editModal = document.getElementById('edit-paquete-modal');
+            const formEdit = document.getElementById('form-edit-paquete');
+            let editingPaqueteId = null;
+
+            const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+            const fmtNum = (n) => (n == null ? "" : (Number(n).toFixed(2)));
+            const fmtDateTimeLocal = (iso) => (iso ? new Date(iso).toISOString().slice(0, 16) : "");
+            const fmtDateDisplay = (iso) => (iso ? new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", hour: '2-digit', minute: '2-digit' }) : "");
+
+            function renderEmpty(msg = "No hay paquetes para mostrar.") {
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">${msg}</td></tr>`;
+            }
+
+            function renderRows(rows) {
+                if (!rows || !rows.length) return renderEmpty();
+                
+                tableBody.innerHTML = rows.map(r => `
+                    <tr class="bg-white border-b hover:bg-slate-50">
+                        <td class="px-6 py-4">${fmtDateDisplay(r.fecha_bodega)}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">${escapeHtml(r.tracking)}</td>
+                        <td class="px-6 py-4">${escapeHtml(r.status)}</td>
+                        <td class="px-6 py-4">${escapeHtml(r.cliente_box)}</td>
+                        <td class="px-6 py-4">${fmtNum(r.peso)}</td>
+                        <td class="px-6 py-4">$${fmtNum(r.valor)}</td>
+                        <td class="px-6 py-4">${r.cargados ? 'Sí' : 'No'}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <button class="text-xs bg-blue-500 text-white font-semibold py-1 px-3 rounded-md hover:bg-blue-600" data-edit-id="${r.id}">Editar</button>
+                                <button class="text-xs bg-red-500 text-white font-semibold py-1 px-3 rounded-md hover:bg-red-600" data-del-id="${r.id}" data-del-tracking="${r.tracking}">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join("");
+            }
+            
+            function aplicarFiltrosYRenderizar() {
+                const desdeVal = fltDesde.value;
+                const hastaVal = fltHasta.value;
+                const searchTerm = inputQ.value.trim().toLowerCase();
+
+                let paquetesFiltrados = todosLosPaquetes.filter(p => {
+                    const fechaPaquete = p.fecha_bodega ? p.fecha_bodega.split('T')[0] : null;
+                    if (desdeVal && fechaPaquete && fechaPaquete < desdeVal) return false;
+                    if (hastaVal && fechaPaquete && fechaPaquete > hastaVal) return false;
+
+                    if (searchTerm) {
+                        const busqueda = `${p.tracking || ''} ${p.status || ''} ${p.cliente_box || ''}`.toLowerCase();
+                        if (!busqueda.includes(searchTerm)) return false;
+                    }
+                    return true;
+                });
+                
+                renderRows(paquetesFiltrados);
+            }
+
+            async function cargarPaquetes() {
+                renderEmpty("Cargando paquetes...");
+                const { data, error } = await sb.from('paquetes_cargados').select('*').order('fecha_bodega', { ascending: false });
+                if (error) { console.error(error); return renderEmpty("Error al cargar los paquetes."); }
+                
+                todosLosPaquetes = data || [];
+                aplicarFiltrosYRenderizar();
+            }
+
+            async function eliminarPaquete(id, tracking) {
+                if (!confirm(`¿Eliminar este paquete de forma permanente?\n\nTracking: ${tracking}\n\nEsta acción no se puede deshacer.`)) return;
+
+                const { error } = await sb.from('paquetes_cargados').delete().eq('id', id);
+
+                if (error) {
+                    console.error("Error al eliminar:", error);
+                    alert("No se pudo eliminar el paquete.");
+                } else {
+                    alert("Paquete eliminado.");
+                    await cargarPaquetes();
+                }
+            }
+
+            async function abrirModalEdicion(id) {
+                editingPaqueteId = id;
+                const data = todosLosPaquetes.find(p => p.id === id);
+                if (!data) return alert('No se pudo encontrar el paquete para editar.');
+
+                document.getElementById('edit-tracking').value = data.tracking;
+                document.getElementById('edit-status').value = data.status;
+                document.getElementById('edit-cliente-box').value = data.cliente_box;
+                document.getElementById('edit-peso').value = data.peso;
+                document.getElementById('edit-valor').value = data.valor;
+                document.getElementById('edit-fecha-bodega').value = fmtDateTimeLocal(data.fecha_bodega);
+                document.getElementById('edit-cargados').checked = data.cargados;
+                
+                editModal.classList.remove('hidden');
+            }
+
+            formEdit.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                let payload = {
+                    tracking: document.getElementById('edit-tracking').value,
+                    status: document.getElementById('edit-status').value,
+                    cliente_box: document.getElementById('edit-cliente-box').value || null,
+                    peso: parseFloat(document.getElementById('edit-peso').value) || 0,
+                    valor: parseFloat(document.getElementById('edit-valor').value) || 0,
+                    fecha_bodega: document.getElementById('edit-fecha-bodega').value || null,
+                    cargados: document.getElementById('edit-cargados').checked,
+                };
+
+                const { error } = await sb.from('paquetes_cargados')
+                    .update(payload)
+                    .eq('id', editingPaqueteId);
+
+                if (error) {
+                    console.error("Error al actualizar:", error);
+                    alert("Error al guardar los cambios.");
+                } else {
+                    alert("Paquete actualizado ✅");
+                    editModal.classList.add('hidden');
+                    await cargarPaquetes();
+                }
+            });
+
+            inputQ.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    btnBuscar.click();
+                }
+            });
+
+            btnBuscar.addEventListener('click', aplicarFiltrosYRenderizar);
+            [fltDesde, fltHasta].forEach(el => {
+                el.addEventListener('change', aplicarFiltrosYRenderizar);
+            });
+
+            tableBody.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('[data-edit-id]');
+                const delBtn = e.target.closest('[data-del-id]');
+                if (editBtn) abrirModalEdicion(editBtn.dataset.editId);
+                if (delBtn) eliminarPaquete(delBtn.dataset.delId, delBtn.dataset.delTracking);
+            });
+            
+            editModal.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', () => editModal.classList.add('hidden'));
+            });
+            
+            await cargarPaquetes();
+
+        } catch (error) {
+            console.error("Error al inicializar:", error);
+            document.querySelector("main").innerHTML = `<p class="text-red-500">Error crítico. Revise la consola.</p>`;
+        }
+    }
+</script>
+</body>
+</html>
