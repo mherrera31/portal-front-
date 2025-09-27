@@ -53,10 +53,7 @@
                     </tr>
                 </thead>
                 <tbody id="paquetes-table-body">
-                    <tr>
-                        <td colspan="8" class="text-center p-4 text-slate-500">Cargando paquetes...</td>
-                    </tr>
-                </tbody>
+                    </tbody>
             </table>
         </div>
     </main>
@@ -103,13 +100,12 @@
     async function initializeDatabaseLogic() {
         try {
             // --- ¡IMPORTANTE! Reemplaza con tus credenciales de Supabase ---
-            const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
-            const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
+            const SUPABASE_URL = "https://TU_ID_DE_PROYECTO.supabase.co";
+            const SUPABASE_ANON_KEY = "TU_CLAVE_ANONIMA_AQUI";
             // -------------------------------------------------------------
 
             const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
-            let todosLosPaquetes = []; 
             const tableBody = document.querySelector("#paquetes-table-body");
             const inputQ = document.getElementById('q');
             const btnBuscar = document.getElementById('btnBuscar');
@@ -118,18 +114,24 @@
             const editModal = document.getElementById('edit-paquete-modal');
             const formEdit = document.getElementById('form-edit-paquete');
             let editingPaqueteId = null;
+            let currentResults = [];
+            let debounceTimer; // NUEVO: Temporizador para la búsqueda automática
 
             const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
             const fmtNum = (n) => (n == null ? "" : (Number(n).toFixed(2)));
             const fmtDateTimeLocal = (iso) => (iso ? new Date(new Date(iso).getTime() - (new Date(iso).getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : "");
             const fmtDateDisplay = (iso) => (iso ? new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric", hour: '2-digit', minute: '2-digit' }) : "");
+            
+            const renderEmpty = (msg) => {
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">${msg}</td></tr>`;
+            }
 
             function renderRows(rows) {
                 if (!rows || !rows.length) {
-                    tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">No se encontraron paquetes.</td></tr>`;
+                    renderEmpty("No se encontraron paquetes para esta búsqueda.");
                     return;
                 }
-                
+                currentResults = rows;
                 tableBody.innerHTML = rows.map(r => `
                     <tr class="bg-white border-b hover:bg-slate-50">
                         <td class="px-6 py-4">${fmtDateDisplay(r.fecha_bodega)}</td>
@@ -148,33 +150,48 @@
                     </tr>
                 `).join("");
             }
-            
-            function aplicarFiltrosYRenderizar() {
+
+            async function realizarBusqueda() {
+                const searchTerm = inputQ.value.trim();
                 const desdeVal = fltDesde.value;
                 const hastaVal = fltHasta.value;
-                const searchTerm = inputQ.value.trim().toLowerCase();
 
-                const paquetesFiltrados = todosLosPaquetes.filter(p => {
-                    const fechaPaquete = p.fecha_bodega ? p.fecha_bodega.split('T')[0] : null;
-                    if (desdeVal && fechaPaquete && fechaPaquete < desdeVal) return false;
-                    if (hastaVal && fechaPaquete && fechaPaquete > hastaVal) return false;
-                    if (searchTerm) {
-                        const busqueda = `${p.tracking || ''} ${p.status || ''} ${p.cliente_box || ''}`.toLowerCase();
-                        if (!busqueda.includes(searchTerm)) return false;
-                    }
-                    return true;
-                });
-                renderRows(paquetesFiltrados);
-            }
+                if (searchTerm.length > 0 && searchTerm.length < 3) {
+                    renderEmpty("Sigue escribiendo para buscar...");
+                    return;
+                }
 
-            async function cargarPaquetes() {
-                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">Cargando paquetes...</td></tr>`;
-                // El código ya usa "paquetes_cargados" como solicitaste.
-                const { data, error } = await sb.from('paquetes_cargados').select('*').order('fecha_bodega', { ascending: false });
-                if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-red-500">Error al cargar los paquetes.</td></tr>`; return; }
+                if (!searchTerm && !desdeVal && !hastaVal) {
+                    renderEmpty("Ingresa un término de búsqueda o selecciona un rango de fechas para comenzar.");
+                    currentResults = [];
+                    return;
+                }
+
+                renderEmpty("Buscando...");
+
+                let query = sb.from('paquetes_cargados').select('*');
                 
-                todosLosPaquetes = data || [];
-                aplicarFiltrosYRenderizar();
+                // CAMBIO: La búsqueda con 'ilike' es insensible a mayúsculas/minúsculas
+                if (searchTerm) {
+                    query = query.or(`tracking.ilike.%${searchTerm}%,status.ilike.%${searchTerm}%,cliente_box.ilike.%${searchTerm}%`);
+                }
+                if (desdeVal) {
+                    query = query.gte('fecha_bodega', desdeVal);
+                }
+                if (hastaVal) {
+                    const hastaDate = new Date(hastaVal);
+                    hastaDate.setHours(23, 59, 59, 999);
+                    query = query.lte('fecha_bodega', hastaDate.toISOString());
+                }
+
+                const { data, error } = await query.order('fecha_bodega', { ascending: false }).limit(200);
+
+                if (error) {
+                    console.error("Error en la búsqueda:", error);
+                    renderEmpty("Ocurrió un error al realizar la búsqueda.");
+                    return;
+                }
+                renderRows(data);
             }
 
             async function eliminarPaquete(id, tracking) {
@@ -185,15 +202,17 @@
                     alert("No se pudo eliminar el paquete.");
                 } else {
                     alert("Paquete eliminado.");
-                    await cargarPaquetes();
+                    await realizarBusqueda();
                 }
             }
 
             async function abrirModalEdicion(id) {
                 editingPaqueteId = id;
-                const data = todosLosPaquetes.find(p => p.id === id);
-                if (!data) return alert('No se pudo encontrar el paquete para editar.');
-
+                const data = currentResults.find(p => p.id === id);
+                if (!data) {
+                    alert('No se pudo encontrar el paquete para editar. Intenta buscar de nuevo.');
+                    return;
+                }
                 document.getElementById('edit-tracking').value = data.tracking;
                 document.getElementById('edit-status').value = data.status;
                 document.getElementById('edit-cliente-box').value = data.cliente_box;
@@ -201,7 +220,6 @@
                 document.getElementById('edit-valor').value = data.valor;
                 document.getElementById('edit-fecha-bodega').value = fmtDateTimeLocal(data.fecha_bodega);
                 document.getElementById('edit-cargados').checked = data.cargados;
-                
                 editModal.classList.remove('hidden');
             }
 
@@ -216,23 +234,33 @@
                     fecha_bodega: document.getElementById('edit-fecha-bodega').value ? new Date(document.getElementById('edit-fecha-bodega').value).toISOString() : null,
                     cargados: document.getElementById('edit-cargados').checked,
                 };
-
-                const { error } = await sb.from('paquetes_cargados').update(payload).eq('id', editingPaqueteId);
-
+                const { data, error } = await sb.from('paquetes_cargados').update(payload).eq('id', editingPaqueteId).select().single();
                 if (error) {
                     console.error("Error al actualizar:", error);
                     alert("Error al guardar los cambios.");
                 } else {
                     alert("Paquete actualizado ✅");
                     editModal.classList.add('hidden');
-                    await cargarPaquetes();
+                    const index = currentResults.findIndex(p => p.id === editingPaqueteId);
+                    if (index !== -1) {
+                        currentResults[index] = data;
+                        renderRows(currentResults);
+                    } else {
+                        await realizarBusqueda();
+                    }
                 }
             });
 
-            inputQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); btnBuscar.click(); }});
-            btnBuscar.addEventListener('click', aplicarFiltrosYRenderizar);
-            [fltDesde, fltHasta].forEach(el => el.addEventListener('change', aplicarFiltrosYRenderizar));
-
+            // --- NUEVOS EVENTOS DE BÚSQUEDA AUTOMÁTICA ---
+            inputQ.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    realizarBusqueda();
+                }, 500); // Espera 500ms después de la última tecla presionada
+            });
+            btnBuscar.addEventListener('click', realizarBusqueda); // El botón busca inmediatamente
+            [fltDesde, fltHasta].forEach(el => el.addEventListener('change', realizarBusqueda));
+            
             tableBody.addEventListener('click', (e) => {
                 const editBtn = e.target.closest('[data-edit-id]');
                 const delBtn = e.target.closest('[data-del-id]');
@@ -242,11 +270,11 @@
             
             editModal.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', () => editModal.classList.add('hidden')));
             
-            await cargarPaquetes();
+            renderEmpty("Ingresa un término de búsqueda o selecciona un rango de fechas para comenzar.");
 
         } catch (error) {
             console.error("Error al inicializar:", error);
-            document.querySelector("main").innerHTML = `<p class="text-red-500">Error crítico. Revise la consola.</p>`;
+            document.querySelector("main").innerHTML = `<p class="text-red-500">Error crítico. Revisa la consola o asegúrate de que las credenciales de Supabase son correctas.</p>`;
         }
     }
 </script>
