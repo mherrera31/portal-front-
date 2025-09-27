@@ -169,6 +169,7 @@
 
             async function cargarPaquetes() {
                 tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">Cargando paquetes...</td></tr>`;
+                // El código ya usa "paquetes_cargados" como solicitaste.
                 const { data, error } = await sb.from('paquetes_cargados').select('*').order('fecha_bodega', { ascending: false });
                 if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-red-500">Error al cargar los paquetes.</td></tr>`; return; }
                 
