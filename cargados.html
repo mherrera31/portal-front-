@@ -6,7 +6,6 @@
     <title>SGL1 - Paquetes Pendientes</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="config.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .code { font-size: 13px; font-weight: 600; color: #94a3b8; margin-right: 12px; background-color: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
@@ -90,13 +89,11 @@
 <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // --- INICIALIZACIÓN ---
     document.addEventListener('DOMContentLoaded', () => {
         initializeFilterToggle();
         initializeDatabaseLogic();
     });
 
-    // --- LÓGICA DE FILTROS Y BASE DE DATOS ---
     function initializeFilterToggle() {
         const toggleButton = document.getElementById('toggle-filters-btn');
         const filtersDiv = document.getElementById('advanced-filters');
@@ -105,7 +102,12 @@
 
     async function initializeDatabaseLogic() {
         try {
-            const sb = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+            // --- ¡IMPORTANTE! Reemplaza con tus credenciales de Supabase ---
+            const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
+            const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
+            // -------------------------------------------------------------
+
+            const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
             let todosLosPaquetes = []; 
             const tableBody = document.querySelector("#paquetes-table-body");
@@ -117,13 +119,11 @@
             const formEdit = document.getElementById('form-edit-paquete');
             let editingPaqueteId = null;
 
-            // Funciones de formato
             const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
             const fmtNum = (n) => (n == null ? "" : (Number(n).toFixed(2)));
             const fmtDateTimeLocal = (iso) => (iso ? new Date(new Date(iso).getTime() - (new Date(iso).getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : "");
             const fmtDateDisplay = (iso) => (iso ? new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric", hour: '2-digit', minute: '2-digit' }) : "");
 
-            // Renderiza las filas de la tabla
             function renderRows(rows) {
                 if (!rows || !rows.length) {
                     tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">No se encontraron paquetes.</td></tr>`;
@@ -149,7 +149,6 @@
                 `).join("");
             }
             
-            // Filtra y muestra los datos
             function aplicarFiltrosYRenderizar() {
                 const desdeVal = fltDesde.value;
                 const hastaVal = fltHasta.value;
@@ -168,7 +167,6 @@
                 renderRows(paquetesFiltrados);
             }
 
-            // Carga los datos iniciales desde Supabase
             async function cargarPaquetes() {
                 tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">Cargando paquetes...</td></tr>`;
                 const { data, error } = await sb.from('paquetes_cargados').select('*').order('fecha_bodega', { ascending: false });
@@ -178,7 +176,6 @@
                 aplicarFiltrosYRenderizar();
             }
 
-            // Elimina un paquete
             async function eliminarPaquete(id, tracking) {
                 if (!confirm(`¿Eliminar este paquete de forma permanente?\n\nTracking: ${tracking}\n\nEsta acción no se puede deshacer.`)) return;
                 const { error } = await sb.from('paquetes_cargados').delete().eq('id', id);
@@ -191,7 +188,6 @@
                 }
             }
 
-            // Abre y llena el modal de edición
             async function abrirModalEdicion(id) {
                 editingPaqueteId = id;
                 const data = todosLosPaquetes.find(p => p.id === id);
@@ -208,7 +204,6 @@
                 editModal.classList.remove('hidden');
             }
 
-            // Guarda los cambios del formulario de edición
             formEdit.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 let payload = {
@@ -233,7 +228,6 @@
                 }
             });
 
-            // Asignación de eventos a los botones y filtros
             inputQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); btnBuscar.click(); }});
             btnBuscar.addEventListener('click', aplicarFiltrosYRenderizar);
             [fltDesde, fltHasta].forEach(el => el.addEventListener('change', aplicarFiltrosYRenderizar));
@@ -247,7 +241,6 @@
             
             editModal.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', () => editModal.classList.add('hidden')));
             
-            // Carga inicial de datos
             await cargarPaquetes();
 
         } catch (error) {
