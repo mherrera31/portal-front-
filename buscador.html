@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador de Paquetes (Conectado a Supabase)</title>
+    <title>Buscador Unificado de Paquetes (Conectado a Supabase)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1, h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .search-box { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 20px; box-sizing: border-box; }
         .results-list { list-style: none; padding: 0; min-height: 50px; }
-        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; transition: background-color: 0.2s; }
+        .result-item, .info-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
         .result-item:hover { background-color: #f9f9f9; }
-        .result-item:last-child { border-bottom: none; }
+        .result-item:last-child, .info-item:last-child { border-bottom: none; }
         .item-info { display: flex; flex-direction: column; }
         .item-info .tracking { font-weight: bold; font-size: 1.1em; color: #2980b9; word-break: break-all; }
-        .item-info .weight { font-size: 0.9em; color: #7f8c8d; }
+        .item-info .weight, .item-info .details { font-size: 0.9em; color: #7f8c8d; }
+        .info-item .item-info .details b { color: #2c3e50; }
         .action-button { padding: 8px 15px; font-size: 14px; color: #fff; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background-color: 0.2s; white-space: nowrap; }
         .action-button:hover { background-color: #2980b9; }
         .action-button:disabled { background-color: #95a5a6; cursor: not-allowed; }
-        .section-divider { margin-top: 40px; }
         .status-message { color: #999; text-align: center; padding: 20px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,50 +27,38 @@
 <body>
 
     <div class="container">
-        <h1>Buscador de Paquetes 📦</h1>
+        <h1>Buscador Unificado de Paquetes 🔎</h1>
 
         <section>
-            <h2>Tabla: paquetes_cargados</h2>
-            <input type="text" id="buscadorCargados" class="search-box" placeholder="Buscar por tracking en paquetes cargados...">
-            <ul id="resultadosCargados" class="results-list">
-                <li class="status-message">Cargando datos...</li>
-            </ul>
-        </section>
-
-        <hr class="section-divider">
-
-        <section>
-            <h2>Tabla: trackings</h2>
-            <input type="text" id="buscadorExportados" class="search-box" placeholder="Buscar por tracking en el historial...">
-            <ul id="resultadosExportados" class="results-list">
-                <li class="status-message">Cargando datos...</li>
+            <input type="text" id="unifiedSearch" class="search-box" placeholder="Buscar por número de tracking...">
+            <ul id="unifiedResults" class="results-list">
+                <li class="status-message">Inicializando...</li>
             </ul>
         </section>
 
     </div>
 
     <script>
-        // --- 2. CONFIGURACIÓN Y CONEXIÓN A SUPABASE ---
+        // --- CONFIGURACIÓN Y CONEXIÓN A SUPABASE ---
         const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
         
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --- VARIABLES PARA GUARDAR LOS DATOS ---
+        let paquetes = [];
         let paquetesCargados = [];
         let paquetesExportados = [];
 
         // --- REFERENCIAS A ELEMENTOS DEL DOM ---
-        const buscadorCargados = document.getElementById('buscadorCargados');
-        const resultadosCargados = document.getElementById('resultadosCargados');
-        const buscadorExportados = document.getElementById('buscadorExportados');
-        const resultadosExportados = document.getElementById('resultadosExportados');
+        const unifiedSearch = document.getElementById('unifiedSearch');
+        const unifiedResults = document.getElementById('unifiedResults');
         
         // --- FUNCIÓN PARA CARGAR TODAS LAS FILAS USANDO PAGINACIÓN ---
         async function fetchAllRows(tableName, columns) {
             let allRows = [];
             let page = 0;
-            const pageSize = 1000; // El límite por defecto de Supabase
+            const pageSize = 1000;
 
             while (true) {
                 const { data, error } = await supabaseClient
@@ -80,156 +68,168 @@
 
                 if (error) {
                     console.error(`Error cargando la tabla ${tableName}:`, error);
-                    return null; // Devuelve null si hay un error
+                    return null;
                 }
 
-                if (data.length > 0) {
+                if (data && data.length > 0) {
                     allRows = allRows.concat(data);
                 }
 
-                // Si devuelve menos de 1000 filas, es la última página
-                if (data.length < pageSize) {
+                if (!data || data.length < pageSize) {
                     break;
                 }
-
                 page++;
             }
             return allRows;
         }
 
-        // --- FUNCIÓN DE CARGA INICIAL (MODIFICADA PARA USAR LA NUEVA FUNCIÓN) ---
+        // --- FUNCIÓN DE CARGA INICIAL (MODIFICADA PARA 3 TABLAS) ---
         async function cargarDatosIniciales() {
-            // Cargar desde 'paquetes_cargados'
-            const cargados = await fetchAllRows('paquetes_cargados', 'id, tracking, peso, cargados');
+            // 1. Cargar desde 'paquetes' (sistema nuevo)
+            unifiedResults.innerHTML = `<li class="status-message">1/3 - Cargando paquetes del sistema nuevo...</li>`;
+            const paquetesData = await fetchAllRows('paquetes', 'id, tracking, status, anaquel');
+            if (paquetesData === null) {
+                unifiedResults.innerHTML = `<li class="status-message">Error al cargar la tabla 'paquetes'.</li>`;
+                return;
+            }
+            paquetes = paquetesData;
+
+            // 2. Cargar desde 'paquetes_cargados'
+            unifiedResults.innerHTML = `<li class="status-message">2/3 - Cargando paquetes por cargar...</li>`;
+            const cargadosData = await fetchAllRows('paquetes_cargados', 'id, tracking, peso, cargados');
+            if (cargadosData === null) {
+                unifiedResults.innerHTML = `<li class="status-message">Error al cargar la tabla 'paquetes_cargados'.</li>`;
+                return;
+            }
+            paquetesCargados = cargadosData;
             
-            if (cargados === null) {
-                resultadosCargados.innerHTML = `<li class="status-message">Error al cargar datos.</li>`;
-            } else {
-                paquetesCargados = cargados;
-                resultadosCargados.innerHTML = `<li class="status-message">Listo para buscar (${cargados.length} registros cargados).</li>`;
-            }
-
-            // Cargar desde 'trackings'
-            const trackings = await fetchAllRows('trackings', 'id, tracking_corrected, weight_lbs, exported');
-
-            if (trackings === null) {
-                resultadosExportados.innerHTML = `<li class="status-message">Error al cargar datos.</li>`;
-            } else {
-                paquetesExportados = trackings;
-                resultadosExportados.innerHTML = `<li class="status-message">Listo para buscar (${trackings.length} registros cargados).</li>`;
-            }
-        }
-
-        // --- FUNCIONES PARA MOSTRAR RESULTADOS ---
-        function mostrarResultadosCargados(resultados) {
-            resultadosCargados.innerHTML = '';
-            if (resultados.length === 0) {
-                resultadosCargados.innerHTML = '<li class="status-message">No se encontraron paquetes.</li>';
+            // 3. Cargar desde 'trackings'
+            unifiedResults.innerHTML = `<li class="status-message">3/3 - Cargando historial de trackings...</li>`;
+            const trackingsData = await fetchAllRows('trackings', 'id, tracking_corrected, weight_lbs, exported');
+            if (trackingsData === null) {
+                unifiedResults.innerHTML = `<li class="status-message">Error al cargar la tabla 'trackings'.</li>`;
                 return;
             }
-            resultados.forEach(paquete => {
-                const li = document.createElement('li');
-                li.className = 'result-item';
-                li.innerHTML = `
-                    <div class="item-info">
-                        <span class="tracking">${paquete.tracking}</span>
-                        <span class="weight">Peso: ${paquete.peso || 'N/A'} lbs</span>
-                    </div>
-                    <button class="action-button" data-id="${paquete.id}">➡️ Poner "cargados" en false</button>
-                `;
-                resultadosCargados.appendChild(li);
-            });
+            paquetesExportados = trackingsData;
+            
+            unifiedResults.innerHTML = `<li class="status-message">Listo para buscar. (${paquetes.length + paquetesCargados.length + paquetesExportados.length} registros totales)</li>`;
         }
 
-        function mostrarResultadosExportados(resultados) {
-            resultadosExportados.innerHTML = '';
-            if (resultados.length === 0) {
-                resultadosExportados.innerHTML = '<li class="status-message">No se encontraron paquetes.</li>';
-                return;
-            }
-            resultados.forEach(paquete => {
-                const li = document.createElement('li');
-                li.className = 'result-item';
-                li.innerHTML = `
-                    <div class="item-info">
-                        <span class="tracking">${paquete.tracking_corrected}</span>
-                        <span class="weight">Peso: ${paquete.weight_lbs || 'N/A'} lbs</span>
-                    </div>
-                    <button class="action-button" data-id="${paquete.id}">➡️ Poner "exported" en false</button>
-                `;
-                resultadosExportados.appendChild(li);
-            });
-        }
-
-        // --- EVENT LISTENERS PARA BÚSQUEDA ---
-        buscadorCargados.addEventListener('input', (e) => {
+        // --- EVENT LISTENER PARA BÚSQUEDA UNIFICADA ---
+        unifiedSearch.addEventListener('input', (e) => {
             const termino = e.target.value.toLowerCase().trim();
+
             if (termino === '') {
-                resultadosCargados.innerHTML = '';
+                unifiedResults.innerHTML = '';
                 return;
             }
-            const filtrados = paquetesCargados.filter(p => p.tracking && p.tracking.toLowerCase().includes(termino));
-            mostrarResultadosCargados(filtrados);
+
+            // --- LÓGICA DE BÚSQUEDA POR PRIORIDAD ---
+
+            // 1. Buscar en la tabla 'paquetes' (sistema nuevo)
+            const paqueteEnSistema = paquetes.find(p => p.tracking && p.tracking.toLowerCase() === termino);
+            if (paqueteEnSistema) {
+                if (paqueteEnSistema.status === 'En Sucursal') {
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #e8f6f3;">
+                            <div class="item-info">
+                                <span class="tracking">${paqueteEnSistema.tracking}</span>
+                                <span class="details">✅ <b>YA EN SISTEMA:</b> Este paquete ya fue procesado y se encuentra <b>En Sucursal</b>.</span>
+                                <span class="details"><b>Ubicación:</b> ${paqueteEnSistema.anaquel || 'No especificada'}</span>
+                            </div>
+                        </li>`;
+                } else {
+                     unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #fcf3cf;">
+                            <div class="item-info">
+                                <span class="tracking">${paqueteEnSistema.tracking}</span>
+                                <span class="details">⚠️ <b>YA EN SISTEMA:</b> Este paquete ya fue procesado.</span>
+                                <span class="details"><b>Estado actual:</b> ${paqueteEnSistema.status || 'Desconocido'}</span>
+                            </div>
+                        </li>`;
+                }
+                return; // Detener la búsqueda
+            }
+
+            // 2. Si no, buscar en 'paquetes_cargados'
+            const paqueteCargado = paquetesCargados.find(p => p.tracking && p.tracking.toLowerCase() === termino);
+            if (paqueteCargado) {
+                unifiedResults.innerHTML = `
+                    <li class="result-item">
+                        <div class="item-info">
+                            <span class="tracking">${paqueteCargado.tracking}</span>
+                            <span class="weight">Peso: ${paqueteCargado.peso || 'N/A'} lbs</span>
+                            <span class="details" style="color: #e67e22;">Fuente: Tabla 'paquetes_cargados'</span>
+                        </div>
+                        <button class="action-button" data-id="${paqueteCargado.id}" data-action="update-cargado">➡️ Poner "cargados" en false</button>
+                    </li>`;
+                return; // Detener la búsqueda
+            }
+
+            // 3. Si no, buscar en 'trackings'
+            const paqueteExportado = paquetesExportados.find(p => p.tracking_corrected && p.tracking_corrected.toLowerCase() === termino);
+            if (paqueteExportado) {
+                unifiedResults.innerHTML = `
+                    <li class="result-item">
+                        <div class="item-info">
+                            <span class="tracking">${paqueteExportado.tracking_corrected}</span>
+                            <span class="weight">Peso: ${paqueteExportado.weight_lbs || 'N/A'} lbs</span>
+                             <span class="details" style="color: #9b59b6;">Fuente: Tabla 'trackings'</span>
+                        </div>
+                        <button class="action-button" data-id="${paqueteExportado.id}" data-action="update-exportado">➡️ Poner "exported" en false</button>
+                    </li>`;
+                return; // Detener la búsqueda
+            }
+
+            // 4. Si no se encuentra en ninguna tabla
+            unifiedResults.innerHTML = '<li class="status-message">❌ Paquete no registrado en ninguna tabla.</li>';
         });
 
-        buscadorExportados.addEventListener('input', (e) => {
-            const termino = e.target.value.toLowerCase().trim();
-            if (termino === '') {
-                resultadosExportados.innerHTML = '';
-                return;
-            }
-            const filtrados = paquetesExportados.filter(p => p.tracking_corrected && p.tracking_corrected.toLowerCase().includes(termino));
-            mostrarResultadosExportados(filtrados);
-        });
+        // --- EVENT LISTENER UNIFICADO PARA LOS BOTONES DE ACCIÓN ---
+        unifiedResults.addEventListener('click', async (e) => {
+            if (e.target.tagName !== 'BUTTON') return;
 
-        // --- EVENT LISTENERS PARA LOS BOTONES DE ACCIÓN ---
-        resultadosCargados.addEventListener('click', async (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                const paqueteId = e.target.dataset.id;
-                e.target.disabled = true;
-                e.target.textContent = 'Actualizando...';
+            const button = e.target;
+            const paqueteId = button.dataset.id;
+            const action = button.dataset.action;
 
-                const { error } = await supabaseClient
-                    .from('paquetes_cargados')
+            button.disabled = true;
+            button.textContent = 'Actualizando...';
+
+            let error = null;
+            let tableName = '';
+
+            if (action === 'update-cargado') {
+                tableName = 'paquetes_cargados';
+                const { error: updateError } = await supabaseClient
+                    .from(tableName)
                     .update({ cargados: false })
                     .eq('id', paqueteId);
-
-                if (error) {
-                    console.error('Error al actualizar:', error);
-                    alert(`Error al actualizar el paquete. Revisa la consola.`);
-                    e.target.disabled = false;
-                    e.target.textContent = '➡️ Poner "cargados" en false';
-                } else {
-                    alert(`Paquete actualizado en la base de datos.`);
-                    e.target.textContent = '✅ Actualizado';
-                }
-            }
-        });
-
-        resultadosExportados.addEventListener('click', async (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                const paqueteId = e.target.dataset.id;
-                e.target.disabled = true;
-                e.target.textContent = 'Actualizando...';
-
-                const { error } = await supabaseClient
-                    .from('trackings')
+                error = updateError;
+            } else if (action === 'update-exportado') {
+                tableName = 'trackings';
+                const { error: updateError } = await supabaseClient
+                    .from(tableName)
                     .update({ exported: false })
                     .eq('id', paqueteId);
+                error = updateError;
+            }
 
-                if (error) {
-                    console.error('Error al actualizar:', error);
-                    alert(`Error al actualizar el tracking. Revisa la consola.`);
-                    e.target.disabled = false;
-                    e.target.textContent = '➡️ Poner "exported" en false';
-                } else {
-                    alert(`Tracking actualizado en la base de datos.`);
-                    e.target.textContent = '✅ Actualizado';
-                }
+            if (error) {
+                console.error(`Error al actualizar en ${tableName}:`, error);
+                alert(`Error al actualizar el paquete. Revisa la consola.`);
+                button.disabled = false;
+                // Restaurar texto original del botón
+                button.textContent = action === 'update-cargado' ? '➡️ Poner "cargados" en false' : '➡️ Poner "exported" en false';
+            } else {
+                alert(`Paquete actualizado correctamente en la tabla '${tableName}'.`);
+                button.textContent = '✅ Actualizado';
+                // Opcional: remover el item de la lista después de actualizar
+                // button.closest('.result-item').remove(); 
             }
         });
 
-        // --- INICIAR LA CARGA DE DATOS CUANDO LA PÁGINA ESTÉ LISTA ---
+        // --- INICIAR LA CARGA DE DATOS ---
         document.addEventListener('DOMContentLoaded', cargarDatosIniciales);
     </script>
 
