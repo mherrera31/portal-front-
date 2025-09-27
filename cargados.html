@@ -9,6 +9,7 @@
     <script src="config.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
+        .sidebar-link { transition: all 0.2s ease; }
         .sidebar-link.active { background-color: #ecfdf5; color: #059669; font-weight: 600; }
         .code { font-size: 13px; font-weight: 600; color: #94a3b8; margin-right: 12px; background-color: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
         #sidebar { transition: transform 0.3s ease-in-out; }
@@ -19,6 +20,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
 <script type="module">
+    // Lógica de Autenticación de Supabase
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     const supabase = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
 
@@ -45,6 +47,7 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-slate-900 flex items-center"><span class="code">[OP-02]</span>Paquetes Pendientes de Procesar</h1>
         </div>
+        
         <div class="bg-white p-4 rounded-lg border border-slate-200 mb-6">
             <div class="flex flex-wrap items-center gap-4">
                 <div class="relative flex-grow">
@@ -60,6 +63,7 @@
                 </div>
             </div>
         </div>
+        
         <div class="bg-white rounded-lg border overflow-x-auto">
             <table class="w-full text-sm whitespace-nowrap">
                 <thead class="text-xs text-slate-700 uppercase bg-slate-100">
@@ -111,11 +115,38 @@
 <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+    // --- INICIALIZACIÓN ---
     document.addEventListener('DOMContentLoaded', () => {
+        loadNavigationMenu();
         initializeFilterToggle();
         initializeDatabaseLogic();
     });
+    
+    // --- LÓGICA DEL MENÚ DE NAVEGACIÓN ---
+    function loadNavigationMenu() {
+        const menuContainer = document.getElementById('menu-container');
+        if (menuContainer) {
+            const menuHtml = `
+            <div id="sidebar" class="bg-white text-slate-600 w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 z-30 shadow-lg md:shadow-none">
+                <a href="./index.html" class="text-slate-900 text-2xl font-extrabold px-4">SGL1</a>
+                <nav>
+                    <a href="#" class="sidebar-link block py-2.5 px-4 rounded hover:bg-emerald-50 hover:text-emerald-600">Dashboard</a>
+                    <a href="#" class="sidebar-link block py-2.5 px-4 rounded hover:bg-emerald-50 hover:text-emerald-600">Gestión de Paquetes</a>
+                    <a href="#" class="sidebar-link active block py-2.5 px-4 rounded">Paquetes Pendientes</a>
+                    <a href="#" class="sidebar-link block py-2.5 px-4 rounded hover:bg-emerald-50 hover:text-emerald-600">Clientes</a>
+                </nav>
+            </div>`;
+            menuContainer.innerHTML = menuHtml;
+        }
 
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const sidebar = document.getElementById('sidebar');
+        if (mobileMenuButton && sidebar) {
+            mobileMenuButton.addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
+        }
+    }
+
+    // --- LÓGICA DE FILTROS Y BASE DE DATOS ---
     function initializeFilterToggle() {
         const toggleButton = document.getElementById('toggle-filters-btn');
         const filtersDiv = document.getElementById('advanced-filters');
@@ -136,17 +167,18 @@
             const formEdit = document.getElementById('form-edit-paquete');
             let editingPaqueteId = null;
 
+            // Funciones de formato
             const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
             const fmtNum = (n) => (n == null ? "" : (Number(n).toFixed(2)));
-            const fmtDateTimeLocal = (iso) => (iso ? new Date(iso).toISOString().slice(0, 16) : "");
-            const fmtDateDisplay = (iso) => (iso ? new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", hour: '2-digit', minute: '2-digit' }) : "");
+            const fmtDateTimeLocal = (iso) => (iso ? new Date(new Date(iso).getTime() - (new Date(iso).getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : "");
+            const fmtDateDisplay = (iso) => (iso ? new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric", hour: '2-digit', minute: '2-digit' }) : "");
 
-            function renderEmpty(msg = "No hay paquetes para mostrar.") {
-                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">${msg}</td></tr>`;
-            }
-
+            // Renderiza las filas de la tabla
             function renderRows(rows) {
-                if (!rows || !rows.length) return renderEmpty();
+                if (!rows || !rows.length) {
+                    tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">No se encontraron paquetes.</td></tr>`;
+                    return;
+                }
                 
                 tableBody.innerHTML = rows.map(r => `
                     <tr class="bg-white border-b hover:bg-slate-50">
@@ -167,40 +199,39 @@
                 `).join("");
             }
             
+            // Filtra y muestra los datos
             function aplicarFiltrosYRenderizar() {
                 const desdeVal = fltDesde.value;
                 const hastaVal = fltHasta.value;
                 const searchTerm = inputQ.value.trim().toLowerCase();
 
-                let paquetesFiltrados = todosLosPaquetes.filter(p => {
+                const paquetesFiltrados = todosLosPaquetes.filter(p => {
                     const fechaPaquete = p.fecha_bodega ? p.fecha_bodega.split('T')[0] : null;
                     if (desdeVal && fechaPaquete && fechaPaquete < desdeVal) return false;
                     if (hastaVal && fechaPaquete && fechaPaquete > hastaVal) return false;
-
                     if (searchTerm) {
                         const busqueda = `${p.tracking || ''} ${p.status || ''} ${p.cliente_box || ''}`.toLowerCase();
                         if (!busqueda.includes(searchTerm)) return false;
                     }
                     return true;
                 });
-                
                 renderRows(paquetesFiltrados);
             }
 
+            // Carga los datos iniciales desde Supabase
             async function cargarPaquetes() {
-                renderEmpty("Cargando paquetes...");
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">Cargando paquetes...</td></tr>`;
                 const { data, error } = await sb.from('paquetes_cargados').select('*').order('fecha_bodega', { ascending: false });
-                if (error) { console.error(error); return renderEmpty("Error al cargar los paquetes."); }
+                if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-red-500">Error al cargar los paquetes.</td></tr>`; return; }
                 
                 todosLosPaquetes = data || [];
                 aplicarFiltrosYRenderizar();
             }
 
+            // Elimina un paquete
             async function eliminarPaquete(id, tracking) {
                 if (!confirm(`¿Eliminar este paquete de forma permanente?\n\nTracking: ${tracking}\n\nEsta acción no se puede deshacer.`)) return;
-
                 const { error } = await sb.from('paquetes_cargados').delete().eq('id', id);
-
                 if (error) {
                     console.error("Error al eliminar:", error);
                     alert("No se pudo eliminar el paquete.");
@@ -210,6 +241,7 @@
                 }
             }
 
+            // Abre y llena el modal de edición
             async function abrirModalEdicion(id) {
                 editingPaqueteId = id;
                 const data = todosLosPaquetes.find(p => p.id === id);
@@ -226,22 +258,20 @@
                 editModal.classList.remove('hidden');
             }
 
+            // Guarda los cambios del formulario de edición
             formEdit.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                
                 let payload = {
                     tracking: document.getElementById('edit-tracking').value,
                     status: document.getElementById('edit-status').value,
                     cliente_box: document.getElementById('edit-cliente-box').value || null,
                     peso: parseFloat(document.getElementById('edit-peso').value) || 0,
-                    valor: parseFloat(document.getElementById('edit-valor').value) || 0,
-                    fecha_bodega: document.getElementById('edit-fecha-bodega').value || null,
+                    valor: parseFloat(document.getElementById('edit-valor').value) || null,
+                    fecha_bodega: document.getElementById('edit-fecha-bodega').value ? new Date(document.getElementById('edit-fecha-bodega').value).toISOString() : null,
                     cargados: document.getElementById('edit-cargados').checked,
                 };
 
-                const { error } = await sb.from('paquetes_cargados')
-                    .update(payload)
-                    .eq('id', editingPaqueteId);
+                const { error } = await sb.from('paquetes_cargados').update(payload).eq('id', editingPaqueteId);
 
                 if (error) {
                     console.error("Error al actualizar:", error);
@@ -253,17 +283,10 @@
                 }
             });
 
-            inputQ.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    btnBuscar.click();
-                }
-            });
-
+            // Asignación de eventos a los botones y filtros
+            inputQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); btnBuscar.click(); }});
             btnBuscar.addEventListener('click', aplicarFiltrosYRenderizar);
-            [fltDesde, fltHasta].forEach(el => {
-                el.addEventListener('change', aplicarFiltrosYRenderizar);
-            });
+            [fltDesde, fltHasta].forEach(el => el.addEventListener('change', aplicarFiltrosYRenderizar));
 
             tableBody.addEventListener('click', (e) => {
                 const editBtn = e.target.closest('[data-edit-id]');
@@ -272,10 +295,9 @@
                 if (delBtn) eliminarPaquete(delBtn.dataset.delId, delBtn.dataset.delTracking);
             });
             
-            editModal.querySelectorAll('.close-modal').forEach(btn => {
-                btn.addEventListener('click', () => editModal.classList.add('hidden'));
-            });
+            editModal.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', () => editModal.classList.add('hidden')));
             
+            // Carga inicial de datos
             await cargarPaquetes();
 
         } catch (error) {
