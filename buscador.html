@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador Unificado de Paquetes (Conectado a Supabase)</title>
+    <title>Buscador en Vivo de Paquetes (Conectado a Supabase)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -27,165 +27,129 @@
 <body>
 
     <div class="container">
-        <h1>Buscador Unificado de Paquetes 🔎</h1>
+        <h1>Buscador en Vivo de Paquetes 🔎</h1>
 
         <section>
-            <input type="text" id="unifiedSearch" class="search-box" placeholder="Buscar por número de tracking...">
+            <input type="text" id="unifiedSearch" class="search-box" placeholder="Escribe 3 o más caracteres del tracking...">
             <ul id="unifiedResults" class="results-list">
-                <li class="status-message">Inicializando...</li>
+                <li class="status-message">Listo para buscar.</li>
             </ul>
         </section>
-
     </div>
 
     <script>
         // --- CONFIGURACIÓN Y CONEXIÓN A SUPABASE ---
         const SUPABASE_URL = "https://ztdkaxbgpogudtrdgzic.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po";
-        
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // --- VARIABLES PARA GUARDAR LOS DATOS ---
-        let paquetes = [];
-        let paquetesCargados = [];
-        let paquetesExportados = [];
 
         // --- REFERENCIAS A ELEMENTOS DEL DOM ---
         const unifiedSearch = document.getElementById('unifiedSearch');
         const unifiedResults = document.getElementById('unifiedResults');
         
-        // --- FUNCIÓN PARA CARGAR TODAS LAS FILAS USANDO PAGINACIÓN ---
-        async function fetchAllRows(tableName, columns) {
-            let allRows = [];
-            let page = 0;
-            const pageSize = 1000;
-
-            while (true) {
-                const { data, error } = await supabaseClient
-                    .from(tableName)
-                    .select(columns)
-                    .range(page * pageSize, (page + 1) * pageSize - 1);
-
-                if (error) {
-                    console.error(`Error cargando la tabla ${tableName}:`, error);
-                    return null;
-                }
-
-                if (data && data.length > 0) {
-                    allRows = allRows.concat(data);
-                }
-
-                if (!data || data.length < pageSize) {
-                    break;
-                }
-                page++;
-            }
-            return allRows;
-        }
-
-        // --- FUNCIÓN DE CARGA INICIAL (MODIFICADA PARA 3 TABLAS) ---
-        async function cargarDatosIniciales() {
-            // 1. Cargar desde 'paquetes' (sistema nuevo)
-            unifiedResults.innerHTML = `<li class="status-message">1/3 - Cargando paquetes del sistema nuevo...</li>`;
-            const paquetesData = await fetchAllRows('paquetes', 'id, tracking, status, anaquel');
-            if (paquetesData === null) {
-                unifiedResults.innerHTML = `<li class="status-message">Error al cargar la tabla 'paquetes'.</li>`;
-                return;
-            }
-            paquetes = paquetesData;
-
-            // 2. Cargar desde 'paquetes_cargados'
-            unifiedResults.innerHTML = `<li class="status-message">2/3 - Cargando paquetes por cargar...</li>`;
-            const cargadosData = await fetchAllRows('paquetes_cargados', 'id, tracking, peso, cargados');
-            if (cargadosData === null) {
-                unifiedResults.innerHTML = `<li class="status-message">Error al cargar la tabla 'paquetes_cargados'.</li>`;
-                return;
-            }
-            paquetesCargados = cargadosData;
-            
-            // 3. Cargar desde 'trackings'
-            unifiedResults.innerHTML = `<li class="status-message">3/3 - Cargando historial de trackings...</li>`;
-            const trackingsData = await fetchAllRows('trackings', 'id, tracking_corrected, weight_lbs, exported');
-            if (trackingsData === null) {
-                unifiedResults.innerHTML = `<li class="status-message">Error al cargar la tabla 'trackings'.</li>`;
-                return;
-            }
-            paquetesExportados = trackingsData;
-            
-            unifiedResults.innerHTML = `<li class="status-message">Listo para buscar. (${paquetes.length + paquetesCargados.length + paquetesExportados.length} registros totales)</li>`;
-        }
-
-        // --- EVENT LISTENER PARA BÚSQUEDA UNIFICADA ---
-        unifiedSearch.addEventListener('input', (e) => {
-            const termino = e.target.value.toLowerCase().trim();
-
-            if (termino === '') {
+        // --- FUNCIÓN DE BÚSQUEDA "EN VIVO" ---
+        async function performLiveSearch(searchTerm) {
+            // No buscar si el término es muy corto
+            if (searchTerm.length < 3) {
                 unifiedResults.innerHTML = '';
                 return;
             }
 
-            // --- LÓGICA DE BÚSQUEDA POR PRIORIDAD ---
+            unifiedResults.innerHTML = `<li class="status-message">Buscando...</li>`;
 
             // 1. Buscar en la tabla 'paquetes' (sistema nuevo)
-            const paqueteEnSistema = paquetes.find(p => p.tracking && p.tracking.toLowerCase() === termino);
-            if (paqueteEnSistema) {
-                if (paqueteEnSistema.status === 'En Sucursal') {
+            let { data: paqueteEnSistema, error: err1 } = await supabaseClient
+                .from('paquetes')
+                .select('id, tracking, status, anaquel')
+                .ilike('tracking', `%${searchTerm}%`) // Usamos ilike para búsqueda flexible
+                .limit(1);
+
+            if (paqueteEnSistema && paqueteEnSistema.length > 0) {
+                const paquete = paqueteEnSistema[0];
+                if (paquete.status === 'En Sucursal') {
                     unifiedResults.innerHTML = `
                         <li class="info-item" style="background-color: #e8f6f3;">
                             <div class="item-info">
-                                <span class="tracking">${paqueteEnSistema.tracking}</span>
+                                <span class="tracking">${paquete.tracking}</span>
                                 <span class="details">✅ <b>YA EN SISTEMA:</b> Este paquete ya fue procesado y se encuentra <b>En Sucursal</b>.</span>
-                                <span class="details"><b>Ubicación:</b> ${paqueteEnSistema.anaquel || 'No especificada'}</span>
+                                <span class="details"><b>Ubicación:</b> ${paquete.anaquel || 'No especificada'}</span>
                             </div>
                         </li>`;
                 } else {
                      unifiedResults.innerHTML = `
                         <li class="info-item" style="background-color: #fcf3cf;">
                             <div class="item-info">
-                                <span class="tracking">${paqueteEnSistema.tracking}</span>
+                                <span class="tracking">${paquete.tracking}</span>
                                 <span class="details">⚠️ <b>YA EN SISTEMA:</b> Este paquete ya fue procesado.</span>
-                                <span class="details"><b>Estado actual:</b> ${paqueteEnSistema.status || 'Desconocido'}</span>
+                                <span class="details"><b>Estado actual:</b> ${paquete.status || 'Desconocido'}</span>
                             </div>
                         </li>`;
                 }
-                return; // Detener la búsqueda
+                return;
             }
 
             // 2. Si no, buscar en 'paquetes_cargados'
-            const paqueteCargado = paquetesCargados.find(p => p.tracking && p.tracking.toLowerCase() === termino);
-            if (paqueteCargado) {
+            let { data: paqueteCargado, error: err2 } = await supabaseClient
+                .from('paquetes_cargados')
+                .select('id, tracking, peso')
+                .ilike('tracking', `%${searchTerm}%`)
+                .limit(1);
+            
+            if (paqueteCargado && paqueteCargado.length > 0) {
+                const paquete = paqueteCargado[0];
                 unifiedResults.innerHTML = `
                     <li class="result-item">
                         <div class="item-info">
-                            <span class="tracking">${paqueteCargado.tracking}</span>
-                            <span class="weight">Peso: ${paqueteCargado.peso || 'N/A'} lbs</span>
+                            <span class="tracking">${paquete.tracking}</span>
+                            <span class="weight">Peso: ${paquete.peso || 'N/A'} lbs</span>
                             <span class="details" style="color: #e67e22;">Fuente: Tabla 'paquetes_cargados'</span>
                         </div>
-                        <button class="action-button" data-id="${paqueteCargado.id}" data-action="update-cargado">➡️ Poner "cargados" en false</button>
+                        <button class="action-button" data-id="${paquete.id}" data-action="update-cargado">➡️ Poner "cargados" en false</button>
                     </li>`;
-                return; // Detener la búsqueda
+                return;
             }
 
             // 3. Si no, buscar en 'trackings'
-            const paqueteExportado = paquetesExportados.find(p => p.tracking_corrected && p.tracking_corrected.toLowerCase() === termino);
-            if (paqueteExportado) {
+            let { data: paqueteExportado, error: err3 } = await supabaseClient
+                .from('trackings')
+                .select('id, tracking_corrected, weight_lbs')
+                .ilike('tracking_corrected', `%${searchTerm}%`)
+                .limit(1);
+
+            if (paqueteExportado && paqueteExportado.length > 0) {
+                const paquete = paqueteExportado[0];
                 unifiedResults.innerHTML = `
                     <li class="result-item">
                         <div class="item-info">
-                            <span class="tracking">${paqueteExportado.tracking_corrected}</span>
-                            <span class="weight">Peso: ${paqueteExportado.weight_lbs || 'N/A'} lbs</span>
+                            <span class="tracking">${paquete.tracking_corrected}</span>
+                            <span class="weight">Peso: ${paquete.weight_lbs || 'N/A'} lbs</span>
                              <span class="details" style="color: #9b59b6;">Fuente: Tabla 'trackings'</span>
                         </div>
-                        <button class="action-button" data-id="${paqueteExportado.id}" data-action="update-exportado">➡️ Poner "exported" en false</button>
+                        <button class="action-button" data-id="${paquete.id}" data-action="update-exportado">➡️ Poner "exported" en false</button>
                     </li>`;
-                return; // Detener la búsqueda
+                return;
             }
 
             // 4. Si no se encuentra en ninguna tabla
             unifiedResults.innerHTML = '<li class="status-message">❌ Paquete no registrado en ninguna tabla.</li>';
+        }
+
+
+        // --- DEBOUNCER PARA EVITAR CONSULTAS EXCESIVAS ---
+        let debounceTimeout;
+        unifiedSearch.addEventListener('input', (e) => {
+            clearTimeout(debounceTimeout);
+            const searchTerm = e.target.value.trim();
+            if (searchTerm) {
+                debounceTimeout = setTimeout(() => {
+                    performLiveSearch(searchTerm);
+                }, 300); // Espera 300ms después de teclear
+            } else {
+                unifiedResults.innerHTML = '<li class="status-message">Listo para buscar.</li>';
+            }
         });
 
-        // --- EVENT LISTENER UNIFICADO PARA LOS BOTONES DE ACCIÓN ---
+        // --- EVENT LISTENER UNIFICADO PARA LOS BOTONES DE ACCIÓN (SIN CAMBIOS) ---
         unifiedResults.addEventListener('click', async (e) => {
             if (e.target.tagName !== 'BUTTON') return;
 
@@ -219,18 +183,12 @@
                 console.error(`Error al actualizar en ${tableName}:`, error);
                 alert(`Error al actualizar el paquete. Revisa la consola.`);
                 button.disabled = false;
-                // Restaurar texto original del botón
                 button.textContent = action === 'update-cargado' ? '➡️ Poner "cargados" en false' : '➡️ Poner "exported" en false';
             } else {
                 alert(`Paquete actualizado correctamente en la tabla '${tableName}'.`);
                 button.textContent = '✅ Actualizado';
-                // Opcional: remover el item de la lista después de actualizar
-                // button.closest('.result-item').remove(); 
             }
         });
-
-        // --- INICIAR LA CARGA DE DATOS ---
-        document.addEventListener('DOMContentLoaded', cargarDatosIniciales);
     </script>
 
 </body>
