@@ -115,7 +115,7 @@
             const formEdit = document.getElementById('form-edit-paquete');
             let editingPaqueteId = null;
             let currentResults = [];
-            let debounceTimer; // NUEVO: Temporizador para la búsqueda automática
+            let debounceTimer;
 
             const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
             const fmtNum = (n) => (n == null ? "" : (Number(n).toFixed(2)));
@@ -160,21 +160,26 @@
                     renderEmpty("Sigue escribiendo para buscar...");
                     return;
                 }
-
                 if (!searchTerm && !desdeVal && !hastaVal) {
                     renderEmpty("Ingresa un término de búsqueda o selecciona un rango de fechas para comenzar.");
                     currentResults = [];
                     return;
                 }
-
                 renderEmpty("Buscando...");
 
                 let query = sb.from('paquetes_cargados').select('*');
                 
-                // CAMBIO: La búsqueda con 'ilike' es insensible a mayúsculas/minúsculas
                 if (searchTerm) {
-                    query = query.or(`tracking.ilike.%${searchTerm}%,status.ilike.%${searchTerm}%,cliente_box.ilike.%${searchTerm}%`);
+                    // ✅ CORRECCIÓN: Envuelve el término de búsqueda en comillas para manejar caracteres especiales.
+                    const sanitizedSearchTerm = searchTerm.replace(/"/g, '""'); // Escapa comillas dobles
+                    const filters = [
+                        `tracking.ilike."%${sanitizedSearchTerm}%"`,
+                        `status.ilike."%${sanitizedSearchTerm}%"`,
+                        `cliente_box.ilike."%${sanitizedSearchTerm}%"`
+                    ].join(',');
+                    query = query.or(filters);
                 }
+
                 if (desdeVal) {
                     query = query.gte('fecha_bodega', desdeVal);
                 }
@@ -188,7 +193,7 @@
 
                 if (error) {
                     console.error("Error en la búsqueda:", error);
-                    renderEmpty("Ocurrió un error al realizar la búsqueda.");
+                    renderEmpty("Ocurrió un error al realizar la búsqueda. Revisa la consola para más detalles.");
                     return;
                 }
                 renderRows(data);
@@ -251,14 +256,13 @@
                 }
             });
 
-            // --- NUEVOS EVENTOS DE BÚSQUEDA AUTOMÁTICA ---
             inputQ.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                     realizarBusqueda();
-                }, 500); // Espera 500ms después de la última tecla presionada
+                }, 500);
             });
-            btnBuscar.addEventListener('click', realizarBusqueda); // El botón busca inmediatamente
+            btnBuscar.addEventListener('click', realizarBusqueda);
             [fltDesde, fltHasta].forEach(el => el.addEventListener('change', realizarBusqueda));
             
             tableBody.addEventListener('click', (e) => {
