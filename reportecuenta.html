@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte de Cuentas y Sucursales</title>
+    <title>Reporte de Paquetes</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
@@ -32,15 +32,15 @@
 <body>
 
     <div class="container">
-        <h1>📈 Reporte de Cuentas y Sucursales</h1>
+        <h1>📦 Reporte de Paquetes Recibidos</h1>
 
         <div class="card filters">
             <div class="form-group">
-                <label for="dateFrom">Desde</label>
+                <label for="dateFrom">Recibido Desde</label>
                 <input type="date" id="dateFrom">
             </div>
             <div class="form-group">
-                <label for="dateTo">Hasta</label>
+                <label for="dateTo">Recibido Hasta</label>
                 <input type="date" id="dateTo">
             </div>
             <div class="form-group">
@@ -52,7 +52,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="sucursalFilter">Sucursal</label>
+                <label for="sucursalFilter">Sucursal Recibido</label>
                 <select id="sucursalFilter">
                     <option value="">Cargando sucursales...</option>
                 </select>
@@ -87,7 +87,7 @@
                         <th>#</th>
                         <th>Tracking</th>
                         <th>Cuenta</th>
-                        <th>Sucursal</th>
+                        <th>Sucursal Recibido</th>
                         <th>Peso (lbs)</th>
                         <th>Costo ($)</th>
                     </tr>
@@ -117,7 +117,7 @@
         const reportBody = document.getElementById('reportBody');
         
         // --- GESTIÓN DE ESTADO ---
-        let allTrackings = [];
+        let allPaquetes = [];
         let isDataLoaded = false;
 
         // --- FUNCIONES AUXILIARES ---
@@ -134,16 +134,22 @@
         }
         
         function generateReport() {
-            const fromValue = dateFromInput.value, toValue = dateToInput.value, cuentaValue = cuentaFilterSelect.value, sucursalValue = sucursalFilterSelect.value;
+            const fromValue = dateFromInput.value;
+            const toValue = dateToInput.value;
+            const cuentaValue = cuentaFilterSelect.value;
+            const sucursalValue = sucursalFilterSelect.value;
+
             const fromDate = fromValue ? new Date(fromValue + 'T00:00:00') : null;
             const toDate = toValue ? new Date(toValue + 'T23:59:59') : null;
             
-            const filteredData = allTrackings.filter(row => {
+            const filteredData = allPaquetes.filter(row => {
                 if (cuentaValue && row.cuenta !== cuentaValue) return false;
-                if (sucursalValue && row.sucursal !== sucursalValue) return false;
+                // CAMBIO: Filtrar por sucursal_recibido
+                if (sucursalValue && row.sucursal_recibido !== sucursalValue) return false;
+                
                 if (fromDate || toDate) {
-                    if (!row.created_at) return false;
-                    const rowDate = new Date(row.created_at);
+                    if (!row.fecha_recibido) return false;
+                    const rowDate = new Date(row.fecha_recibido);
                     if (fromDate && rowDate < fromDate) return false;
                     if (toDate && rowDate > toDate) return false;
                 }
@@ -153,7 +159,7 @@
         }
 
         function updateSummaryAndTable(data) {
-            const totalLibras = data.reduce((sum, row) => sum + (Number(row.weight_lbs) || 0), 0);
+            const totalLibras = data.reduce((sum, row) => sum + (Number(row.peso) || 0), 0);
             const totalCosto = totalLibras * 1.55;
             
             statTotalLibras.textContent = totalLibras.toFixed(2);
@@ -161,16 +167,23 @@
             statTotalTrackings.textContent = data.length;
             
             reportBody.innerHTML = '';
-            if (data.length === 0 && isDataLoaded) { // Muestra mensaje solo si ya se cargaron los datos
+            if (data.length === 0 && isDataLoaded) {
                 reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">No se encontraron resultados para los filtros seleccionados.</td></tr>';
             } else if (!isDataLoaded) {
-                 reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
+                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Seleccione filtros y presione "Generar Reporte".</td></tr>';
             }
             
             data.forEach((row, index) => {
-                const costo = (Number(row.weight_lbs) || 0) * 1.55;
+                const costo = (Number(row.peso) || 0) * 1.55;
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${index + 1}</td><td>${row.tracking_corrected || 'N/A'}</td><td>${row.cuenta || 'N/A'}</td><td>${row.sucursal || 'N/A'}</td><td>${(Number(row.weight_lbs) || 0).toFixed(2)}</td><td>${costo.toFixed(2)}</td>`;
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${row.tracking || 'N/A'}</td>
+                    <td>${row.cuenta || 'N/A'}</td>
+                    <td>${row.sucursal_recibido || 'N/A'}</td>
+                    <td>${(Number(row.peso) || 0).toFixed(2)}</td>
+                    <td>${costo.toFixed(2)}</td>
+                `;
                 reportBody.appendChild(tr);
             });
         }
@@ -189,25 +202,18 @@
             if (!isDataLoaded) {
                 btnGenerate.disabled = true;
                 btnGenerate.textContent = 'Cargando...';
-                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Cargando todos los datos, por favor espere...</td></tr>';
+                reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Cargando todos los paquetes, por favor espere...</td></tr>';
 
-                const [trackingsData, paquetesData] = await Promise.all([
-                    fetchAllRows('trackings', 'tracking_corrected, weight_lbs, cuenta, created_at'),
-                    fetchAllRows('paquetes', 'tracking, sucursal')
-                ]);
+                // CAMBIO: Pedir 'sucursal_recibido' en la consulta
+                const paquetesData = await fetchAllRows('paquetes', 'tracking, cuenta, sucursal_recibido, peso, fecha_recibido');
 
-                if (!trackingsData) {
-                    reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:red;">Error al cargar los datos de trackings.</td></tr>';
+                if (!paquetesData) {
+                    reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:red;">Error al cargar los datos de paquetes.</td></tr>';
                     btnGenerate.disabled = false; btnGenerate.textContent = 'Generar Reporte';
                     return;
                 }
-
-                const sucursalMap = new Map();
-                if (paquetesData) {
-                    paquetesData.forEach(p => p.tracking && p.sucursal && sucursalMap.set(p.tracking, p.sucursal));
-                }
                 
-                allTrackings = trackingsData.map(t => ({...t, sucursal: sucursalMap.get(t.tracking_corrected) || null}));
+                allPaquetes = paquetesData;
                 isDataLoaded = true;
 
                 btnGenerate.disabled = false;
@@ -216,20 +222,18 @@
             generateReport();
         }
         
-        // --- FUNCIÓN DE INICIALIZACIÓN (MODIFICADA) ---
         async function initialize() {
-            // Carga solo las sucursales para llenar el filtro al inicio
-            const paquetes = await fetchAllRows('paquetes', 'sucursal');
+            // CAMBIO: Cargar 'sucursal_recibido' para el filtro inicial
+            const sucursalesData = await fetchAllRows('paquetes', 'sucursal_recibido');
             sucursalFilterSelect.innerHTML = '<option value="">-- Todas las Sucursales --</option>';
-            if (paquetes) {
-                const sucursales = new Set(paquetes.map(p => p.sucursal).filter(Boolean));
+            if (sucursalesData) {
+                // Usar 'sucursal_recibido' para crear la lista de opciones
+                const sucursales = new Set(sucursalesData.map(p => p.sucursal_recibido).filter(Boolean));
                 sucursales.forEach(s => sucursalFilterSelect.add(new Option(s, s)));
             }
 
-            // Establece el mensaje inicial
             updateSummaryAndTable([]);
 
-            // Asigna los eventos a los botones
             btnGenerate.addEventListener('click', handleGenerateReportClick);
             btnClear.addEventListener('click', clearFilters);
         }
