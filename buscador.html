@@ -68,6 +68,7 @@
         const stopScanButton = document.getElementById('stop-scan-button');
         
         let html5QrCode;
+        let debounceTimeout;
 
         function resetInput(enable = true) {
             unifiedSearch.value = '';
@@ -78,7 +79,10 @@
         }
 
         async function fetchSuggestions(searchTerm) {
-            if (searchTerm.length < 3) { unifiedResults.innerHTML = ''; return; }
+            if (searchTerm.length < 3) {
+                unifiedResults.innerHTML = '';
+                return;
+            }
             unifiedResults.innerHTML = `<li class="status-message">Buscando sugerencias...</li>`;
 
             const { data: paquetes } = await supabaseClient.from('paquetes').select('tracking').ilike('tracking', `%${searchTerm}%`).limit(3);
@@ -88,7 +92,10 @@
             if (paquetes) paquetes.forEach(p => allSuggestions.add(p.tracking));
             if (cargados) cargados.forEach(p => allSuggestions.add(p.tracking));
 
-            if (allSuggestions.size === 0) { unifiedResults.innerHTML = '<li class="status-message">No se encontraron sugerencias.</li>'; return; }
+            if (allSuggestions.size === 0) {
+                unifiedResults.innerHTML = '<li class="status-message">No se encontraron sugerencias.</li>';
+                return;
+            }
             
             unifiedResults.innerHTML = '';
             allSuggestions.forEach(tracking => {
@@ -101,6 +108,9 @@
         }
 
         async function executeFinalAction(searchTerm) {
+            // Detiene cualquier búsqueda de sugerencias pendiente
+            clearTimeout(debounceTimeout);
+            
             if (!searchTerm) return;
             unifiedResults.innerHTML = `<li class="status-message">Procesando...</li>`;
 
@@ -108,14 +118,16 @@
 
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
                 const paquete = paqueteEnSistema[0];
-                // --- CORRECCIÓN CRÍTICA AQUÍ ---
-                // Se normaliza el texto a minúsculas y sin espacios para una comparación segura.
                 if (paquete.status && paquete.status.trim().toLowerCase() === 'en sucursal') {
                     unifiedResults.innerHTML = `
                         <li class="info-item" style="background-color: #e8f6f3;">
                             <div class="item-info">
                                 <span class="tracking">${paquete.tracking}</span>
-                                <span class="details">✅ <b>PROCESO DETENIDO:</b> Este paquete ya se encuentra <b>En Sucursal</b>.</span>
+                                <span class="details">
+                                    ✅ <b>PROCESO DETENIDO:</b> Este paquete ya se encuentra <b>En Sucursal</b>.
+                                    <br>
+                                    Anaquel: <b>${paquete.anaquel || 'No especificado'}</b>
+                                </span>
                             </div>
                         </li>`;
                     resetInput();
@@ -158,11 +170,12 @@
             unifiedResults.innerHTML = `<li class="status-message">❌ El tracking no requiere acción o no fue encontrado.</li>`;
             resetInput();
         }
-
+        
         function onScanSuccess(decodedText, decodedResult) {
             stopScanner();
-            unifiedSearch.value = decodedText.trim();
-            unifiedSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            const searchTerm = decodedText.trim();
+            unifiedSearch.value = searchTerm;
+            executeFinalAction(searchTerm);
             unifiedSearch.focus();
         }
 
@@ -186,7 +199,6 @@
         
         stopScanButton.addEventListener('click', stopScanner);
 
-        let debounceTimeout;
         unifiedSearch.addEventListener('input', (e) => {
             clearTimeout(debounceTimeout);
             const searchTerm = e.target.value.trim();
@@ -210,6 +222,8 @@
             if (e.target && e.target.classList.contains('suggestion-item')) {
                 const selectedTracking = e.target.dataset.tracking;
                 unifiedSearch.value = selectedTracking;
+                // Limpiamos las sugerencias y ejecutamos la acción
+                unifiedResults.innerHTML = '';
                 executeFinalAction(selectedTracking);
             }
         });
