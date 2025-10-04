@@ -116,20 +116,18 @@
             let { data: paqueteEnSistema } = await supabaseClient.from('paquetes').select('status, anaquel, tracking').ilike('tracking', `%${searchTerm}%`);
 
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
-                // --- NUEVA LÓGICA: Manejo de múltiples resultados ---
                 if (paqueteEnSistema.length > 1) {
                     unifiedResults.innerHTML = '<li class="status-message">Se encontraron varios resultados. Por favor, selecciona el correcto:</li>';
                     paqueteEnSistema.forEach(paquete => {
                         const li = document.createElement('li');
                         li.className = 'suggestion-item';
                         li.textContent = paquete.tracking;
-                        li.dataset.tracking = paquete.tracking; // Para que el click listener funcione
+                        li.dataset.tracking = paquete.tracking;
                         unifiedResults.appendChild(li);
                     });
-                    return; // Detiene la ejecución y espera la selección del usuario
+                    return;
                 }
                 
-                // --- LÓGICA ANTERIOR: Ahora solo se ejecuta si hay UN resultado ---
                 if (paqueteEnSistema.length === 1) {
                     const paquete = paqueteEnSistema[0];
                     const status = paquete.status
@@ -137,7 +135,15 @@
                         : '';
 
                     if (status === 'en transito') {
-                        unifiedResults.innerHTML = `...`; // Mensaje de 'En Tránsito'
+                        unifiedResults.innerHTML = `
+                            <li class="info-item" style="background-color: #eaf2f8;">
+                                <div class="item-info">
+                                    <span class="tracking">${paquete.tracking}</span>
+                                    <span class="details" style="color: #3498db;">
+                                        ℹ️ <b>AVISO:</b> Paquete <b>En Tránsito</b>. No requiere acción.
+                                    </span>
+                                </div>
+                            </li>`;
                         resetInput();
                         return;
                     }
@@ -145,27 +151,52 @@
                     if (status === 'en sucursal') {
                         const now = new Date().toISOString();
                         const { error } = await supabaseClient.from('paquetes').update({ fecha_sucursal: now }).eq('tracking', paquete.tracking);
-                        unifiedResults.innerHTML = `...`; // Mensaje de 'En Sucursal' con fecha actualizada
+                        
+                        unifiedResults.innerHTML = `
+                            <li class="info-item" style="background-color: #e8f6f3;">
+                                <div class="item-info">
+                                    <span class="tracking">${paquete.tracking}</span>
+                                    <span class="details">
+                                        ✅ <b>PROCESO DETENIDO:</b> Paquete ya <b>En Sucursal</b>.
+                                        <br>
+                                        Anaquel: <b>${paquete.anaquel || 'No especificado'}</b>
+                                        ${error ? '<br><b style="color: red;">Error al guardar fecha.</b>' : '<br><b>Fecha de sucursal actualizada.</b>'}
+                                    </span>
+                                </div>
+                            </li>`;
                         resetInput();
                         return;
                     }
                 }
             }
             
-            // --- BÚSQUEDA EN CARGADOS: Ahora es EXACTA (sin '%') ---
             let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').ilike('tracking', searchTerm);
             
             if (paqueteCargado && paqueteCargado.length > 0) {
                 const paquete = paqueteCargado[0];
+                
                 unifiedSearch.disabled = true;
-                unifiedResults.innerHTML = `...`; // Mensaje de 'Actualizando...'
+                unifiedResults.innerHTML = `
+                    <li class="info-item" style="background-color: #fcf3cf;">
+                        <div class="item-info">
+                            <span class="tracking">${paquete.tracking}</span>
+                            <span class="details"><b>Actualizando automáticamente...</b></span>
+                        </div>
+                    </li>`;
 
                 const { error } = await supabaseClient.from('paquetes_cargados').update({ cargados: false }).eq('id', paquete.id);
 
                 if (error) {
-                    unifiedResults.innerHTML = `...`; // Mensaje de ERROR
+                    console.error('Error en la actualización automática:', error);
+                    unifiedResults.innerHTML = `<li class="info-item" style="background-color: #f5b7b1;">... ERROR ...</li>`;
                 } else {
-                    unifiedResults.innerHTML = `...`; // Mensaje de ÉXITO
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #fcf3cf;">
+                            <div class="item-info">
+                                <span class="tracking">${paquete.tracking}</span>
+                                <span class="details">✅ <b>Éxito:</b> Actualizado a "cargados: false".</span>
+                            </div>
+                        </li>`;
                 }
                 resetInput(true);
                 return;
