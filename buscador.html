@@ -19,7 +19,7 @@
         #scan-qr-button { padding: 0 15px; font-size: 20px; border-radius: 5px; border: 1px solid #ccc; background-color: #f9f9f9; cursor: pointer; }
 
         .results-list { list-style: none; padding: 0; min-height: 50px; }
-        .suggestion-item { padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color 0.2s; }
+        .suggestion-item { padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color: 0.2s; }
         .suggestion-item:hover { background-color: #f0f8ff; }
         .info-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
         .item-info { display: flex; flex-direction: column; gap: 4px; }
@@ -90,7 +90,7 @@
 
             const allSuggestions = new Set();
             if (paquetes) paquetes.forEach(p => allSuggestions.add(p.tracking));
-            if (cargados) cargados.forEach(p => allSuggestions.add(p.tracking));
+            if (cargados) cargados.forEach(c => allSuggestions.add(c.tracking));
 
             if (allSuggestions.size === 0) {
                 unifiedResults.innerHTML = '<li class="status-message">No se encontraron sugerencias.</li>';
@@ -108,33 +108,65 @@
         }
 
         async function executeFinalAction(searchTerm) {
-            // Detiene cualquier búsqueda de sugerencias pendiente
             clearTimeout(debounceTimeout);
             
             if (!searchTerm) return;
             unifiedResults.innerHTML = `<li class="status-message">Procesando...</li>`;
 
+            // 1. Revisar primero la tabla principal 'paquetes'
             let { data: paqueteEnSistema } = await supabaseClient.from('paquetes').select('status, anaquel, tracking').ilike('tracking', searchTerm);
 
             if (paqueteEnSistema && paqueteEnSistema.length > 0) {
                 const paquete = paqueteEnSistema[0];
-                if (paquete.status && paquete.status.trim().toLowerCase() === 'en sucursal') {
+                const status = paquete.status ? paquete.status.trim().toLowerCase() : '';
+
+                // --- NUEVA LÓGICA PARA 'EN TRANSITO' ---
+                if (status === 'en transito') {
+                    unifiedResults.innerHTML = `
+                        <li class="info-item" style="background-color: #eaf2f8;">
+                            <div class="item-info">
+                                <span class="tracking">${paquete.tracking}</span>
+                                <span class="details" style="color: #3498db;">
+                                    ℹ️ <b>AVISO:</b> Paquete <b>En Tránsito</b>. No requiere acción.
+                                </span>
+                            </div>
+                        </li>`;
+                    resetInput();
+                    return; // Detiene la ejecución aquí
+                }
+
+                // --- LÓGICA ACTUALIZADA PARA 'EN SUCURSAL' ---
+                if (status === 'en sucursal') {
+                    const now = new Date().toISOString(); // Fecha y hora actual en formato ISO
+                    
+                    // Actualiza 'fecha_sucursal'
+                    const { error } = await supabaseClient
+                        .from('paquetes')
+                        .update({ fecha_sucursal: now })
+                        .eq('tracking', paquete.tracking);
+                    
+                    if (error) {
+                        console.error("Error al actualizar la fecha_sucursal:", error);
+                    }
+
                     unifiedResults.innerHTML = `
                         <li class="info-item" style="background-color: #e8f6f3;">
                             <div class="item-info">
                                 <span class="tracking">${paquete.tracking}</span>
                                 <span class="details">
-                                    ✅ <b>PROCESO DETENIDO:</b> Este paquete ya se encuentra <b>En Sucursal</b>.
+                                    ✅ <b>PROCESO DETENIDO:</b> Paquete ya <b>En Sucursal</b>.
                                     <br>
                                     Anaquel: <b>${paquete.anaquel || 'No especificado'}</b>
+                                    ${error ? '<br><b style="color: red;">Error al guardar fecha.</b>' : '<br><b>Fecha de sucursal actualizada.</b>'}
                                 </span>
                             </div>
                         </li>`;
                     resetInput();
-                    return;
+                    return; // Detiene la ejecución aquí
                 }
             }
             
+            // 2. Si no se encontró en 'paquetes' o no requería acción, revisa 'paquetes_cargados'
             let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').ilike('tracking', searchTerm);
             
             if (paqueteCargado && paqueteCargado.length > 0) {
@@ -167,6 +199,7 @@
                 return;
             }
 
+            // 3. Si no se encontró en ninguna tabla o no cumplió condiciones
             unifiedResults.innerHTML = `<li class="status-message">❌ El tracking no requiere acción o no fue encontrado.</li>`;
             resetInput();
         }
@@ -222,7 +255,6 @@
             if (e.target && e.target.classList.contains('suggestion-item')) {
                 const selectedTracking = e.target.dataset.tracking;
                 unifiedSearch.value = selectedTracking;
-                // Limpiamos las sugerencias y ejecutamos la acción
                 unifiedResults.innerHTML = '';
                 executeFinalAction(selectedTracking);
             }
