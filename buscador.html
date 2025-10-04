@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEW Buscador de Paquetes (Corregido)</title>
+    <title>Buscador de Paquetes (Corregido)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -134,7 +134,7 @@
                         ? paquete.status.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                         : '';
 
-                    if (status === 'en transito') {
+                    if (status.includes('transito')) {
                         unifiedResults.innerHTML = `
                             <li class="info-item" style="background-color: #eaf2f8;">
                                 <div class="item-info">
@@ -148,9 +148,12 @@
                         return;
                     }
 
-                    if (status === 'en sucursal') {
-                        const now = new Date().toISOString();
-                        const { error } = await supabaseClient.from('paquetes').update({ fecha_sucursal: now }).eq('tracking', paquete.tracking);
+                    if (status.includes('sucursal')) {
+                        const now = new Date();
+                        const timezoneOffset = now.getTimezoneOffset() * 60000;
+                        const localISOTime = new Date(now - timezoneOffset).toISOString().slice(0, -1);
+                        
+                        const { error } = await supabaseClient.from('paquetes').update({ fecha_sucursal: localISOTime }).eq('tracking', paquete.tracking);
                         
                         unifiedResults.innerHTML = `
                             <li class="info-item" style="background-color: #e8f6f3;">
@@ -170,7 +173,7 @@
                 }
             }
             
-            let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').ilike('tracking', searchTerm);
+            let { data: paqueteCargado } = await supabaseClient.from('paquetes_cargados').select('id, tracking').eq('tracking', searchTerm);
             
             if (paqueteCargado && paqueteCargado.length > 0) {
                 const paquete = paqueteCargado[0];
