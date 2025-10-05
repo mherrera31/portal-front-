@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Ventas</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a1a;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+        select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        #resultados {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .linea-resultado {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 5px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .metodo {
+            font-weight: 600;
+        }
+        .monto {
+            font-family: monospace;
+            font-size: 16px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .total-general {
+            font-weight: bold;
+            color: #1a1a1a;
+            font-size: 18px;
+            margin-top: 15px;
+        }
+        #cargando {
+            text-align: center;
+            color: #888;
+            font-size: 16px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Reporte de Ventas de Hoy</h1>
+        <p id="fecha-actual"></p>
+
+        <select id="selector-sucursal">
+            <option value="">Cargando sucursales...</option>
+        </select>
+
+        <div id="cargando" style="display: none;">
+            Buscando ventas...
+        </div>
+
+        <div id="resultados">
+            </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // --- CONFIGURACIÓN INICIAL ---
+        // ¡IMPORTANTE! Reemplaza estas dos líneas con tus llaves.
+        const SUPABASE_URL = 'URL_AQUI'; 
+        const SUPABASE_KEY = 'LLAVE_AQUI';
+
+        // Creamos el cliente de Supabase
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Obtenemos las referencias a los elementos del HTML
+        const selectorSucursal = document.getElementById('selector-sucursal');
+        const divResultados = document.getElementById('resultados');
+        const divCargando = document.getElementById('cargando');
+        const pFecha = document.getElementById('fecha-actual');
+        
+        // Mostramos la fecha actual en Panamá
+        pFecha.textContent = `Fecha: ${new Date().toLocaleDateString('es-PA', { timeZone: 'America/Panama' })}`;
+
+        // --- RECETA #1: OBTENER Y MOSTRAR SUCURSALES ---
+        async function cargarSucursales() {
+            const { data, error } = await supabase
+                .from('sucursales')
+                .select('sucursal')
+                .order('sucursal', { ascending: true });
+
+            if (error) {
+                console.error('Error al cargar sucursales:', error);
+                selectorSucursal.innerHTML = '<option value="">Error al cargar</option>';
+                return;
+            }
+
+            selectorSucursal.innerHTML = '<option value="">-- Escoge una sucursal --</option>';
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.sucursal;
+                option.textContent = item.sucursal;
+                selectorSucursal.appendChild(option);
+            });
+        }
+
+        // --- RECETA #2: OBTENER Y MOSTRAR VENTAS ---
+        async function mostrarVentas(nombreSucursal) {
+            if (!nombreSucursal) {
+                divResultados.innerHTML = '';
+                return;
+            }
+
+            divResultados.innerHTML = '';
+            divCargando.style.display = 'block';
+
+            // El programador se aseguraría de que esto sea 100% preciso con la zona horaria.
+            // Para este ejemplo, funciona en la mayoría de los casos.
+            const hoy = new Date();
+            const inicioDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0);
+            const finDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+
+            const { data, error } = await supabase
+                .from('pagos')
+                .select('metodo_pago, monto')
+                .eq('sucursal', nombreSucursal)
+                .gte('created_at', inicioDelDia.toISOString())
+                .lte('created_at', finDelDia.toISOString());
+
+            divCargando.style.display = 'none';
+
+            if (error) {
+                console.error('Error al cargar ventas:', error);
+                divResultados.innerHTML = '<p>Error al cargar las ventas.</p>';
+                return;
+            }
+            
+            if (data.length === 0) {
+                divResultados.innerHTML = '<p>No hay ventas registradas para hoy en esta sucursal.</p>';
+                return;
+            }
+
+            const totales = {};
+            let totalGeneral = 0;
+            data.forEach(pago => {
+                const metodo = pago.metodo_pago;
+                const monto = parseFloat(pago.monto);
+                totales[metodo] = (totales[metodo] || 0) + monto;
+                totalGeneral += monto;
+            });
+            
+            let htmlResultados = '';
+            for (const metodo in totales) {
+                htmlResultados += `
+                    <div class="linea-resultado">
+                        <span class="metodo">${metodo}</span>
+                        <span class="monto">$${totales[metodo].toFixed(2)}</span>
+                    </div>
+                `;
+            }
+            
+            htmlResultados += `
+                <div class="linea-resultado total-general">
+                    <span>TOTAL</span>
+                    <span>$${totalGeneral.toFixed(2)}</span>
+                </div>
+            `;
+            
+            divResultados.innerHTML = htmlResultados;
+        }
+
+        // --- EVENTOS ---
+        // Cuando el usuario cambia la selección en el menú, llamamos a la Receta #2
+        selectorSucursal.addEventListener('change', (evento) => {
+            const sucursalSeleccionada = evento.target.value;
+            mostrarVentas(sucursalSeleccionada);
+        });
+
+        // Al cargar la página, ejecutamos la Receta #1
+        cargarSucursales();
+    </script>
+
+</body>
+</html>
