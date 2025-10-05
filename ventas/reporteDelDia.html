@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>Live...Reporte de Ventas</title>
+    <link rel="icon" href="icon.png" type="image/png"> <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes"> <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <title>Reporte de Ventas</title>
+    
     <style>
         :root {
             --ios-background: #f2f2f7; --ios-white: #ffffff; --ios-blue: #007aff;
@@ -90,7 +93,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script>
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // --- CLIENTE SUPABASE ---
+        // ARREGLO: Se usa 'supabaseClient' para evitar el error de inicialización.
+        // La variable 'supabase' viene del script CDN.
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // --- REFERENCIAS A ELEMENTOS HTML (sin cambios) ---
         const selectorSucursal = document.getElementById('selector-sucursal');
         const reporteContainer = document.getElementById('reporte-container');
         const cargandoDiv = document.getElementById('cargando');
@@ -101,11 +109,12 @@
         const headerTitle = document.getElementById('header-title');
         const lastUpdated = document.getElementById('last-updated');
         
+        // ALMACÉN DE DATOS Y ESTADO (sin cambios)
         let reporteCompleto = {}; 
         let deferredInstallPrompt;
         let updateInterval = null;
 
-        // LÓGICA DE INSTALACIÓN PWA
+        // LÓGICA DE INSTALACIÓN PWA (sin cambios)
         window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; botonInstalar.style.display = 'block'; });
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         if (isIOS) { botonInstalar.textContent = 'Instalar'; botonInstalar.style.display = 'block'; }
@@ -115,7 +124,7 @@
         });
         cerrarModal.addEventListener('click', () => { iosInstallModal.style.display = 'none'; });
         
-        // LÓGICA DE VISUALIZACIÓN
+        // LÓGICA DE VISUALIZACIÓN (sin cambios)
         function crearTarjetaSucursalHTML(nombre, datos) {
             let itemsHTML = ''; const metodosOrdenados = Object.keys(datos).filter(k => k !== 'TOTAL').sort();
             for (const metodo of metodosOrdenados) { itemsHTML += `<div class="list-item"><span class="metodo">${metodo}</span><span class="monto">$${datos[metodo].toFixed(2)}</span></div>`; }
@@ -143,16 +152,15 @@
             else { reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy en ${nombreSucursal}.</p></div>`; }
         }
         
-        // LÓGICA DE ACTUALIZACIÓN
+        // LÓGICA DE ACTUALIZACIÓN (ARREGLO: usa la variable 'supabaseClient')
         async function actualizarReporte() {
             lastUpdated.textContent = 'Actualizando...';
             try {
-                // LLAMAMOS A LA FUNCIÓN DE BASE DE DATOS, COMO EN TU APP AVANZADA
-                const { data, error } = await supabase.rpc('generar_reporte_diario');
+                // ARREGLO: Se usa 'supabaseClient' para llamar a la función de base de datos
+                const { data, error } = await supabaseClient.rpc('generar_reporte_diario');
                 if (error) throw error;
                 reporteCompleto = data || {};
                 
-                // Redibujamos la vista con los datos frescos
                 const vistaActual = selectorSucursal.value;
                 if (vistaActual) { renderizarVistaUnica(vistaActual); }
                 else { renderizarVistaCompleta(); }
@@ -164,11 +172,12 @@
             }
         }
         
+        // LÓGICA DE INICIO (ARREGLO: usa la variable 'supabaseClient')
         async function iniciarApp() {
             cargandoDiv.style.display = 'flex';
             
-            // Poblar selector de sucursales una sola vez
-            const { data: sucursales, error } = await supabase.from('sucursales').select('sucursal').order('sucursal');
+            // ARREGLO: Se usa 'supabaseClient' para obtener las sucursales
+            const { data: sucursales, error } = await supabaseClient.from('sucursales').select('sucursal').order('sucursal');
             if (error) { cargandoDiv.innerHTML = '<p>No se pudieron cargar las sucursales.</p>'; return; }
             selectorSucursal.innerHTML = '<option value="">Ver Todas las Sucursales</option>';
             sucursales.forEach(s => {
@@ -178,15 +187,14 @@
                 selectorSucursal.appendChild(option);
             });
 
-            // Primera carga de datos
             await actualizarReporte();
             cargandoDiv.style.display = 'none';
             
-            // Iniciar el auto-refresco
             if (updateInterval) clearInterval(updateInterval);
             updateInterval = setInterval(actualizarReporte, 60000);
         }
 
+        // EVENTOS (sin cambios)
         selectorSucursal.addEventListener('change', (e) => renderizarVistaUnica(e.target.value));
         botonVolver.addEventListener('click', renderizarVistaCompleta);
         document.addEventListener('DOMContentLoaded', iniciarApp);
