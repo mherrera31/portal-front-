@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
-    <link rel="icon" href="icon.png" type="image/png"> <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes"> <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    
-    <title>Reporte de Ventas</title>
-    
+    <link rel="icon" href="icon.png" type="image/png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Live...Reporte de Ventas</title>
     <style>
         :root {
             --ios-background: #f2f2f7; --ios-white: #ffffff; --ios-blue: #007aff;
@@ -93,12 +92,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script>
-        // --- CLIENTE SUPABASE ---
-        // ARREGLO: Se usa 'supabaseClient' para evitar el error de inicialización.
-        // La variable 'supabase' viene del script CDN.
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
-        // --- REFERENCIAS A ELEMENTOS HTML (sin cambios) ---
         const selectorSucursal = document.getElementById('selector-sucursal');
         const reporteContainer = document.getElementById('reporte-container');
         const cargandoDiv = document.getElementById('cargando');
@@ -109,13 +103,12 @@
         const headerTitle = document.getElementById('header-title');
         const lastUpdated = document.getElementById('last-updated');
         
-        // ALMACÉN DE DATOS Y ESTADO (sin cambios)
         let reporteCompleto = {}; 
         let deferredInstallPrompt;
         let updateInterval = null;
 
         // LÓGICA DE INSTALACIÓN PWA (sin cambios)
-        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; botonInstalar.style.display = 'block'; });
+        window.addEventListener('beforeinstallpromptevent', (e) => { e.preventDefault(); deferredInstallPrompt = e; botonInstalar.style.display = 'block'; });
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         if (isIOS) { botonInstalar.textContent = 'Instalar'; botonInstalar.style.display = 'block'; }
         botonInstalar.addEventListener('click', () => {
@@ -124,14 +117,35 @@
         });
         cerrarModal.addEventListener('click', () => { iosInstallModal.style.display = 'none'; });
         
-        // LÓGICA DE VISUALIZACIÓN (sin cambios)
+        // LÓGICA DE VISUALIZACIÓN (CORREGIDA)
         function crearTarjetaSucursalHTML(nombre, datos) {
-            let itemsHTML = ''; const metodosOrdenados = Object.keys(datos).filter(k => k !== 'TOTAL').sort();
-            for (const metodo of metodosOrdenados) { itemsHTML += `<div class="list-item"><span class="metodo">${metodo}</span><span class="monto">$${datos[metodo].toFixed(2)}</span></div>`; }
+            let itemsHTML = '';
+            // ARREGLO: Se comprueba si 'datos.metodos' existe antes de iterar
+            const metodosOrdenados = datos.metodos ? Object.keys(datos.metodos).sort() : [];
+
+            for (const metodo of metodosOrdenados) {
+                // ARREGLO: Se accede a 'datos.metodos[metodo]' para obtener el valor correcto
+                itemsHTML += `<div class="list-item"><span class="metodo">${metodo}</span><span class="monto">$${datos.metodos[metodo].toFixed(2)}</span></div>`;
+            }
+
+            // La línea del total ya funcionaba correctamente
             itemsHTML += `<div class="list-item total-general"><span>TOTAL</span><span>$${(datos.TOTAL || 0).toFixed(2)}</span></div>`;
+            
             return `<div class="sucursal-card"><div class="sucursal-header">${nombre}</div>${itemsHTML}</div>`;
         }
+        
+        // El resto de las funciones de visualización no necesitan cambios
+        function renderizarVistaCompleta() { /* ... (código sin cambios) ... */ }
+        function renderizarVistaUnica(nombreSucursal) { /* ... (código sin cambios) ... */ }
+        async function actualizarReporte() { /* ... (código sin cambios) ... */ }
+        async function iniciarApp() { /* ... (código sin cambios) ... */ }
 
+        // EVENTOS (sin cambios)
+        selectorSucursal.addEventListener('change', (e) => renderizarVistaUnica(e.target.value));
+        botonVolver.addEventListener('click', renderizarVistaCompleta);
+        document.addEventListener('DOMContentLoaded', iniciarApp);
+        
+        // --- Copia de funciones sin cambios para que el bloque sea completo ---
         function renderizarVistaCompleta() {
             reporteContainer.innerHTML = ''; botonVolver.style.display = 'none'; selectorSucursal.value = '';
             headerTitle.textContent = 'Ventas de Hoy';
@@ -142,7 +156,6 @@
             }
             if (!hayVentas) { reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy.</p></div>`; }
         }
-
         function renderizarVistaUnica(nombreSucursal) {
             if (!nombreSucursal) { renderizarVistaCompleta(); return; }
             reporteContainer.innerHTML = ''; botonVolver.style.display = 'block';
@@ -151,53 +164,29 @@
             if (datosSucursal && datosSucursal.TOTAL > 0) { reporteContainer.innerHTML = crearTarjetaSucursalHTML(nombreSucursal, datosSucursal); } 
             else { reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy en ${nombreSucursal}.</p></div>`; }
         }
-        
-        // LÓGICA DE ACTUALIZACIÓN (ARREGLO: usa la variable 'supabaseClient')
         async function actualizarReporte() {
             lastUpdated.textContent = 'Actualizando...';
             try {
-                // ARREGLO: Se usa 'supabaseClient' para llamar a la función de base de datos
                 const { data, error } = await supabaseClient.rpc('generar_reporte_diario');
                 if (error) throw error;
                 reporteCompleto = data || {};
-                
                 const vistaActual = selectorSucursal.value;
                 if (vistaActual) { renderizarVistaUnica(vistaActual); }
                 else { renderizarVistaCompleta(); }
-                
                 lastUpdated.textContent = `Última actualización: ${new Date().toLocaleTimeString('es-PA')}`;
-            } catch (error) {
-                console.error('Error al actualizar:', error);
-                lastUpdated.textContent = 'Error al actualizar.';
-            }
+            } catch (error) { console.error('Error al actualizar:', error); lastUpdated.textContent = 'Error al actualizar.'; }
         }
-        
-        // LÓGICA DE INICIO (ARREGLO: usa la variable 'supabaseClient')
         async function iniciarApp() {
             cargandoDiv.style.display = 'flex';
-            
-            // ARREGLO: Se usa 'supabaseClient' para obtener las sucursales
             const { data: sucursales, error } = await supabaseClient.from('sucursales').select('sucursal').order('sucursal');
             if (error) { cargandoDiv.innerHTML = '<p>No se pudieron cargar las sucursales.</p>'; return; }
             selectorSucursal.innerHTML = '<option value="">Ver Todas las Sucursales</option>';
-            sucursales.forEach(s => {
-                const option = document.createElement('option');
-                option.value = s.sucursal;
-                option.textContent = s.sucursal;
-                selectorSucursal.appendChild(option);
-            });
-
+            sucursales.forEach(s => { const option = document.createElement('option'); option.value = s.sucursal; option.textContent = s.sucursal; selectorSucursal.appendChild(option); });
             await actualizarReporte();
             cargandoDiv.style.display = 'none';
-            
             if (updateInterval) clearInterval(updateInterval);
             updateInterval = setInterval(actualizarReporte, 60000);
         }
-
-        // EVENTOS (sin cambios)
-        selectorSucursal.addEventListener('change', (e) => renderizarVistaUnica(e.target.value));
-        botonVolver.addEventListener('click', renderizarVistaCompleta);
-        document.addEventListener('DOMContentLoaded', iniciarApp);
     </script>
 </body>
 </html>
