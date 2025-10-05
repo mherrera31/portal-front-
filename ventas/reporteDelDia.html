@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    
-    <title>Reporte de Ventas</title>
-    
+    <title>Live...Reporte de Ventas</title>
     <style>
         :root {
             --ios-background: #f2f2f7; --ios-white: #ffffff; --ios-blue: #007aff;
@@ -29,10 +26,11 @@
         h1 { font-size: 17px; font-weight: 600; margin: 0; text-align: center; flex-grow: 1; }
         .header-button {
             background: none; border: none; color: var(--ios-blue); font-size: 17px;
-            cursor: pointer; padding: 8px;
+            cursor: pointer; padding: 8px; min-width: 80px; text-align: left;
         }
-        #boton-volver { margin-left: -8px; display: none; }
-        #boton-instalar { margin-right: -8px; display: none; }
+        #boton-volver { display: none; }
+        #boton-instalar { display: none; text-align: right; }
+        #last-updated { font-size: 12px; color: var(--ios-gray); text-align: center; padding: 4px 0; height: 16px; }
         .content { padding: 20px 16px; }
         .list-container { background-color: var(--ios-white); border-radius: 10px; margin-bottom: 20px; overflow: hidden; border: 1px solid var(--ios-separator); }
         .selector-wrapper { position: relative; padding: 12px 16px; }
@@ -60,16 +58,17 @@
     <div class="header">
         <div class="header-content">
             <button class="header-button" id="boton-volver">&lt; Volver</button>
-            <h1>Reporte de Ventas</h1>
+            <h1 id="header-title">Ventas de Hoy</h1>
             <button class="header-button" id="boton-instalar">Instalar</button>
         </div>
+        <p id="last-updated"></p>
     </div>
 
     <div class="content">
         <div class="list-container">
             <div class="selector-wrapper">
                 <select id="selector-sucursal">
-                    <option value="">Cargando sucursales...</option>
+                    <option value="">Cargando...</option>
                 </select>
                 <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="8" height="13" viewBox="0 0 8 13" fill="none">
                     <path d="M1.5 11.5L6.5 6.5L1.5 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -83,23 +82,15 @@
     <div id="ios-install-modal">
         <div class="modal-content">
             <h3>Instalar App</h3>
-            <p>
-                Para añadir esta app a tu inicio, toca el ícono de Compartir 
-                <img src="https://www.apple.com/v/ios/ios-16/a/images/overview/sharing/icon_share__c11m1ab45f6u_large.svg" class="share-icon">
-                y luego selecciona "Agregar a la pantalla de inicio".
-            </p>
+            <p>Para añadir esta app a tu inicio, toca el ícono de Compartir <img src="https://www.apple.com/v/ios/ios-16/a/images/overview/sharing/icon_share__c11m1ab45f6u_large.svg" class="share-icon"> y luego selecciona "Agregar a la pantalla de inicio".</p>
             <button class="modal-button" id="cerrar-modal">Entendido</button>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-
     <script>
-        // CLIENTE SUPABASE (usa las llaves de config.js)
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
-        // REFERENCIAS A ELEMENTOS HTML
         const selectorSucursal = document.getElementById('selector-sucursal');
         const reporteContainer = document.getElementById('reporte-container');
         const cargandoDiv = document.getElementById('cargando');
@@ -107,98 +98,95 @@
         const botonInstalar = document.getElementById('boton-instalar');
         const iosInstallModal = document.getElementById('ios-install-modal');
         const cerrarModal = document.getElementById('cerrar-modal');
+        const headerTitle = document.getElementById('header-title');
+        const lastUpdated = document.getElementById('last-updated');
         
-        // ALMACÉN DE DATOS Y ESTADO
         let reporteCompleto = {}; 
         let deferredInstallPrompt;
+        let updateInterval = null;
 
         // LÓGICA DE INSTALACIÓN PWA
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); 
-            deferredInstallPrompt = e;
-            botonInstalar.style.display = 'block';
-        });
-
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; botonInstalar.style.display = 'block'; });
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-            botonInstalar.textContent = 'Instalar'; // Texto más corto para iOS
-            botonInstalar.style.display = 'block';
-        }
-
+        if (isIOS) { botonInstalar.textContent = 'Instalar'; botonInstalar.style.display = 'block'; }
         botonInstalar.addEventListener('click', () => {
-            if (isIOS) {
-                iosInstallModal.style.display = 'flex';
-            } else if (deferredInstallPrompt) {
-                deferredInstallPrompt.prompt();
-                deferredInstallPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        botonInstalar.style.display = 'none';
-                    }
-                    deferredInstallPrompt = null;
-                });
-            }
+            if (isIOS) { iosInstallModal.style.display = 'flex'; }
+            else if (deferredInstallPrompt) { deferredInstallPrompt.prompt(); deferredInstallPrompt.userChoice.then((c) => { if (c.outcome === 'accepted') { botonInstalar.style.display = 'none'; } deferredInstallPrompt = null; }); }
         });
         cerrarModal.addEventListener('click', () => { iosInstallModal.style.display = 'none'; });
         
-        // LÓGICA DE CÁLCULO Y VISUALIZACIÓN
-        async function calcularVentasParaSucursal(nombreSucursal) {
-            const hoy = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Panama"}));
-            const inicioDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0);
-            const finDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59, 999);
-            const { data, error } = await supabase.from('pagos').select('metodo_pago, monto').eq('sucursal', nombreSucursal).gte('created_at', inicioDelDia.toISOString()).lte('created_at', finDelDia.toISOString());
-            if (error) { console.error(`Error en ${nombreSucursal}:`, error); return { error: true }; }
-            const totales = {}; let totalGeneral = 0;
-            data.forEach(pago => { const metodo = pago.metodo_pago; const monto = parseFloat(pago.monto); totales[metodo] = (totales[metodo] || 0) + monto; totalGeneral += monto; });
-            totales.TOTAL = totalGeneral; return totales;
-        }
-
+        // LÓGICA DE VISUALIZACIÓN
         function crearTarjetaSucursalHTML(nombre, datos) {
             let itemsHTML = ''; const metodosOrdenados = Object.keys(datos).filter(k => k !== 'TOTAL').sort();
             for (const metodo of metodosOrdenados) { itemsHTML += `<div class="list-item"><span class="metodo">${metodo}</span><span class="monto">$${datos[metodo].toFixed(2)}</span></div>`; }
-            itemsHTML += `<div class="list-item total-general"><span>TOTAL</span><span>$${datos.TOTAL.toFixed(2)}</span></div>`;
+            itemsHTML += `<div class="list-item total-general"><span>TOTAL</span><span>$${(datos.TOTAL || 0).toFixed(2)}</span></div>`;
             return `<div class="sucursal-card"><div class="sucursal-header">${nombre}</div>${itemsHTML}</div>`;
         }
 
         function renderizarVistaCompleta() {
             reporteContainer.innerHTML = ''; botonVolver.style.display = 'none'; selectorSucursal.value = '';
+            headerTitle.textContent = 'Ventas de Hoy';
             let hayVentas = false;
             for (const nombreSucursal of Object.keys(reporteCompleto).sort()) {
                 const datosSucursal = reporteCompleto[nombreSucursal];
-                if (Object.keys(datosSucursal).length > 1) { 
-                    reporteContainer.innerHTML += crearTarjetaSucursalHTML(nombreSucursal, datosSucursal);
-                    hayVentas = true;
-                }
+                if (datosSucursal && datosSucursal.TOTAL > 0) { reporteContainer.innerHTML += crearTarjetaSucursalHTML(nombreSucursal, datosSucursal); hayVentas = true; }
             }
-            if (!hayVentas) {
-                reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy en ninguna sucursal.</p></div>`;
-            }
+            if (!hayVentas) { reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy.</p></div>`; }
         }
 
         function renderizarVistaUnica(nombreSucursal) {
             if (!nombreSucursal) { renderizarVistaCompleta(); return; }
             reporteContainer.innerHTML = ''; botonVolver.style.display = 'block';
+            headerTitle.textContent = nombreSucursal;
             const datosSucursal = reporteCompleto[nombreSucursal];
-            if (Object.keys(datosSucursal).length > 1) { 
-                reporteContainer.innerHTML = crearTarjetaSucursalHTML(nombreSucursal, datosSucursal); 
-            } else { 
-                reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy en ${nombreSucursal}.</p></div>`; 
+            if (datosSucursal && datosSucursal.TOTAL > 0) { reporteContainer.innerHTML = crearTarjetaSucursalHTML(nombreSucursal, datosSucursal); } 
+            else { reporteContainer.innerHTML = `<div class="list-container"><p id="mensaje">No hay ventas registradas hoy en ${nombreSucursal}.</p></div>`; }
+        }
+        
+        // LÓGICA DE ACTUALIZACIÓN
+        async function actualizarReporte() {
+            lastUpdated.textContent = 'Actualizando...';
+            try {
+                // LLAMAMOS A LA FUNCIÓN DE BASE DE DATOS, COMO EN TU APP AVANZADA
+                const { data, error } = await supabase.rpc('generar_reporte_diario');
+                if (error) throw error;
+                reporteCompleto = data || {};
+                
+                // Redibujamos la vista con los datos frescos
+                const vistaActual = selectorSucursal.value;
+                if (vistaActual) { renderizarVistaUnica(vistaActual); }
+                else { renderizarVistaCompleta(); }
+                
+                lastUpdated.textContent = `Última actualización: ${new Date().toLocaleTimeString('es-PA')}`;
+            } catch (error) {
+                console.error('Error al actualizar:', error);
+                lastUpdated.textContent = 'Error al actualizar.';
             }
         }
         
         async function iniciarApp() {
-            cargandoDiv.style.display = 'flex'; reporteContainer.innerHTML = '';
-            const { data: sucursalesData, error: sucursalesError } = await supabase.from('sucursales').select('sucursal').order('sucursal');
-            if (sucursalesError) { console.error('Error fatal:', sucursalesError); cargandoDiv.innerHTML = '<p>No se pudieron cargar las sucursales.</p>'; return; }
+            cargandoDiv.style.display = 'flex';
+            
+            // Poblar selector de sucursales una sola vez
+            const { data: sucursales, error } = await supabase.from('sucursales').select('sucursal').order('sucursal');
+            if (error) { cargandoDiv.innerHTML = '<p>No se pudieron cargar las sucursales.</p>'; return; }
             selectorSucursal.innerHTML = '<option value="">Ver Todas las Sucursales</option>';
-            const nombresSucursales = sucursalesData.map(s => s.sucursal);
-            nombresSucursales.forEach(nombre => { const option = document.createElement('option'); option.value = nombre; option.textContent = nombre; selectorSucursal.appendChild(option); });
-            const promesasDeVentas = nombresSucursales.map(nombre => calcularVentasParaSucursal(nombre));
-            const resultados = await Promise.all(promesasDeVentas);
-            nombresSucursales.forEach((nombre, index) => { reporteCompleto[nombre] = resultados[index]; });
-            cargandoDiv.style.display = 'none'; renderizarVistaCompleta();
+            sucursales.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.sucursal;
+                option.textContent = s.sucursal;
+                selectorSucursal.appendChild(option);
+            });
+
+            // Primera carga de datos
+            await actualizarReporte();
+            cargandoDiv.style.display = 'none';
+            
+            // Iniciar el auto-refresco
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(actualizarReporte, 60000);
         }
 
-        // EVENTOS
         selectorSucursal.addEventListener('change', (e) => renderizarVistaUnica(e.target.value));
         botonVolver.addEventListener('click', renderizarVistaCompleta);
         document.addEventListener('DOMContentLoaded', iniciarApp);
