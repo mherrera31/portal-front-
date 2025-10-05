@@ -1,0 +1,17 @@
+{
+  "short_name": "Reportes",
+  "name": "Reporte de Ventas",
+  "icons": [
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#f2f2f7",
+  "background_color": "#f2f2f7"
+}
+```eof
+
