@@ -13,6 +13,7 @@
         video { width: 100%; border-radius: 8px; }
         #captureButton { background-color: #007bff; color: white; width: 80%; }
         #saveButton { background-color: #28a745; color: white; }
+        #resetButton { background-color: #ffc107; color: black; } /* Estilo para el nuevo botón */
         #preview { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         .photo-container { border: 1px solid #ccc; padding: 5px; text-align: center; position: relative; }
         .photo-container img { width: 120px; height: 120px; object-fit: cover; }
@@ -41,6 +42,7 @@
         <div id="preview"></div>
         <hr>
         <button id="saveButton">✅ Guardar Lote</button>
+        <button id="resetButton" style="display: none;">🧹 Limpiar para Nuevo Lote</button>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -57,6 +59,7 @@
         const captureButton = document.getElementById('captureButton');
         const canvas = document.getElementById('canvas');
         const saveButton = document.getElementById('saveButton');
+        const resetButton = document.getElementById('resetButton'); // Referencia al nuevo botón
         const preview = document.getElementById('preview');
         const loteIdDisplay = document.getElementById('loteIdDisplay');
 
@@ -64,7 +67,7 @@
         let photosInBatch = [];
         let stream = null;
 
-        // 1. INICIAR RECEPCIÓN Y ACTIVAR LA CÁMARA
+        // INICIAR RECEPCIÓN Y CÁMARA
         startButton.addEventListener('click', async () => {
             loteId = crypto.randomUUID();
             loteIdDisplay.textContent = loteId;
@@ -72,47 +75,39 @@
             captureScreen.style.display = 'block';
 
             try {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
+                if (stream) stream.getTracks().forEach(track => track.stop());
                 const constraints = { video: { facingMode: 'environment' } };
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
             } catch (err) {
                 console.error("Error al acceder a la cámara:", err);
-                alert("No se pudo acceder a la cámara. Revisa los permisos en tu navegador.");
+                alert("No se pudo acceder a la cámara. Revisa los permisos.");
             }
         });
 
-        // 2. CAPTURAR FOTO DESDE EL VIDEO
+        // CAPTURAR FOTO
         captureButton.addEventListener('click', () => {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Convierte el dibujo del canvas en un archivo (Blob)
             canvas.toBlob((blob) => {
                 const photoId = `photo-${Date.now()}`;
                 const photoFile = new File([blob], `${photoId}.jpg`, { type: 'image/jpeg' });
-                
-                // Añade la foto a la vista previa
                 addPhotoToPreview(photoFile, photoId);
             }, 'image/jpeg');
         });
 
         function addPhotoToPreview(file, photoId) {
             const photoContainer = document.createElement('div');
+            // ... (código para añadir a la vista previa es el mismo)
             photoContainer.className = 'photo-container';
             photoContainer.id = photoId;
-
             const img = document.createElement('img');
             img.src = URL.createObjectURL(file);
-            
             const statusDiv = document.createElement('div');
             statusDiv.className = 'status';
             statusDiv.textContent = 'Pendiente';
-
             const deleteButton = document.createElement('button');
             deleteButton.className = 'delete-button';
             deleteButton.textContent = 'X';
@@ -120,44 +115,34 @@
                 photosInBatch = photosInBatch.filter(p => p.id !== photoId);
                 photoContainer.remove();
             };
-
             photoContainer.appendChild(img);
             photoContainer.appendChild(statusDiv);
             photoContainer.appendChild(deleteButton);
             preview.appendChild(photoContainer);
-
             photosInBatch.push({ file: file, id: photoId, element: photoContainer });
         }
 
-        // 3. GUARDAR LOTE (la lógica es casi la misma)
+        // GUARDAR LOTE
         saveButton.addEventListener('click', async () => {
             if (photosInBatch.length === 0) {
                 alert('Captura al menos una foto para el lote.');
                 return;
             }
-
             saveButton.disabled = true;
             captureButton.disabled = true;
             saveButton.textContent = 'Guardando...';
 
             for (const photo of photosInBatch) {
+                // ... (la lógica de subida y guardado es la misma)
                 const statusDiv = photo.element.querySelector('.status');
                 try {
                     statusDiv.textContent = 'Subiendo...';
                     const fileName = `${loteId}/${photo.file.name}`;
-
-                    const { error: uploadError } = await supabaseClient.storage
-                        .from('fotos_paquetes_test').upload(fileName, photo.file);
+                    const { error: uploadError } = await supabaseClient.storage.from('fotos_paquetes_test').upload(fileName, photo.file);
                     if (uploadError) throw uploadError;
-
-                    const { data: urlData } = supabaseClient.storage
-                        .from('fotos_paquetes_test').getPublicUrl(fileName);
-
-                    const { error: insertError } = await supabaseClient
-                        .from('paquetes_cargados_test')
-                        .insert([{ foto_url: urlData.publicUrl, lote_id: loteId }]);
+                    const { data: urlData } = supabaseClient.storage.from('fotos_paquetes_test').getPublicUrl(fileName);
+                    const { error: insertError } = await supabaseClient.from('paquetes_cargados_test').insert([{ foto_url: urlData.publicUrl, lote_id: loteId }]);
                     if (insertError) throw insertError;
-
                     statusDiv.textContent = '✅ Guardado';
                     statusDiv.className = 'status success';
                 } catch (error) {
@@ -168,10 +153,33 @@
             }
 
             saveButton.textContent = '✅ Proceso Finalizado';
-            // Detiene la cámara al finalizar
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
+            if (stream) stream.getTracks().forEach(track => track.stop());
+
+            // 2. MOSTRAR EL BOTÓN DE LIMPIAR Y OCULTAR LOS OTROS
+            captureButton.style.display = 'none';
+            saveButton.style.display = 'none';
+            resetButton.style.display = 'inline-block';
+        });
+        
+        // 3. LÓGICA DEL NUEVO BOTÓN "LIMPIAR"
+        resetButton.addEventListener('click', () => {
+            // Resetear variables y vista previa
+            photosInBatch = [];
+            preview.innerHTML = '';
+            loteId = null;
+
+            // Ocultar pantalla de captura y mostrar la de inicio
+            captureScreen.style.display = 'none';
+            startScreen.style.display = 'block';
+
+            // Restaurar los botones para el próximo lote
+            captureButton.style.display = 'inline-block';
+            saveButton.style.display = 'inline-block';
+            resetButton.style.display = 'none';
+            
+            saveButton.disabled = false;
+            captureButton.disabled = false;
+            saveButton.textContent = '✅ Guardar Lote';
         });
     </script>
 </body>
