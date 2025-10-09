@@ -24,7 +24,7 @@
         const preview = document.getElementById('preview');
         let filesToUpload = [];
 
-        // (El código para la vista previa de las fotos es el mismo...)
+        // Muestra una vista previa de las fotos
         cameraInput.addEventListener('change', () => {
             preview.innerHTML = '';
             filesToUpload = Array.from(cameraInput.files);
@@ -41,7 +41,7 @@
             });
         });
 
-        // 3. ACTUALIZAMOS LA FUNCIÓN DE GUARDADO
+        // 3. ESTA FUNCIÓN SE EJECUTA AL HACER CLIC EN "GUARDAR"
         saveButton.addEventListener('click', async () => {
             if (filesToUpload.length === 0) {
                 alert('Por favor, toma al menos una foto.');
@@ -51,21 +51,20 @@
             alert('Subiendo y creando filas...');
 
             for (const file of filesToUpload) {
-                // Nombre único para el archivo (ej: paquete-16654321.jpg)
                 const fileName = `paquete-${Date.now()}-${file.name}`;
 
-                // A. Subimos la foto al bucket de Supabase
+                // A. Sube la foto al bucket
                 const { data: uploadData, error: uploadError } = await supabase
                     .storage
-                    .from('fotos_paquetes_test') // El bucket que creamos
+                    .from('fotos_paquetes_test') // El bucket que creaste
                     .upload(fileName, file);
 
                 if (uploadError) {
                     console.error('Error subiendo la foto:', uploadError);
-                    continue; // Si falla una, continúa con la siguiente
+                    continue; 
                 }
 
-                // B. Obtenemos la URL pública de la foto
+                // B. Obtiene la URL pública de la foto
                 const { data: urlData } = supabase
                     .storage
                     .from('fotos_paquetes_test')
@@ -73,7 +72,7 @@
 
                 const publicURL = urlData.publicUrl;
 
-                // C. Creamos la fila inicial en la base de datos
+                // C. Crea la fila inicial en la base de datos
                 const { error: insertError } = await supabase
                     .table('paquetes_cargados_test') // Tu tabla de pruebas
                     .insert([{ foto_url: publicURL }]);
@@ -84,7 +83,6 @@
             }
 
             alert('¡Proceso inicial completado! Las filas han sido creadas con las URLs de las fotos.');
-            // Aquí es donde se llamaría al backend para que haga el OCR y rellene el resto
         });
     </script>
 </body>
