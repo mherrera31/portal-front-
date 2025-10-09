@@ -39,7 +39,7 @@
         // --- CONFIGURACIÓN DE SUPABASE ---
         const SUPABASE_URL = 'https://ztdkaxbgpogudtrdgzic.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- ELEMENTOS DEL HTML ---
         const startScreen = document.getElementById('startScreen');
@@ -50,116 +50,109 @@
         const saveButton = document.getElementById('saveButton');
         const preview = document.getElementById('preview');
         const loteIdDisplay = document.getElementById('loteIdDisplay');
-
+    
         // --- VARIABLES DE ESTADO ---
         let loteId = null;
-        let photosInBatch = []; // Array para guardar { file, id, element }
-
-        // --- LÓGICA DE LA APLICACIÓN ---
-
+        let photosInBatch = []; 
+    
         // 1. Al hacer clic en "Iniciar Recepción"
         startButton.addEventListener('click', () => {
-            loteId = crypto.randomUUID(); // Genera un ID único para el lote
+            loteId = crypto.randomUUID(); 
             loteIdDisplay.textContent = loteId;
             startScreen.style.display = 'none';
             captureScreen.style.display = 'block';
         });
-
+    
         // Simula un clic en el input de la cámara
         addPhotoButton.addEventListener('click', () => {
             cameraInput.click();
         });
-
+    
         // 2. Cuando se selecciona una foto
         cameraInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (!file) return;
-
+    
             const photoId = `photo-${Date.now()}`;
             const photoContainer = document.createElement('div');
             photoContainer.className = 'photo-container';
             photoContainer.id = photoId;
-
+    
             const img = document.createElement('img');
             img.src = URL.createObjectURL(file);
             
             const statusDiv = document.createElement('div');
             statusDiv.className = 'status';
             statusDiv.textContent = 'Pendiente';
-
+    
             const deleteButton = document.createElement('button');
             deleteButton.textContent = '❌';
             deleteButton.onclick = () => {
-                // Elimina del array y de la vista
                 photosInBatch = photosInBatch.filter(p => p.id !== photoId);
                 photoContainer.remove();
             };
-
+    
             photoContainer.appendChild(img);
             photoContainer.appendChild(statusDiv);
             photoContainer.appendChild(deleteButton);
             preview.appendChild(photoContainer);
-
+    
             photosInBatch.push({ file: file, id: photoId, element: photoContainer });
             
-            // Resetea el input para poder tomar la misma foto de nuevo si es necesario
             cameraInput.value = '';
         });
-
+    
         // 3. Al hacer clic en "Guardar Lote"
         saveButton.addEventListener('click', async () => {
             if (photosInBatch.length === 0) {
                 alert('Añade al menos una foto al lote.');
                 return;
             }
-
+    
             saveButton.disabled = true;
             saveButton.textContent = 'Guardando...';
-
+    
             for (const photo of photosInBatch) {
                 const statusDiv = photo.element.querySelector('.status');
                 
-                // --- PROCESO POR CADA FOTO ---
                 try {
                     statusDiv.textContent = 'Subiendo...';
                     const fileName = `${loteId}/${photo.id}-${photo.file.name}`;
-
-                    // A. Subir la foto al bucket
-                    const { error: uploadError } = await supabase.storage
+    
+                    // CAMBIO AQUÍ: Usamos la nueva variable "supabaseClient"
+                    const { error: uploadError } = await supabaseClient.storage
                         .from('fotos_paquetes_test')
                         .upload(fileName, photo.file);
-
-                    if (uploadError) throw uploadError; // Lanza el error para ser capturado por el catch
-
-                    // B. Obtener la URL pública
-                    const { data: urlData } = supabase.storage
+    
+                    if (uploadError) throw uploadError; 
+    
+                    // CAMBIO AQUÍ: Usamos la nueva variable "supabaseClient"
+                    const { data: urlData } = supabaseClient.storage
                         .from('fotos_paquetes_test')
                         .getPublicUrl(fileName);
-
-                    // C. Crear la fila en la base de datos con el ID de Lote
-                    const { error: insertError } = await supabase
+    
+                    // CAMBIO AQUÍ: Usamos la nueva variable "supabaseClient"
+                    const { error: insertError } = await supabaseClient
                         .table('paquetes_cargados_test')
                         .insert([{ 
                             foto_url: urlData.publicUrl,
-                            lote_id: loteId // Aquí guardamos el ID del lote
+                            lote_id: loteId
                         }]);
-
+    
                     if (insertError) throw insertError;
-
-                    // Si todo fue exitoso
+    
                     statusDiv.textContent = '✅ Guardado';
                     statusDiv.className = 'status success';
-
+    
                 } catch (error) {
                     console.error(`Error procesando ${photo.file.name}:`, error);
                     statusDiv.textContent = '❌ Error';
                     statusDiv.className = 'status error';
-                    // Aquí podrías añadir un botón de "Reintentar" si quisieras
                 }
             }
             saveButton.textContent = '✅ Proceso Finalizado';
         });
-
+    
     </script>
 </body>
 </html>
