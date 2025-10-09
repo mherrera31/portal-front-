@@ -6,12 +6,17 @@
     <title>Recepción de Paquetes por Lote</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
-        button { font-size: 1.2em; padding: 10px 15px; cursor: pointer; }
-        #captureScreen, #startScreen { text-align: center; }
-        #preview { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
-        .photo-container { border: 1px solid #ccc; padding: 5px; text-align: center; }
-        .photo-container img { width: 150px; height: 150px; object-fit: cover; }
+        body { font-family: sans-serif; max-width: 90vw; margin: auto; padding: 10px; }
+        button { font-size: 1.1em; padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; }
+        #startScreen, #captureScreen { text-align: center; }
+        #video-container { position: relative; max-width: 640px; margin: 15px auto; }
+        video { width: 100%; border-radius: 8px; }
+        #captureButton { background-color: #007bff; color: white; width: 80%; }
+        #saveButton { background-color: #28a745; color: white; }
+        #preview { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .photo-container { border: 1px solid #ccc; padding: 5px; text-align: center; position: relative; }
+        .photo-container img { width: 120px; height: 120px; object-fit: cover; }
+        .photo-container .delete-button { position: absolute; top: 0; right: 0; background-color: rgba(255, 0, 0, 0.7); color: white; border: none; cursor: pointer; }
         .status { font-weight: bold; }
         .status.success { color: green; }
         .status.error { color: red; }
@@ -27,130 +32,147 @@
     <div id="captureScreen" style="display:none;">
         <h2>Lote de Recepción</h2>
         <p>ID del Lote: <b id="loteIdDisplay"></b></p>
-        <button id="addPhotoButton">📸 Tomar/Añadir Foto</button>
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+        
+        <div id="video-container">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        <button id="captureButton">📸 Capturar Foto</button>
         <hr>
         <div id="preview"></div>
         <hr>
-        <button id="saveButton" style="background-color: #28a745; color: white;">✅ Guardar Lote</button>
+        <button id="saveButton">✅ Guardar Lote</button>
     </div>
 
+    <canvas id="canvas" style="display:none;"></canvas>
+
     <script>
-        // --- CONFIGURACIÓN DE SUPABASE ---
         const SUPABASE_URL = 'https://ztdkaxbgpogudtrdgzic.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // --- ELEMENTOS DEL HTML ---
         const startScreen = document.getElementById('startScreen');
         const captureScreen = document.getElementById('captureScreen');
         const startButton = document.getElementById('startButton');
-        const addPhotoButton = document.getElementById('addPhotoButton');
-        const cameraInput = document.getElementById('cameraInput');
+        const video = document.getElementById('video');
+        const captureButton = document.getElementById('captureButton');
+        const canvas = document.getElementById('canvas');
         const saveButton = document.getElementById('saveButton');
         const preview = document.getElementById('preview');
         const loteIdDisplay = document.getElementById('loteIdDisplay');
-    
-        // --- VARIABLES DE ESTADO ---
+
         let loteId = null;
-        let photosInBatch = []; 
-    
-        // 1. Al hacer clic en "Iniciar Recepción"
-        startButton.addEventListener('click', () => {
-            loteId = crypto.randomUUID(); 
+        let photosInBatch = [];
+        let stream = null;
+
+        // 1. INICIAR RECEPCIÓN Y ACTIVAR LA CÁMARA
+        startButton.addEventListener('click', async () => {
+            loteId = crypto.randomUUID();
             loteIdDisplay.textContent = loteId;
             startScreen.style.display = 'none';
             captureScreen.style.display = 'block';
+
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                const constraints = { video: { facingMode: 'environment' } };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error al acceder a la cámara:", err);
+                alert("No se pudo acceder a la cámara. Revisa los permisos en tu navegador.");
+            }
         });
-    
-        // Simula un clic en el input de la cámara
-        addPhotoButton.addEventListener('click', () => {
-            cameraInput.click();
+
+        // 2. CAPTURAR FOTO DESDE EL VIDEO
+        captureButton.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convierte el dibujo del canvas en un archivo (Blob)
+            canvas.toBlob((blob) => {
+                const photoId = `photo-${Date.now()}`;
+                const photoFile = new File([blob], `${photoId}.jpg`, { type: 'image/jpeg' });
+                
+                // Añade la foto a la vista previa
+                addPhotoToPreview(photoFile, photoId);
+            }, 'image/jpeg');
         });
-    
-        // 2. Cuando se selecciona una foto
-        cameraInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-    
-            const photoId = `photo-${Date.now()}`;
+
+        function addPhotoToPreview(file, photoId) {
             const photoContainer = document.createElement('div');
             photoContainer.className = 'photo-container';
             photoContainer.id = photoId;
-    
+
             const img = document.createElement('img');
             img.src = URL.createObjectURL(file);
             
             const statusDiv = document.createElement('div');
             statusDiv.className = 'status';
             statusDiv.textContent = 'Pendiente';
-    
+
             const deleteButton = document.createElement('button');
-            deleteButton.textContent = '❌';
+            deleteButton.className = 'delete-button';
+            deleteButton.textContent = 'X';
             deleteButton.onclick = () => {
                 photosInBatch = photosInBatch.filter(p => p.id !== photoId);
                 photoContainer.remove();
             };
-    
+
             photoContainer.appendChild(img);
             photoContainer.appendChild(statusDiv);
             photoContainer.appendChild(deleteButton);
             preview.appendChild(photoContainer);
-    
+
             photosInBatch.push({ file: file, id: photoId, element: photoContainer });
-            
-            cameraInput.value = '';
-        });
-    
-        // 3. Al hacer clic en "Guardar Lote"
+        }
+
+        // 3. GUARDAR LOTE (la lógica es casi la misma)
         saveButton.addEventListener('click', async () => {
             if (photosInBatch.length === 0) {
-                alert('Añade al menos una foto al lote.');
+                alert('Captura al menos una foto para el lote.');
                 return;
             }
-    
+
             saveButton.disabled = true;
+            captureButton.disabled = true;
             saveButton.textContent = 'Guardando...';
-    
+
             for (const photo of photosInBatch) {
                 const statusDiv = photo.element.querySelector('.status');
-                
                 try {
                     statusDiv.textContent = 'Subiendo...';
-                    const fileName = `${loteId}/${photo.id}-${photo.file.name}`;
-    
+                    const fileName = `${loteId}/${photo.file.name}`;
+
                     const { error: uploadError } = await supabaseClient.storage
-                        .from('fotos_paquetes_test')
-                        .upload(fileName, photo.file);
-    
-                    if (uploadError) throw uploadError; 
-    
+                        .from('fotos_paquetes_test').upload(fileName, photo.file);
+                    if (uploadError) throw uploadError;
+
                     const { data: urlData } = supabaseClient.storage
-                        .from('fotos_paquetes_test')
-                        .getPublicUrl(fileName);
-    
-                    // CAMBIO AQUÍ: Se reemplaza .table() por .from()
+                        .from('fotos_paquetes_test').getPublicUrl(fileName);
+
                     const { error: insertError } = await supabaseClient
-                        .from('paquetes_cargados_test') // Usamos .from() en lugar de .table()
-                        .insert([{ 
-                            foto_url: urlData.publicUrl,
-                            lote_id: loteId
-                        }]);
-    
+                        .from('paquetes_cargados_test')
+                        .insert([{ foto_url: urlData.publicUrl, lote_id: loteId }]);
                     if (insertError) throw insertError;
-    
+
                     statusDiv.textContent = '✅ Guardado';
                     statusDiv.className = 'status success';
-    
                 } catch (error) {
                     console.error(`Error procesando ${photo.file.name}:`, error);
                     statusDiv.textContent = '❌ Error';
                     statusDiv.className = 'status error';
                 }
             }
+
             saveButton.textContent = '✅ Proceso Finalizado';
+            // Detiene la cámara al finalizar
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
         });
-    
     </script>
 </body>
 </html>
