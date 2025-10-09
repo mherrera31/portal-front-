@@ -119,21 +119,19 @@
                     statusDiv.textContent = 'Subiendo...';
                     const fileName = `${loteId}/${photo.id}-${photo.file.name}`;
     
-                    // CAMBIO AQUÍ: Usamos la nueva variable "supabaseClient"
                     const { error: uploadError } = await supabaseClient.storage
                         .from('fotos_paquetes_test')
                         .upload(fileName, photo.file);
     
                     if (uploadError) throw uploadError; 
     
-                    // CAMBIO AQUÍ: Usamos la nueva variable "supabaseClient"
                     const { data: urlData } = supabaseClient.storage
                         .from('fotos_paquetes_test')
                         .getPublicUrl(fileName);
     
-                    // CAMBIO AQUÍ: Usamos la nueva variable "supabaseClient"
+                    // CAMBIO AQUÍ: Se reemplaza .table() por .from()
                     const { error: insertError } = await supabaseClient
-                        .table('paquetes_cargados_test')
+                        .from('paquetes_cargados_test') // Usamos .from() en lugar de .table()
                         .insert([{ 
                             foto_url: urlData.publicUrl,
                             lote_id: loteId
