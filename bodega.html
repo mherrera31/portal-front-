@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargar Paquetes</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h2>Cargar Fotos de Paquetes</h2>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
+    <button id="saveButton">Guardar y Procesar</button>
+    <div id="preview"></div>
+
+    <script>
+        // 2. CONFIGURAMOS LA CONEXIÓN CON TUS LLAVES
+        const SUPABASE_URL = 'https://ztdkaxbgpogudtrdgzic.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po';
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const cameraInput = document.getElementById('cameraInput');
+        const saveButton = document.getElementById('saveButton');
+        const preview = document.getElementById('preview');
+        let filesToUpload = [];
+
+        // (El código para la vista previa de las fotos es el mismo...)
+        cameraInput.addEventListener('change', () => {
+            preview.innerHTML = '';
+            filesToUpload = Array.from(cameraInput.files);
+            filesToUpload.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '100px';
+                    img.style.margin = '5px';
+                    preview.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        // 3. ACTUALIZAMOS LA FUNCIÓN DE GUARDADO
+        saveButton.addEventListener('click', async () => {
+            if (filesToUpload.length === 0) {
+                alert('Por favor, toma al menos una foto.');
+                return;
+            }
+
+            alert('Subiendo y creando filas...');
+
+            for (const file of filesToUpload) {
+                // Nombre único para el archivo (ej: paquete-16654321.jpg)
+                const fileName = `paquete-${Date.now()}-${file.name}`;
+
+                // A. Subimos la foto al bucket de Supabase
+                const { data: uploadData, error: uploadError } = await supabase
+                    .storage
+                    .from('fotos_paquetes_test') // El bucket que creamos
+                    .upload(fileName, file);
+
+                if (uploadError) {
+                    console.error('Error subiendo la foto:', uploadError);
+                    continue; // Si falla una, continúa con la siguiente
+                }
+
+                // B. Obtenemos la URL pública de la foto
+                const { data: urlData } = supabase
+                    .storage
+                    .from('fotos_paquetes_test')
+                    .getPublicUrl(fileName);
+
+                const publicURL = urlData.publicUrl;
+
+                // C. Creamos la fila inicial en la base de datos
+                const { error: insertError } = await supabase
+                    .table('paquetes_cargados_test') // Tu tabla de pruebas
+                    .insert([{ foto_url: publicURL }]);
+
+                if (insertError) {
+                    console.error('Error insertando la fila:', insertError);
+                }
+            }
+
+            alert('¡Proceso inicial completado! Las filas han sido creadas con las URLs de las fotos.');
+            // Aquí es donde se llamaría al backend para que haga el OCR y rellene el resto
+        });
+    </script>
+</body>
+</html>
