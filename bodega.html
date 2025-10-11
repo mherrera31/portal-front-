@@ -13,7 +13,7 @@
         video { width: 100%; border-radius: 8px; }
         #captureButton { background-color: #007bff; color: white; width: 80%; }
         #saveButton { background-color: #28a745; color: white; }
-        #resetButton { background-color: #ffc107; color: black; } /* Estilo para el nuevo botón */
+        #resetButton { background-color: #ffc107; color: black; }
         #preview { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         .photo-container { border: 1px solid #ccc; padding: 5px; text-align: center; position: relative; }
         .photo-container img { width: 120px; height: 120px; object-fit: cover; }
@@ -21,6 +21,8 @@
         .status { font-weight: bold; }
         .status.success { color: green; }
         .status.error { color: red; }
+        /* Estilo para el contador */
+        #photoCounter { font-size: 1.2em; margin-bottom: 10px; font-weight: bold; color: #007bff; }
     </style>
 </head>
 <body>
@@ -33,6 +35,8 @@
     <div id="captureScreen" style="display:none;">
         <h2>Lote de Recepción</h2>
         <p>ID del Lote: <b id="loteIdDisplay"></b></p>
+        
+        <p id="photoCounter">Fotos Capturadas: 0</p>
         
         <div id="video-container">
             <video id="video" autoplay playsinline></video>
@@ -59,13 +63,19 @@
         const captureButton = document.getElementById('captureButton');
         const canvas = document.getElementById('canvas');
         const saveButton = document.getElementById('saveButton');
-        const resetButton = document.getElementById('resetButton'); // Referencia al nuevo botón
+        const resetButton = document.getElementById('resetButton');
         const preview = document.getElementById('preview');
         const loteIdDisplay = document.getElementById('loteIdDisplay');
+        const photoCounter = document.getElementById('photoCounter'); // Referencia al contador
 
         let loteId = null;
         let photosInBatch = [];
         let stream = null;
+
+        // Función para actualizar el contador
+        function updatePhotoCounter() {
+            photoCounter.textContent = `Fotos Capturadas: ${photosInBatch.length}`;
+        }
 
         // INICIAR RECEPCIÓN Y CÁMARA
         startButton.addEventListener('click', async () => {
@@ -73,7 +83,8 @@
             loteIdDisplay.textContent = loteId;
             startScreen.style.display = 'none';
             captureScreen.style.display = 'block';
-
+            updatePhotoCounter(); // Inicializar el contador
+            
             try {
                 if (stream) stream.getTracks().forEach(track => track.stop());
                 const constraints = { video: { facingMode: 'environment' } };
@@ -95,12 +106,12 @@
                 const photoId = `photo-${Date.now()}`;
                 const photoFile = new File([blob], `${photoId}.jpg`, { type: 'image/jpeg' });
                 addPhotoToPreview(photoFile, photoId);
+                updatePhotoCounter(); // 📸 Actualizar contador al añadir
             }, 'image/jpeg');
         });
 
         function addPhotoToPreview(file, photoId) {
             const photoContainer = document.createElement('div');
-            // ... (código para añadir a la vista previa es el mismo)
             photoContainer.className = 'photo-container';
             photoContainer.id = photoId;
             const img = document.createElement('img');
@@ -114,6 +125,7 @@
             deleteButton.onclick = () => {
                 photosInBatch = photosInBatch.filter(p => p.id !== photoId);
                 photoContainer.remove();
+                updatePhotoCounter(); // 🗑️ Actualizar contador al eliminar
             };
             photoContainer.appendChild(img);
             photoContainer.appendChild(statusDiv);
@@ -133,7 +145,6 @@
             saveButton.textContent = 'Guardando...';
 
             for (const photo of photosInBatch) {
-                // ... (la lógica de subida y guardado es la misma)
                 const statusDiv = photo.element.querySelector('.status');
                 try {
                     statusDiv.textContent = 'Subiendo...';
@@ -155,24 +166,20 @@
             saveButton.textContent = '✅ Proceso Finalizado';
             if (stream) stream.getTracks().forEach(track => track.stop());
 
-            // 2. MOSTRAR EL BOTÓN DE LIMPIAR Y OCULTAR LOS OTROS
             captureButton.style.display = 'none';
             saveButton.style.display = 'none';
             resetButton.style.display = 'inline-block';
         });
         
-        // 3. LÓGICA DEL NUEVO BOTÓN "LIMPIAR"
+        // LÓGICA DEL NUEVO BOTÓN "LIMPIAR"
         resetButton.addEventListener('click', () => {
-            // Resetear variables y vista previa
             photosInBatch = [];
             preview.innerHTML = '';
             loteId = null;
 
-            // Ocultar pantalla de captura y mostrar la de inicio
             captureScreen.style.display = 'none';
             startScreen.style.display = 'block';
 
-            // Restaurar los botones para el próximo lote
             captureButton.style.display = 'inline-block';
             saveButton.style.display = 'inline-block';
             resetButton.style.display = 'none';
@@ -180,6 +187,7 @@
             saveButton.disabled = false;
             captureButton.disabled = false;
             saveButton.textContent = '✅ Guardar Lote';
+            updatePhotoCounter(); // 🧹 Resetear el contador
         });
     </script>
 </body>
