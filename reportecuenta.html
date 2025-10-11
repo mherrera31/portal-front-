@@ -204,15 +204,31 @@
                 btnGenerate.textContent = 'Cargando...';
                 reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Cargando todos los paquetes, por favor espere...</td></tr>';
 
-                // CAMBIO: Pedir 'sucursal_recibido' en la consulta
-                const paquetesData = await fetchAllRows('paquetes', 'tracking, cuenta, sucursal_recibido, peso, fecha_recibido');
+                // 1. Consulta modificada para hacer un "join"
+                // Pide columnas de 'paquetes' y anida la columna 'peso' de 'paquetes_cargados'
+                const { data, error } = await supabaseClient
+                    .from('paquetes')
+                    .select('tracking, cuenta, sucursal_recibido, fecha_recibido, paquetes_cargados(peso)');
 
-                if (!paquetesData) {
-                    reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:red;">Error al cargar los datos de paquetes.</td></tr>';
-                    btnGenerate.disabled = false; btnGenerate.textContent = 'Generar Reporte';
+                if (error) {
+                    console.error('Error cargando los datos:', error);
+                    reportBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:red;">Error al cargar los datos. Revisa la consola para más detalles.</td></tr>';
+                    btnGenerate.disabled = false;
+                    btnGenerate.textContent = 'Generar Reporte';
                     return;
                 }
                 
+                // 2. Procesamos los datos para que tengan el formato que el resto del script espera
+                // Aplanamos el resultado para que 'peso' sea una propiedad directa
+                const paquetesData = data.map(paquete => ({
+                    tracking: paquete.tracking,
+                    cuenta: paquete.cuenta,
+                    sucursal_recibido: paquete.sucursal_recibido,
+                    fecha_recibido: paquete.fecha_recibido,
+                    // Si hay un paquete cargado y tiene peso, úsalo. Si no, pon 0.
+                    peso: paquete.paquetes_cargados ? paquete.paquetes_cargados.peso : 0
+                }));
+
                 allPaquetes = paquetesData;
                 isDataLoaded = true;
 
