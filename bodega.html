@@ -8,187 +8,431 @@
     <style>
         body { font-family: sans-serif; max-width: 90vw; margin: auto; padding: 10px; }
         button { font-size: 1.1em; padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; }
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 10px; margin: 8px 0; display: inline-block;
+            border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+            font-size: 1em;
+        }
         #startScreen, #captureScreen { text-align: center; }
         #video-container { position: relative; max-width: 640px; margin: 15px auto; }
         video { width: 100%; border-radius: 8px; }
         #captureButton { background-color: #007bff; color: white; width: 80%; }
         #saveButton { background-color: #28a745; color: white; }
         #resetButton { background-color: #ffc107; color: black; }
-        #preview { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-        .photo-container { border: 1px solid #ccc; padding: 5px; text-align: center; position: relative; }
+        
+        /* Contenedor de fotos para agrupar en orden inverso (más reciente primero) */
+        #preview { 
+            margin-top: 20px; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            justify-content: center; 
+            flex-direction: row-reverse; /* Esto muestra la más reciente primero */
+        }
+        
+        .photo-container { 
+            border: 1px solid #ccc; 
+            padding: 5px; 
+            text-align: center; 
+            position: relative; 
+            cursor: pointer; 
+            transition: transform 0.2s;
+        }
+        .photo-container:hover {
+            transform: scale(1.05);
+        }
         .photo-container img { width: 120px; height: 120px; object-fit: cover; }
-        .photo-container .delete-button { position: absolute; top: 0; right: 0; background-color: rgba(255, 0, 0, 0.7); color: white; border: none; cursor: pointer; }
+        .photo-container .delete-button { display: none; } 
         .status { font-weight: bold; }
         .status.success { color: green; }
         .status.error { color: red; }
+        
         /* Estilo para el contador */
-        #photoCounter { font-size: 1.2em; margin-bottom: 10px; font-weight: bold; color: #007bff; }
+        #photoCounter { font-size: 1.2em; margin: 10px 0; font-weight: bold; }
+        .counter-match { color: green; }
+        .counter-mismatch { color: orange; }
+
+        /* Icono de feedback visual */
+        #feedbackIcon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4em;
+            color: limegreen;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            padding: 10px;
+            display: none;
+            z-index: 10;
+        }
+
+        /* Modal/Vista Previa de foto */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-content {
+            margin: 15% auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            text-align: center;
+        }
+
+        .modal-content img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        #modalDeleteButton {
+            background-color: #dc3545;
+            color: white;
+            margin-top: 20px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .close-modal:hover,
+        .close-modal:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <div id="startScreen">
-        <h1>Recepción de Paquetes</h1>
-        <button id="startButton">▶️ Iniciar Recepción</button>
+        <h1>Configuración de Recepción</h1>
+        <div style="max-width: 400px; margin: auto; text-align: left;">
+            <label for="loteNameInput">Nombre del Lote / Tracking (Parte Variable):</label>
+            <input type="text" id="loteNameInput" placeholder="Ej: BZ00123456" required>
+            
+            <label for="tipoLoteSelect">Tipo de Lote (Cuenta):</label>
+            <select id="tipoLoteSelect" required>
+                <option value="">Selecciona una opción</option>
+                <option value="PSC">PSC</option>
+                <option value="C10PA">C10PA</option>
+            </select>
+            
+            <label for="fotosEsperadasInput">Total de Fotos Esperadas:</label>
+            <input type="number" id="fotosEsperadasInput" value="1" min="1" required>
+            
+            <button id="startButton">▶️ Iniciar Recepción</button>
+        </div>
     </div>
 
     <div id="captureScreen" style="display:none;">
-        <h2>Lote de Recepción</h2>
-        <p>ID del Lote: <b id="loteIdDisplay"></b></p>
+        <h2>Lote Completo: <span id="fullLoteNameDisplay"></span></h2>
+        <p>ID Interno: <b id="loteIdDisplay"></b> | Tipo: <b id="loteTypeDisplay"></b></p>
         
-        <p id="photoCounter">Fotos Capturadas: 0</p>
+        <p id="photoCounter">Fotos Capturadas: 0 de 0</p>
         
         <div id="video-container">
             <video id="video" autoplay playsinline></video>
+            <span id="feedbackIcon" style="display: none;">✅</span>
         </div>
         <button id="captureButton">📸 Capturar Foto</button>
         <hr>
+        
+        <h3>Vista Previa de Fotos</h3>
         <div id="preview"></div>
         <hr>
+        
         <button id="saveButton">✅ Guardar Lote</button>
         <button id="resetButton" style="display: none;">🧹 Limpiar para Nuevo Lote</button>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
 
-    <script>
-        const SUPABASE_URL = 'https://ztdkaxbgpogudtrdgzic.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <div id="photoModal" class="modal">
+        <span class="close-modal">&times;</span>
+        <div class="modal-content">
+            <img id="modalImage" alt="Vista Previa de Foto">
+            <button id="modalDeleteButton">❌ Eliminar y Tomar de Nuevo</button>
+        </div>
+    </div>
 
-        const startScreen = document.getElementById('startScreen');
-        const captureScreen = document.getElementById('captureScreen');
-        const startButton = document.getElementById('startButton');
-        const video = document.getElementById('video');
-        const captureButton = document.getElementById('captureButton');
-        const canvas = document.getElementById('canvas');
-        const saveButton = document.getElementById('saveButton');
-        const resetButton = document.getElementById('resetButton');
-        const preview = document.getElementById('preview');
-        const loteIdDisplay = document.getElementById('loteIdDisplay');
-        const photoCounter = document.getElementById('photoCounter'); // Referencia al contador
+    <audio id="captureSound" src="data:audio/wav;base64,UklGRl9vT1JXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YVgAAAAAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCgoKCg==">
 
-        let loteId = null;
-        let photosInBatch = [];
-        let stream = null;
+<script>
+    // ⚠️ ATENCIÓN: Claves de Supabase
+    const SUPABASE_URL = 'https://ztdkaxbgpogudtrdgzic.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGtheGJncG9ndWR0cmRnemljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDE2MDYsImV4cCI6MjA3MDQxNzYwNn0.mpjY5nWiS48O0DAUkCL7Jl6agF6LurNGeaY8d1u70Po';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Función para actualizar el contador
-        function updatePhotoCounter() {
-            photoCounter.textContent = `Fotos Capturadas: ${photosInBatch.length}`;
-        }
+    // --- REFERENCIAS DE ELEMENTOS ---
+    const startScreen = document.getElementById('startScreen');
+    const startButton = document.getElementById('startButton');
+    const loteNameInput = document.getElementById('loteNameInput');
+    const tipoLoteSelect = document.getElementById('tipoLoteSelect');
+    const fotosEsperadasInput = document.getElementById('fotosEsperadasInput');
 
-        // INICIAR RECEPCIÓN Y CÁMARA
-        startButton.addEventListener('click', async () => {
-            loteId = crypto.randomUUID();
-            loteIdDisplay.textContent = loteId;
-            startScreen.style.display = 'none';
-            captureScreen.style.display = 'block';
-            updatePhotoCounter(); // Inicializar el contador
-            
-            try {
-                if (stream) stream.getTracks().forEach(track => track.stop());
-                const constraints = { video: { facingMode: 'environment' } };
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-            } catch (err) {
-                console.error("Error al acceder a la cámara:", err);
-                alert("No se pudo acceder a la cámara. Revisa los permisos.");
-            }
-        });
+    const captureScreen = document.getElementById('captureScreen');
+    const video = document.getElementById('video');
+    const captureButton = document.getElementById('captureButton');
+    const saveButton = document.getElementById('saveButton');
+    const resetButton = document.getElementById('resetButton');
+    const preview = document.getElementById('preview');
+    const loteIdDisplay = document.getElementById('loteIdDisplay');
+    const fullLoteNameDisplay = document.getElementById('fullLoteNameDisplay');
+    const loteTypeDisplay = document.getElementById('loteTypeDisplay');
+    const photoCounter = document.getElementById('photoCounter');
+    const feedbackIcon = document.getElementById('feedbackIcon');
+    const captureSound = document.getElementById('captureSound');
 
-        // CAPTURAR FOTO
-        captureButton.addEventListener('click', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-                const photoId = `photo-${Date.now()}`;
-                const photoFile = new File([blob], `${photoId}.jpg`, { type: 'image/jpeg' });
-                addPhotoToPreview(photoFile, photoId);
-                updatePhotoCounter(); // 📸 Actualizar contador al añadir
-            }, 'image/jpeg');
-        });
+    const canvas = document.getElementById('canvas');
 
-        function addPhotoToPreview(file, photoId) {
-            const photoContainer = document.createElement('div');
-            photoContainer.className = 'photo-container';
-            photoContainer.id = photoId;
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-            const statusDiv = document.createElement('div');
-            statusDiv.className = 'status';
-            statusDiv.textContent = 'Pendiente';
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'delete-button';
-            deleteButton.textContent = 'X';
-            deleteButton.onclick = () => {
-                photosInBatch = photosInBatch.filter(p => p.id !== photoId);
-                photoContainer.remove();
-                updatePhotoCounter(); // 🗑️ Actualizar contador al eliminar
-            };
-            photoContainer.appendChild(img);
-            photoContainer.appendChild(statusDiv);
-            photoContainer.appendChild(deleteButton);
-            preview.appendChild(photoContainer);
-            photosInBatch.push({ file: file, id: photoId, element: photoContainer });
-        }
+    const photoModal = document.getElementById('photoModal');
+    const modalImage = document.getElementById('modalImage');
+    const modalClose = document.querySelector('.close-modal');
+    const modalDeleteButton = document.getElementById('modalDeleteButton');
+    
+    // --- VARIABLES DE ESTADO ---
+    let loteId = null;
+    let loteNameUser = null; 
+    let fullLoteName = null; 
+    let loteType = null;
+    let fotosEsperadas = 0;
+    let photosInBatch = []; 
+    let stream = null;
+    let photoToDelete = null; 
 
-        // GUARDAR LOTE
-        saveButton.addEventListener('click', async () => {
-            if (photosInBatch.length === 0) {
-                alert('Captura al menos una foto para el lote.');
-                return;
-            }
-            saveButton.disabled = true;
-            captureButton.disabled = true;
-            saveButton.textContent = 'Guardando...';
+    // --- FUNCIONES DE UTILIDAD ---
 
-            for (const photo of photosInBatch) {
-                const statusDiv = photo.element.querySelector('.status');
-                try {
-                    statusDiv.textContent = 'Subiendo...';
-                    const fileName = `${loteId}/${photo.file.name}`;
-                    const { error: uploadError } = await supabaseClient.storage.from('fotos_paquetes_test').upload(fileName, photo.file);
-                    if (uploadError) throw uploadError;
-                    const { data: urlData } = supabaseClient.storage.from('fotos_paquetes_test').getPublicUrl(fileName);
-                    const { error: insertError } = await supabaseClient.from('paquetes_cargados_test').insert([{ foto_url: urlData.publicUrl, lote_id: loteId }]);
-                    if (insertError) throw insertError;
-                    statusDiv.textContent = '✅ Guardado';
-                    statusDiv.className = 'status success';
-                } catch (error) {
-                    console.error(`Error procesando ${photo.file.name}:`, error);
-                    statusDiv.textContent = '❌ Error';
-                    statusDiv.className = 'status error';
-                }
-            }
-
-            saveButton.textContent = '✅ Proceso Finalizado';
-            if (stream) stream.getTracks().forEach(track => track.stop());
-
-            captureButton.style.display = 'none';
-            saveButton.style.display = 'none';
-            resetButton.style.display = 'inline-block';
-        });
+    function updatePhotoCounter() {
+        const current = photosInBatch.length;
+        const expected = fotosEsperadas;
+        photoCounter.textContent = `Fotos Capturadas: ${current} de ${expected}`;
         
-        // LÓGICA DEL NUEVO BOTÓN "LIMPIAR"
-        resetButton.addEventListener('click', () => {
-            photosInBatch = [];
-            preview.innerHTML = '';
-            loteId = null;
+        const isMatch = current >= expected;
+        photoCounter.className = isMatch ? 'counter-match' : 'counter-mismatch';
+    }
 
-            captureScreen.style.display = 'none';
-            startScreen.style.display = 'block';
+    function removePhoto(photoId) {
+        // Encontrar y revocar la URL del objeto para liberar memoria
+        const photoIndex = photosInBatch.findIndex(p => p.id === photoId);
+        if (photoIndex !== -1) {
+            if (photosInBatch[photoIndex].url) {
+                URL.revokeObjectURL(photosInBatch[photoIndex].url);
+            }
+            photosInBatch.splice(photoIndex, 1); // Eliminar del array
+        }
 
-            captureButton.style.display = 'inline-block';
-            saveButton.style.display = 'inline-block';
-            resetButton.style.display = 'none';
-            
-            saveButton.disabled = false;
-            captureButton.disabled = false;
-            saveButton.textContent = '✅ Guardar Lote';
-            updatePhotoCounter(); // 🧹 Resetear el contador
+        const element = document.getElementById(photoId);
+        if (element) {
+            element.remove();
+        }
+        updatePhotoCounter();
+    }
+
+    // --- EVENT LISTENERS ---
+
+    // 1. INICIAR RECEPCIÓN Y CÁMARA
+    startButton.addEventListener('click', async () => {
+        loteNameUser = loteNameInput.value.trim();
+        loteType = tipoLoteSelect.value;
+        fotosEsperadas = parseInt(fotosEsperadasInput.value, 10);
+        
+        if (!loteNameUser || !loteType || fotosEsperadas < 1 || isNaN(fotosEsperadas)) {
+            alert('Por favor, completa todos los campos de configuración correctamente.');
+            return;
+        }
+
+        // Generar Nombre de Lote Completo (Nombre-Tipo-Fecha)
+        const today = new Date().toISOString().slice(0, 10); // Formato YYYY-MM-DD
+        // Reemplazar espacios y caracteres especiales para URL/Bucket
+        const sanitizedLoteName = loteNameUser.replace(/[^a-zA-Z0-9-]/g, '_'); 
+        fullLoteName = `${sanitizedLoteName}-${loteType}-${today}`; 
+        loteId = crypto.randomUUID();
+        
+        loteIdDisplay.textContent = loteId;
+        fullLoteNameDisplay.textContent = fullLoteName;
+        loteTypeDisplay.textContent = loteType;
+        startScreen.style.display = 'none';
+        captureScreen.style.display = 'block';
+        updatePhotoCounter(); 
+
+        try {
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            const constraints = { video: { facingMode: 'environment' } };
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+        } catch (err) {
+            console.error("Error al acceder a la cámara:", err);
+            alert("No se pudo acceder a la cámara. Revisa los permisos.");
+        }
+    });
+
+    // 2. CAPTURAR FOTO
+    captureButton.addEventListener('click', () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+            const photoId = `photo-${Date.now()}`;
+            const photoFile = new File([blob], `${fullLoteName}-${photoId}.jpg`, { type: 'image/jpeg' });
+            addPhotoToPreview(photoFile, photoId);
+            updatePhotoCounter(); 
+
+            // Feedback visual y auditivo
+            feedbackIcon.style.display = 'block';
+            setTimeout(() => { feedbackIcon.style.display = 'none'; }, 1000); 
+            captureSound.play();
+
+        }, 'image/jpeg');
+    });
+
+    function addPhotoToPreview(file, photoId) {
+        const photoContainer = document.createElement('div');
+        photoContainer.className = 'photo-container';
+        photoContainer.id = photoId;
+        
+        const img = document.createElement('img');
+        const fileUrl = URL.createObjectURL(file);
+        img.src = fileUrl;
+        
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'status';
+        statusDiv.textContent = 'Pendiente';
+        
+        photoContainer.addEventListener('click', () => openModal(photoId, fileUrl));
+
+        photoContainer.appendChild(img);
+        photoContainer.appendChild(statusDiv);
+        preview.appendChild(photoContainer);
+        
+        photosInBatch.push({ file: file, id: photoId, element: photoContainer, url: fileUrl });
+    }
+    
+    // 3. VISTA PREVIA (MODAL)
+    function openModal(photoId, imageUrl) {
+        photoToDelete = photoId; 
+        modalImage.src = imageUrl;
+        photoModal.style.display = 'block';
+    }
+
+    modalClose.onclick = () => {
+        photoModal.style.display = 'none';
+        photoToDelete = null;
+    };
+
+    modalDeleteButton.onclick = () => {
+        if (photoToDelete) {
+            removePhoto(photoToDelete);
+        }
+        photoModal.style.display = 'none';
+        photoToDelete = null;
+    };
+
+    // 4. GUARDAR LOTE
+    saveButton.addEventListener('click', async () => {
+        if (photosInBatch.length === 0) {
+            alert('Captura al menos una foto para el lote.');
+            return;
+        }
+        
+        // Deshabilitar UI durante el proceso
+        saveButton.disabled = true;
+        captureButton.disabled = true;
+        saveButton.textContent = 'Guardando...';
+
+        for (const photo of photosInBatch) {
+            const statusDiv = photo.element.querySelector('.status');
+            // Si la foto ya fue guardada (success), la saltamos para evitar duplicados en reintentos
+            if (statusDiv.classList.contains('success')) continue; 
+
+            try {
+                statusDiv.textContent = 'Subiendo...';
+                
+                // RUTA: TipoLote/NombreLoteCompleto/nombre_foto.jpg
+                const fileName = `${loteType}/${fullLoteName}/${photo.file.name}`; 
+                
+                const { error: uploadError } = await supabaseClient.storage.from('fotos_paquetes_test').upload(fileName, photo.file);
+                if (uploadError) throw uploadError;
+                
+                const { data: urlData } = supabaseClient.storage.from('fotos_paquetes_test').getPublicUrl(fileName);
+                
+                // Insertar en la tabla, incluyendo el nombre_lote completo
+                const { error: insertError } = await supabaseClient.from('paquetes_cargados_test').insert([
+                    { 
+                        foto_url: urlData.publicUrl, 
+                        lote_id: loteId,
+                        nombre_lote: fullLoteName, 
+                        lote_type: loteType  
+                    }
+                ]);
+                if (insertError) throw insertError;
+                statusDiv.textContent = '✅ Guardado';
+                statusDiv.className = 'status success';
+            } catch (error) {
+                console.error(`Error procesando ${photo.file.name}:`, error);
+                statusDiv.textContent = '❌ Error';
+                statusDiv.className = 'status error';
+            }
+        }
+
+        saveButton.textContent = '✅ Proceso Finalizado';
+        if (stream) stream.getTracks().forEach(track => track.stop());
+
+        // Mostrar botón de limpiar
+        captureButton.style.display = 'none';
+        saveButton.style.display = 'none';
+        resetButton.style.display = 'inline-block';
+    });
+    
+    // 5. BOTÓN "LIMPIAR"
+    resetButton.addEventListener('click', () => {
+        photosInBatch.forEach(p => {
+            if(p.url) URL.revokeObjectURL(p.url);
         });
-    </script>
+
+        // Resetear variables y vista
+        photosInBatch = [];
+        preview.innerHTML = '';
+        loteId = null;
+        loteNameUser = null;
+        fullLoteName = null;
+        loteType = null;
+        fotosEsperadas = 0;
+
+        // Resetear inputs de configuración
+        loteNameInput.value = '';
+        tipoLoteSelect.value = '';
+        fotosEsperadasInput.value = '1';
+
+        captureScreen.style.display = 'none';
+        startScreen.style.display = 'block';
+
+        // Restaurar botones
+        captureButton.style.display = 'inline-block';
+        saveButton.style.display = 'inline-block';
+        resetButton.style.display = 'none';
+        
+        saveButton.disabled = false;
+        captureButton.disabled = false;
+        saveButton.textContent = '✅ Guardar Lote';
+        updatePhotoCounter(); 
+    });
+</script>
 </body>
 </html>
