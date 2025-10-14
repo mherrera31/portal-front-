@@ -12,26 +12,83 @@
         .form-group { margin: 15px 0; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .form-group select, .form-group input { width: 80%; max-width: 300px; padding: 8px; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; }
-        #video-container { position: relative; max-width: 640px; margin: 15px auto; }
-        video { width: 100%; border-radius: 8px; }
+        
+        #video-container { 
+            position: relative; 
+            max-width: 640px; 
+            margin: 15px auto; 
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        video { width: 100%; display: block; }
+        
+        /* Estilos para el gancho de confirmación */
+        #capture-confirmation {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: #28a745;
+            text-shadow: 0 0 10px white;
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-out, visibility 0.5s;
+        }
+        #capture-confirmation.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
         #captureButton { background-color: #007bff; color: white; width: 80%; }
         #saveButton { background-color: #28a745; color: white; }
         #resetButton { background-color: #ffc107; color: black; }
         #preview { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         .photo-container { border: 1px solid #ccc; padding: 5px; text-align: center; position: relative; }
-        .photo-container img { width: 120px; height: 120px; object-fit: cover; }
+        .photo-container img { width: 120px; height: 120px; object-fit: cover; cursor: pointer; }
         .photo-container .delete-button { position: absolute; top: 0; right: 0; background-color: rgba(255, 0, 0, 0.7); color: white; border: none; cursor: pointer; }
         .status { font-weight: bold; }
         .status.success { color: green; }
         .status.error { color: red; }
         #photoCounter { font-size: 1.2em; margin-bottom: 10px; font-weight: bold; color: #007bff; }
+
+        /* Estilos para la vista previa modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90vw;
+            max-height: 90vh;
+        }
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <div id="startScreen">
         <h1>Recepción de Paquetes</h1>
-        
         <div class="form-group">
             <label for="tipoSelect">Tipo:</label>
             <select id="tipoSelect">
@@ -39,12 +96,10 @@
                 <option value="Paquetes">Paquetes</option>
             </select>
         </div>
-
         <div class="form-group">
             <label for="totalInput">Total a recibir:</label>
             <input type="number" id="totalInput" placeholder="Ej: 25">
         </div>
-
         <div class="form-group">
             <label for="cuentaSelect">Cuenta:</label>
             <select id="cuentaSelect">
@@ -52,17 +107,15 @@
                 <option value="C10PA">C10PA</option>
             </select>
         </div>
-        
         <button id="startButton">▶️ Iniciar Recepción</button>
     </div>
 
     <div id="captureScreen" style="display:none;">
         <h2>Lote de Recepción</h2>
         <p>ID del Lote: <b id="loteIdDisplay"></b></p>
-        
         <p id="photoCounter">Fotos Capturadas: 0</p>
-        
         <div id="video-container">
+            <div id="capture-confirmation">✅</div>
             <video id="video" autoplay playsinline></video>
         </div>
         <button id="captureButton">📸 Capturar Foto</button>
@@ -71,6 +124,11 @@
         <hr>
         <button id="saveButton">✅ Guardar Lote</button>
         <button id="resetButton" style="display: none;">🧹 Limpiar para Nuevo Lote</button>
+    </div>
+
+    <div id="imageModal" class="modal">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="modalImage">
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -92,17 +150,20 @@
         const preview = document.getElementById('preview');
         const loteIdDisplay = document.getElementById('loteIdDisplay');
         const photoCounter = document.getElementById('photoCounter');
-        
-        // Nuevos campos del formulario
         const tipoSelect = document.getElementById('tipoSelect');
         const totalInput = document.getElementById('totalInput');
         const cuentaSelect = document.getElementById('cuentaSelect');
+        
+        // Elementos para confirmación y modal
+        const captureConfirmation = document.getElementById('capture-confirmation');
+        const imageModal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+        const closeModal = document.querySelector('.close-modal');
 
-        // Variables de estado
         let loteId = null;
         let photosInBatch = [];
         let stream = null;
-        let loteInfo = {}; // Objeto para guardar la info del lote
+        let loteInfo = {};
 
         function updatePhotoCounter() {
             const totalARecibir = loteInfo.totalARecibir || 0;
@@ -115,19 +176,16 @@
                 alert('Por favor, ingresa un "Total a recibir" válido.');
                 return;
             }
-            
             loteInfo = {
                 tipo: tipoSelect.value,
                 totalARecibir: parseInt(totalARecibirValue),
                 cuenta: cuentaSelect.value
             };
-
             loteId = crypto.randomUUID();
             loteIdDisplay.textContent = loteId;
             startScreen.style.display = 'none';
             captureScreen.style.display = 'block';
             updatePhotoCounter();
-            
             try {
                 if (stream) stream.getTracks().forEach(track => track.stop());
                 const constraints = { video: { facingMode: 'environment' } };
@@ -139,11 +197,21 @@
             }
         });
 
+        function showCaptureConfirmation() {
+            captureConfirmation.classList.add('show');
+            setTimeout(() => {
+                captureConfirmation.classList.remove('show');
+            }, 3000); // El gancho desaparece después de 3 segundos
+        }
+
         captureButton.addEventListener('click', () => {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            showCaptureConfirmation();
+
             canvas.toBlob((blob) => {
                 const photoId = `photo-${Date.now()}`;
                 const photoFile = new File([blob], `${photoId}.jpg`, { type: 'image/jpeg' });
@@ -156,11 +224,20 @@
             const photoContainer = document.createElement('div');
             photoContainer.className = 'photo-container';
             photoContainer.id = photoId;
+            
             const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
+            const imgSrc = URL.createObjectURL(file);
+            img.src = imgSrc;
+            
+            img.onclick = () => {
+                modalImage.src = imgSrc;
+                imageModal.style.display = "flex";
+            };
+
             const statusDiv = document.createElement('div');
             statusDiv.className = 'status';
             statusDiv.textContent = 'Pendiente';
+            
             const deleteButton = document.createElement('button');
             deleteButton.className = 'delete-button';
             deleteButton.textContent = 'X';
@@ -169,12 +246,23 @@
                 photoContainer.remove();
                 updatePhotoCounter();
             };
+
             photoContainer.appendChild(img);
             photoContainer.appendChild(statusDiv);
             photoContainer.appendChild(deleteButton);
-            preview.appendChild(photoContainer);
+            
+            // AÑADE LA FOTO AL PRINCIPIO DE LA LISTA
+            preview.prepend(photoContainer);
+            
             photosInBatch.push({ file: file, id: photoId, element: photoContainer });
         }
+        
+        closeModal.onclick = () => imageModal.style.display = "none";
+        imageModal.onclick = (event) => {
+            if (event.target === imageModal) {
+                imageModal.style.display = "none";
+            }
+        };
 
         saveButton.addEventListener('click', async () => {
             if (photosInBatch.length === 0) {
@@ -186,7 +274,6 @@
             saveButton.textContent = 'Guardando...';
 
             try {
-                // PASO AÑADIDO: Insertar el registro maestro en 'lotes_cargados'
                 const { error: loteInsertError } = await supabaseClient
                     .from('lotes_cargados')
                     .insert([{
@@ -200,20 +287,15 @@
                 
                 if (loteInsertError) throw loteInsertError;
 
-                // PROCESO ORIGINAL (SIN CAMBIOS): Sube cada foto y la registra en 'paquetes_cargados_test'
                 for (const photo of photosInBatch) {
                     const statusDiv = photo.element.querySelector('.status');
                     try {
                         statusDiv.textContent = 'Subiendo...';
                         const fileName = `${loteId}/${photo.file.name}`;
-                        // Sube a Storage (como antes)
                         const { error: uploadError } = await supabaseClient.storage.from('fotos_paquetes_test').upload(fileName, photo.file);
                         if (uploadError) throw uploadError;
                         
-                        // Obtiene URL (como antes)
                         const { data: urlData } = supabaseClient.storage.from('fotos_paquetes_test').getPublicUrl(fileName);
-                        
-                        // Inserta en la tabla de paquetes (como antes)
                         const { error: insertError } = await supabaseClient.from('paquetes_cargados_test').insert([{ foto_url: urlData.publicUrl, lote_id: loteId }]);
                         if (insertError) throw insertError;
                         
