@@ -5,7 +5,11 @@
     <title>Ingreso Paquetes — PSC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📦</text></svg>" />
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="config.js"></script>
+
     <style>
       :root {
         --bg: #f9fafb; --fg: #111827; --muted: #6b7280; --border: #e5e7eb;
@@ -38,12 +42,13 @@
       .btn:hover { background: var(--primary-hover); }
       .btn:disabled { opacity: 0.7; cursor: wait; }
 
-      /* Estilos del Autocomplete (Tomados de RAYO App) */
+      /* Estilos del Autocomplete */
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
         border: 1px solid var(--border); background-color: white;
         max-height: 200px; overflow-y: auto; z-index: 50;
         border-radius: 0 0 8px 8px; box-shadow: var(--shadow);
+        display: none; /* Oculto por defecto */
       }
       .suggestion-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
       .suggestion-item:last-child { border-bottom: none; }
@@ -54,7 +59,7 @@
       /* Tarjeta de Info Cliente Seleccionado */
       .client-info-card {
         background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
-        padding: 12px; margin-bottom: 20px; display: none; /* Oculto por defecto */
+        padding: 12px; margin-bottom: 20px; display: none;
       }
       .client-info-card.active { display: block; }
       .client-info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
@@ -64,6 +69,7 @@
       .status-msg { text-align: center; margin-top: 16px; font-size: 14px; font-weight: 500; min-height: 20px; }
       .status-msg.success { color: #059669; }
       .status-msg.error { color: #dc2626; }
+      .status-msg.normal { color: #2563eb; }
     </style>
 </head>
 <body>
@@ -82,7 +88,7 @@
             <div class="field">
                 <label class="label">Buscar Cliente</label>
                 <input type="text" id="clienteSearch" placeholder="Nombre o Casillero..." autocomplete="off">
-                <div id="suggestions" class="autocomplete-suggestions hidden" style="display: none;"></div>
+                <div id="suggestions" class="autocomplete-suggestions"></div>
             </div>
 
             <div id="clientInfo" class="client-info-card">
@@ -111,13 +117,20 @@
 </div>
 
 <script>
-    // --- CONFIGURACIÓN SUPABASE ---
-    // Si usas config.js, esto se carga automático. Si no, pon tus claves aquí temporalmente.
-    const SUPABASE_URL = window.PSC_CONFIG?.url || "TU_URL_SUPABASE";
-    const SUPABASE_KEY = window.PSC_CONFIG?.anon || "TU_KEY_ANON";
+    // --- 1. CONFIGURACIÓN SUPABASE ---
+    // Verificamos que config.js cargó correctamente
+    if (typeof window.PSC_CONFIG === 'undefined') {
+        alert("Error crítico: No se encontró 'window.PSC_CONFIG'. Verifica que 'config.js' esté en la misma carpeta y cargado correctamente.");
+    }
+
+    // Usamos las variables EXACTAS de tu archivo config.js
+    const SUPABASE_URL = window.PSC_CONFIG.supabaseUrl;
+    const SUPABASE_KEY = window.PSC_CONFIG.supabaseAnonKey;
+    
+    // Inicializamos el cliente
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- ELEMENTOS DOM ---
+    // --- 2. ELEMENTOS DOM ---
     const ui = {
         tracking: document.getElementById('tracking'),
         search: document.getElementById('clienteSearch'),
@@ -136,17 +149,16 @@
 
     let selectedClient = null;
 
-    // --- 1. LÓGICA DE BÚSQUEDA (IGUAL A RAYO APP) ---
+    // --- 3. LÓGICA DE BÚSQUEDA ---
     ui.search.addEventListener('input', async (e) => {
         const term = e.target.value.trim();
         
-        // Limpiar si está vacío
         if (term.length < 2) {
             ui.suggestions.style.display = 'none';
             return;
         }
 
-        // Llamada RPC (igual que en tu app original)
+        // Usamos la misma función RPC que usa RAYO App
         const { data, error } = await supabase.rpc('buscar_clientes_flex', { search_term: term });
 
         if (error || !data || data.length === 0) {
@@ -154,18 +166,17 @@
             return;
         }
 
-        // Renderizar sugerencias
         ui.suggestions.innerHTML = data.map(c => `
             <div class="suggestion-item" onclick='selectClient(${JSON.stringify(c)})'>
                 <strong>${c.nombre}</strong>
-                <span>Box: ${c.box} | Suc: ${c.sucursal || 'N/A'}</span>
+                <span>Box: ${c.box} | Suc: ${c.sucursal || 'Centro'}</span>
             </div>
         `).join('');
         
         ui.suggestions.style.display = 'block';
     });
 
-    // --- 2. SELECCIONAR CLIENTE ---
+    // --- 4. SELECCIONAR CLIENTE ---
     window.selectClient = (cliente) => {
         selectedClient = cliente;
         
@@ -173,9 +184,9 @@
         ui.search.value = `${cliente.nombre} (${cliente.box})`;
         ui.dispNombre.textContent = cliente.nombre;
         ui.dispBox.textContent = cliente.box;
-        ui.dispSucursal.textContent = cliente.sucursal || 'Centro'; // Default si viene nulo
+        ui.dispSucursal.textContent = cliente.sucursal || 'Centro'; 
 
-        // Llenar datos ocultos para guardar
+        // Llenar datos ocultos
         ui.h_nombre.value = cliente.nombre;
         ui.h_box.value = cliente.box;
         ui.h_sucursal.value = cliente.sucursal || 'Centro';
@@ -185,20 +196,19 @@
         ui.suggestions.style.display = 'none';
     };
 
-    // Ocultar sugerencias si hago click fuera
+    // Ocultar sugerencias al hacer click fuera
     document.addEventListener('click', (e) => {
         if (!ui.search.contains(e.target) && !ui.suggestions.contains(e.target)) {
             ui.suggestions.style.display = 'none';
         }
     });
 
-    // --- 3. GUARDAR EN DB (TABLA NUEVA) ---
+    // --- 5. GUARDAR EN DB (TABLA NUEVA) ---
     ui.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         ui.status.textContent = '';
         ui.status.className = 'status-msg';
 
-        // Validaciones
         const tracking = ui.tracking.value.trim();
         if (tracking.length < 3) {
             setStatus('El tracking es muy corto.', 'error');
@@ -212,7 +222,7 @@
         ui.btn.disabled = true;
         setStatus('Guardando...', 'normal');
 
-        // INSERTAR en la tabla seguimiento_interno
+        // Insertamos en la tabla 'seguimiento_interno'
         const { data, error } = await supabase
             .from('seguimiento_interno')
             .insert([
@@ -228,16 +238,17 @@
         ui.btn.disabled = false;
 
         if (error) {
-            console.error(error);
+            console.error("Error Supabase:", error);
             setStatus('Error al guardar: ' + error.message, 'error');
         } else {
             setStatus('Paquete guardado correctamente ✅', 'success');
-            // Resetear formulario para el siguiente
+            
+            // Limpiar solo el tracking para seguir registrando al mismo cliente si se desea
             ui.tracking.value = '';
             ui.tracking.focus();
-            // Opcional: ¿Quieres resetear el cliente también o dejarlo fijo para varios paquetes del mismo cliente?
-            // Por ahora reseteamos todo para evitar errores.
-            resetClient();
+            
+            // Si prefieres que se borre el cliente también, descomenta la siguiente línea:
+            // resetClient();
         }
     });
 
@@ -254,7 +265,6 @@
         ui.h_box.value = '';
         ui.h_sucursal.value = '';
     }
-
 </script>
 
 </body>
