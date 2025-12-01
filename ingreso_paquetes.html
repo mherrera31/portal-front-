@@ -21,7 +21,7 @@
       body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
       .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; }
-      .container.wide { max-width: 1000px; } /* Más ancho para la tabla */
+      .container.wide { max-width: 1000px; } 
 
       .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: hidden; }
       
@@ -65,7 +65,7 @@
       .client-info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
       .client-info-val { font-weight: 700; color: #1e40af; }
 
-      /* --- TABLA & FILTROS (NUEVO) --- */
+      /* Tabla & Filtros */
       .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; }
       @media (max-width: 600px) { .filters-grid { grid-template-columns: 1fr; } }
 
@@ -135,11 +135,7 @@
                 <input type="text" id="filterClient" placeholder="Buscar Cliente o Box...">
                 
                 <select id="filterSucursal">
-                    <option value="Todas">Todas Sucursales</option>
-                    <option value="Centro">Centro</option>
-                    <option value="Norte">Norte</option>
-                    <option value="Oeste">Oeste</option>
-                    <option value="Este">Este</option>
+                    <option value="Todas">Cargando sucursales...</option>
                 </select>
 
                 <select id="filterStatus">
@@ -212,12 +208,43 @@
     let selectedClient = null;
 
     // =========================================================
-    // PARTE A: NAVEGACIÓN
+    // PARTE A: CARGA INICIAL (SUCURSALES)
+    // =========================================================
+    
+    // Función para cargar sucursales desde la tabla de Supabase
+    async function loadBranches() {
+        const { data, error } = await supabase
+            .from('sucursales')
+            .select('sucursal')
+            .order('sucursal', { ascending: true });
+
+        if (error) {
+            console.error("Error cargando sucursales:", error);
+            dom.filterSucursal.innerHTML = '<option value="Todas">Error al cargar</option>';
+            return;
+        }
+
+        if (data) {
+            dom.filterSucursal.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
+            data.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.sucursal; // Usamos el nombre para filtrar
+                option.textContent = s.sucursal;
+                dom.filterSucursal.appendChild(option);
+            });
+        }
+    }
+
+    // Ejecutar al inicio
+    loadBranches();
+
+    // =========================================================
+    // PARTE B: NAVEGACIÓN
     // =========================================================
     
     dom.btnGoToList.addEventListener('click', () => {
         toggleView('list');
-        loadPackages(); // Cargar datos al entrar
+        loadPackages();
     });
 
     dom.btnGoToForm.addEventListener('click', () => {
@@ -231,19 +258,19 @@
             dom.btnGoToList.classList.add('hidden');
             dom.btnGoToForm.classList.remove('hidden');
             dom.title.textContent = "Seguimiento";
-            dom.container.classList.add('wide'); // Ensanchar contenedor
+            dom.container.classList.add('wide');
         } else {
             dom.viewList.classList.add('hidden');
             dom.viewForm.classList.remove('hidden');
             dom.btnGoToForm.classList.add('hidden');
             dom.btnGoToList.classList.remove('hidden');
             dom.title.textContent = "Registro Interno";
-            dom.container.classList.remove('wide'); // Estrechar contenedor
+            dom.container.classList.remove('wide');
         }
     }
 
     // =========================================================
-    // PARTE B: LÓGICA DEL FORMULARIO (Igual que antes)
+    // PARTE C: LÓGICA DEL FORMULARIO
     // =========================================================
     
     dom.search.addEventListener('input', async (e) => {
@@ -319,29 +346,33 @@
     });
 
     // =========================================================
-    // PARTE C: LÓGICA DE LA LISTA (Dashboard)
+    // PARTE D: LÓGICA DE LA LISTA (Dashboard)
     // =========================================================
 
     async function loadPackages() {
-        dom.tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center">Cargando...</td></tr>';
+        dom.tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         dom.tableMsg.textContent = '';
 
-        // Filtros actuales
         const clientTerm = dom.filterClient.value.trim();
         const branch = dom.filterSucursal.value;
         const status = dom.filterStatus.value;
 
-        // Construcción de la Query
         let query = supabase
             .from('seguimiento_interno')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(50); // Límite para no saturar
+            .limit(50);
 
-        if (branch !== 'Todas') query = query.eq('sucursal', branch);
-        if (status !== 'Todos') query = query.eq('estado_alerta', status);
+        // Filtro por Sucursal Dinámico
+        if (branch !== 'Todas') {
+            query = query.eq('sucursal', branch);
+        }
+
+        if (status !== 'Todos') {
+            query = query.eq('estado_alerta', status);
+        }
+
         if (clientTerm) {
-            // Buscamos en nombre o en box
             query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
         }
 
@@ -349,6 +380,7 @@
 
         if (error) {
             dom.tableMsg.textContent = 'Error al cargar datos.';
+            console.error(error);
             return;
         }
 
@@ -363,7 +395,6 @@
 
     function renderTable(paquetes) {
         dom.tableBody.innerHTML = paquetes.map(p => {
-            // Estilo del badge según estado
             const badgeClass = p.estado_alerta === 'Llegado' ? 'status-llegado' : 'status-pendiente';
             const fecha = new Date(p.created_at).toLocaleDateString() + ' ' + new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
