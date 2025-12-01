@@ -2,270 +2,392 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <title>Ingreso Paquetes — PSC</title>
+    <title>Control Paquetes — PSC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📦</text></svg>" />
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script src="config.js"></script>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
       :root {
-        --bg: #f9fafb; --fg: #111827; --muted: #6b7280; --border: #e5e7eb;
+        --bg: #f3f4f6; --fg: #1f2937; --muted: #6b7280; --border: #e5e7eb;
         --card: #ffffff; --primary: #2563eb; --primary-hover: #1d4ed8;
-        --radius: 12px; --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --radius: 12px; --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       }
       * { box-sizing: border-box; }
-      body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+      body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
-      .wrap { width: 100%; max-width: 500px; }
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 32px 24px; }
-      .title { font-size: 24px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: #111827; }
-      .subtitle { color: var(--muted); text-align: center; margin: 0 0 24px 0; font-size: 14px; }
-      
-      .field { margin-bottom: 20px; position: relative; }
-      .label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; color: #374151; }
-      
-      input[type="text"] {
-        width: 100%; height: 48px; padding: 0 16px; border: 1px solid var(--border);
-        border-radius: 8px; font-size: 16px; transition: all 0.2s; outline: none;
-      }
-      input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-      input[readonly] { background-color: #f3f4f6; color: #6b7280; cursor: not-allowed; }
+      .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; }
+      .container.wide { max-width: 1000px; } /* Más ancho para la tabla */
 
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: hidden; }
+      
+      /* Header & Nav */
+      .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .title { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
+      .nav-btn { background: none; border: none; cursor: pointer; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 6px; padding: 8px; border-radius: 6px; }
+      .nav-btn:hover { background-color: #eff6ff; }
+
+      /* Form Elements */
+      .field { margin-bottom: 16px; position: relative; }
+      .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
+      
+      input, select {
+        width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border);
+        border-radius: 8px; font-size: 15px; outline: none; background: #fff;
+      }
+      input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+      
       .btn {
-        width: 100%; height: 48px; background: var(--primary); color: white;
-        border: none; border-radius: 8px; font-size: 16px; font-weight: 600;
-        cursor: pointer; transition: background 0.2s;
+        width: 100%; height: 44px; background: var(--primary); color: white;
+        border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+        cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
       }
       .btn:hover { background: var(--primary-hover); }
-      .btn:disabled { opacity: 0.7; cursor: wait; }
+      .btn:disabled { opacity: 0.7; }
 
-      /* Estilos del Autocomplete */
+      /* Autocomplete */
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
         border: 1px solid var(--border); background-color: white;
         max-height: 200px; overflow-y: auto; z-index: 50;
-        border-radius: 0 0 8px 8px; box-shadow: var(--shadow);
-        display: none; /* Oculto por defecto */
+        border-radius: 0 0 8px 8px; box-shadow: var(--shadow); display: none;
       }
-      .suggestion-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-      .suggestion-item:last-child { border-bottom: none; }
-      .suggestion-item:hover { background-color: #eff6ff; color: var(--primary); }
-      .suggestion-item strong { display: block; color: #111827; }
-      .suggestion-item span { color: var(--muted); font-size: 12px; }
+      .suggestion-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+      .suggestion-item:hover { background-color: #eff6ff; }
 
-      /* Tarjeta de Info Cliente Seleccionado */
-      .client-info-card {
-        background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
-        padding: 12px; margin-bottom: 20px; display: none;
-      }
+      /* Info Card */
+      .client-info-card { background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-bottom: 20px; display: none; }
       .client-info-card.active { display: block; }
       .client-info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
-      .client-info-label { color: #60a5fa; font-weight: 600; }
-      .client-info-val { color: #1e40af; font-weight: 700; }
+      .client-info-val { font-weight: 700; color: #1e40af; }
 
-      .status-msg { text-align: center; margin-top: 16px; font-size: 14px; font-weight: 500; min-height: 20px; }
+      /* --- TABLA & FILTROS (NUEVO) --- */
+      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; }
+      @media (max-width: 600px) { .filters-grid { grid-template-columns: 1fr; } }
+
+      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+      table { width: 100%; border-collapse: collapse; min-width: 600px; }
+      th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); }
+      td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; }
+      tr:last-child td { border-bottom: none; }
+      
+      .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; }
+      .status-pendiente { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+      .status-llegado { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+
+      .hidden { display: none !important; }
+      .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
       .status-msg.success { color: #059669; }
-      .status-msg.error { color: #dc2626; }
-      .status-msg.normal { color: #2563eb; }
     </style>
 </head>
 <body>
 
-<div class="wrap">
+<div id="mainContainer" class="container">
     <div class="card">
-        <h1 class="title">Registro Interno</h1>
-        <p class="subtitle">Ingresa tracking y asigna cliente.</p>
+        
+        <div class="header">
+            <h1 class="title" id="pageTitle">Registro Interno</h1>
+            
+            <button id="btnGoToList" class="nav-btn">
+                <i data-lucide="list"></i> Ver Lista
+            </button>
+            
+            <button id="btnGoToForm" class="nav-btn hidden">
+                <i data-lucide="arrow-left"></i> Volver
+            </button>
+        </div>
 
-        <form id="formIngreso">
-            <div class="field">
-                <label class="label">Tracking Number</label>
-                <input type="text" id="tracking" placeholder="Escanea o escribe..." required autocomplete="off">
+        <div id="viewForm">
+            <form id="formIngreso">
+                <div class="field">
+                    <label class="label">Tracking Number</label>
+                    <input type="text" id="tracking" placeholder="Escanea o escribe..." autocomplete="off">
+                </div>
+
+                <div class="field">
+                    <label class="label">Buscar Cliente</label>
+                    <input type="text" id="clienteSearch" placeholder="Nombre o Casillero..." autocomplete="off">
+                    <div id="suggestions" class="autocomplete-suggestions"></div>
+                </div>
+
+                <div id="clientInfo" class="client-info-card">
+                    <div class="client-info-row"><span>Nombre:</span><span class="client-info-val" id="dispNombre">-</span></div>
+                    <div class="client-info-row"><span>Casillero:</span><span class="client-info-val" id="dispBox">-</span></div>
+                    <div class="client-info-row"><span>Sucursal:</span><span class="client-info-val" id="dispSucursal">-</span></div>
+                </div>
+
+                <input type="hidden" id="h_nombre"><input type="hidden" id="h_box"><input type="hidden" id="h_sucursal">
+
+                <button type="submit" class="btn" id="btnGuardar">
+                    <i data-lucide="save"></i> Guardar Paquete
+                </button>
+                <div id="status" class="status-msg"></div>
+            </form>
+        </div>
+
+        <div id="viewList" class="hidden">
+            
+            <div class="filters-grid">
+                <input type="text" id="filterClient" placeholder="Buscar Cliente o Box...">
+                
+                <select id="filterSucursal">
+                    <option value="Todas">Todas Sucursales</option>
+                    <option value="Centro">Centro</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Oeste">Oeste</option>
+                    <option value="Este">Este</option>
+                </select>
+
+                <select id="filterStatus">
+                    <option value="Todos">Todos Estados</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Llegado">Llegado</option>
+                </select>
+
+                <button id="btnRefresh" class="btn" style="width: auto; padding: 0 12px;">
+                    <i data-lucide="refresh-cw"></i>
+                </button>
             </div>
 
-            <div class="field">
-                <label class="label">Buscar Cliente</label>
-                <input type="text" id="clienteSearch" placeholder="Nombre o Casillero..." autocomplete="off">
-                <div id="suggestions" class="autocomplete-suggestions"></div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking</th>
+                            <th>Cliente / Box</th>
+                            <th>Sucursal</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        </tbody>
+                </table>
             </div>
+            <p id="tableMsg" class="status-msg" style="color: #6b7280;"></p>
+        </div>
 
-            <div id="clientInfo" class="client-info-card">
-                <div class="client-info-row">
-                    <span class="client-info-label">Nombre:</span>
-                    <span class="client-info-val" id="dispNombre">-</span>
-                </div>
-                <div class="client-info-row">
-                    <span class="client-info-label">Casillero:</span>
-                    <span class="client-info-val" id="dispBox">-</span>
-                </div>
-                <div class="client-info-row">
-                    <span class="client-info-label">Sucursal:</span>
-                    <span class="client-info-val" id="dispSucursal">-</span>
-                </div>
-            </div>
-
-            <input type="hidden" id="h_nombre">
-            <input type="hidden" id="h_box">
-            <input type="hidden" id="h_sucursal">
-
-            <button type="submit" class="btn" id="btnGuardar">Guardar Paquete</button>
-            <div id="status" class="status-msg"></div>
-        </form>
     </div>
 </div>
 
 <script>
-    // --- 1. CONFIGURACIÓN SUPABASE ---
-    // Verificamos que config.js cargó correctamente
-    if (typeof window.PSC_CONFIG === 'undefined') {
-        alert("Error crítico: No se encontró 'window.PSC_CONFIG'. Verifica que 'config.js' esté en la misma carpeta y cargado correctamente.");
-    }
-
-    // Usamos las variables EXACTAS de tu archivo config.js
-    const SUPABASE_URL = window.PSC_CONFIG.supabaseUrl;
-    const SUPABASE_KEY = window.PSC_CONFIG.supabaseAnonKey;
-    
-    // Inicializamos el cliente
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // --- 1. CONFIGURACIÓN ---
+    if (typeof window.PSC_CONFIG === 'undefined') alert("Error: Falta config.js");
+    const supabase = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+    lucide.createIcons();
 
     // --- 2. ELEMENTOS DOM ---
-    const ui = {
+    const dom = {
+        container: document.getElementById('mainContainer'),
+        title: document.getElementById('pageTitle'),
+        // Navegación
+        btnGoToList: document.getElementById('btnGoToList'),
+        btnGoToForm: document.getElementById('btnGoToForm'),
+        viewForm: document.getElementById('viewForm'),
+        viewList: document.getElementById('viewList'),
+        // Formulario
+        form: document.getElementById('formIngreso'),
         tracking: document.getElementById('tracking'),
         search: document.getElementById('clienteSearch'),
         suggestions: document.getElementById('suggestions'),
         clientCard: document.getElementById('clientInfo'),
-        dispNombre: document.getElementById('dispNombre'),
-        dispBox: document.getElementById('dispBox'),
-        dispSucursal: document.getElementById('dispSucursal'),
+        status: document.getElementById('status'),
+        btnGuardar: document.getElementById('btnGuardar'),
         h_nombre: document.getElementById('h_nombre'),
         h_box: document.getElementById('h_box'),
         h_sucursal: document.getElementById('h_sucursal'),
-        form: document.getElementById('formIngreso'),
-        status: document.getElementById('status'),
-        btn: document.getElementById('btnGuardar')
+        // Lista
+        tableBody: document.getElementById('tableBody'),
+        tableMsg: document.getElementById('tableMsg'),
+        filterClient: document.getElementById('filterClient'),
+        filterSucursal: document.getElementById('filterSucursal'),
+        filterStatus: document.getElementById('filterStatus'),
+        btnRefresh: document.getElementById('btnRefresh')
     };
 
     let selectedClient = null;
 
-    // --- 3. LÓGICA DE BÚSQUEDA ---
-    ui.search.addEventListener('input', async (e) => {
-        const term = e.target.value.trim();
-        
-        if (term.length < 2) {
-            ui.suggestions.style.display = 'none';
-            return;
-        }
+    // =========================================================
+    // PARTE A: NAVEGACIÓN
+    // =========================================================
+    
+    dom.btnGoToList.addEventListener('click', () => {
+        toggleView('list');
+        loadPackages(); // Cargar datos al entrar
+    });
 
-        // Usamos la misma función RPC que usa RAYO App
+    dom.btnGoToForm.addEventListener('click', () => {
+        toggleView('form');
+    });
+
+    function toggleView(view) {
+        if (view === 'list') {
+            dom.viewForm.classList.add('hidden');
+            dom.viewList.classList.remove('hidden');
+            dom.btnGoToList.classList.add('hidden');
+            dom.btnGoToForm.classList.remove('hidden');
+            dom.title.textContent = "Seguimiento";
+            dom.container.classList.add('wide'); // Ensanchar contenedor
+        } else {
+            dom.viewList.classList.add('hidden');
+            dom.viewForm.classList.remove('hidden');
+            dom.btnGoToForm.classList.add('hidden');
+            dom.btnGoToList.classList.remove('hidden');
+            dom.title.textContent = "Registro Interno";
+            dom.container.classList.remove('wide'); // Estrechar contenedor
+        }
+    }
+
+    // =========================================================
+    // PARTE B: LÓGICA DEL FORMULARIO (Igual que antes)
+    // =========================================================
+    
+    dom.search.addEventListener('input', async (e) => {
+        const term = e.target.value.trim();
+        if (term.length < 2) { dom.suggestions.style.display = 'none'; return; }
+
         const { data, error } = await supabase.rpc('buscar_clientes_flex', { search_term: term });
 
-        if (error || !data || data.length === 0) {
-            ui.suggestions.style.display = 'none';
-            return;
-        }
+        if (error || !data || data.length === 0) { dom.suggestions.style.display = 'none'; return; }
 
-        ui.suggestions.innerHTML = data.map(c => `
+        dom.suggestions.innerHTML = data.map(c => `
             <div class="suggestion-item" onclick='selectClient(${JSON.stringify(c)})'>
                 <strong>${c.nombre}</strong>
-                <span>Box: ${c.box} | Suc: ${c.sucursal || 'Centro'}</span>
+                <span style="color:#6b7280; font-size:12px">Box: ${c.box} | Suc: ${c.sucursal || 'Centro'}</span>
             </div>
         `).join('');
-        
-        ui.suggestions.style.display = 'block';
+        dom.suggestions.style.display = 'block';
     });
 
-    // --- 4. SELECCIONAR CLIENTE ---
-    window.selectClient = (cliente) => {
-        selectedClient = cliente;
+    window.selectClient = (c) => {
+        selectedClient = c;
+        dom.search.value = `${c.nombre}`;
+        document.getElementById('dispNombre').textContent = c.nombre;
+        document.getElementById('dispBox').textContent = c.box;
+        document.getElementById('dispSucursal').textContent = c.sucursal || 'Centro';
         
-        // Llenar visualmente
-        ui.search.value = `${cliente.nombre} (${cliente.box})`;
-        ui.dispNombre.textContent = cliente.nombre;
-        ui.dispBox.textContent = cliente.box;
-        ui.dispSucursal.textContent = cliente.sucursal || 'Centro'; 
+        dom.h_nombre.value = c.nombre;
+        dom.h_box.value = c.box;
+        dom.h_sucursal.value = c.sucursal || 'Centro';
 
-        // Llenar datos ocultos
-        ui.h_nombre.value = cliente.nombre;
-        ui.h_box.value = cliente.box;
-        ui.h_sucursal.value = cliente.sucursal || 'Centro';
-
-        // Mostrar tarjeta y ocultar lista
-        ui.clientCard.classList.add('active');
-        ui.suggestions.style.display = 'none';
+        dom.clientCard.classList.add('active');
+        dom.suggestions.style.display = 'none';
     };
 
-    // Ocultar sugerencias al hacer click fuera
     document.addEventListener('click', (e) => {
-        if (!ui.search.contains(e.target) && !ui.suggestions.contains(e.target)) {
-            ui.suggestions.style.display = 'none';
+        if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) {
+            dom.suggestions.style.display = 'none';
         }
     });
 
-    // --- 5. GUARDAR EN DB (TABLA NUEVA) ---
-    ui.form.addEventListener('submit', async (e) => {
+    dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        ui.status.textContent = '';
-        ui.status.className = 'status-msg';
-
-        const tracking = ui.tracking.value.trim();
-        if (tracking.length < 3) {
-            setStatus('El tracking es muy corto.', 'error');
-            return;
-        }
-        if (!selectedClient) {
-            setStatus('Debes buscar y seleccionar un cliente.', 'error');
+        dom.status.textContent = '';
+        
+        const trk = dom.tracking.value.trim();
+        if (trk.length < 3 || !selectedClient) {
+            dom.status.textContent = '❌ Faltan datos (Tracking o Cliente)';
+            dom.status.style.color = 'red';
             return;
         }
 
-        ui.btn.disabled = true;
-        setStatus('Guardando...', 'normal');
+        dom.btnGuardar.disabled = true;
+        
+        const { error } = await supabase.from('seguimiento_interno').insert([{
+            tracking: trk,
+            cliente_nombre: dom.h_nombre.value,
+            cliente_box: dom.h_box.value,
+            sucursal: dom.h_sucursal.value,
+            estado_alerta: 'Pendiente'
+        }]);
 
-        // Insertamos en la tabla 'seguimiento_interno'
-        const { data, error } = await supabase
-            .from('seguimiento_interno')
-            .insert([
-                {
-                    tracking: tracking,
-                    cliente_nombre: ui.h_nombre.value,
-                    cliente_box: ui.h_box.value,
-                    sucursal: ui.h_sucursal.value,
-                    estado_alerta: 'Pendiente'
-                }
-            ]);
-
-        ui.btn.disabled = false;
+        dom.btnGuardar.disabled = false;
 
         if (error) {
-            console.error("Error Supabase:", error);
-            setStatus('Error al guardar: ' + error.message, 'error');
+            dom.status.textContent = '❌ Error: ' + error.message;
+            dom.status.style.color = 'red';
         } else {
-            setStatus('Paquete guardado correctamente ✅', 'success');
-            
-            // Limpiar solo el tracking para seguir registrando al mismo cliente si se desea
-            ui.tracking.value = '';
-            ui.tracking.focus();
-            
-            // Si prefieres que se borre el cliente también, descomenta la siguiente línea:
-            // resetClient();
+            dom.status.textContent = '✅ Guardado exitosamente';
+            dom.status.className = 'status-msg success';
+            dom.tracking.value = '';
+            dom.tracking.focus();
         }
     });
 
-    function setStatus(msg, type) {
-        ui.status.textContent = msg;
-        ui.status.className = `status-msg ${type}`;
+    // =========================================================
+    // PARTE C: LÓGICA DE LA LISTA (Dashboard)
+    // =========================================================
+
+    async function loadPackages() {
+        dom.tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center">Cargando...</td></tr>';
+        dom.tableMsg.textContent = '';
+
+        // Filtros actuales
+        const clientTerm = dom.filterClient.value.trim();
+        const branch = dom.filterSucursal.value;
+        const status = dom.filterStatus.value;
+
+        // Construcción de la Query
+        let query = supabase
+            .from('seguimiento_interno')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(50); // Límite para no saturar
+
+        if (branch !== 'Todas') query = query.eq('sucursal', branch);
+        if (status !== 'Todos') query = query.eq('estado_alerta', status);
+        if (clientTerm) {
+            // Buscamos en nombre o en box
+            query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            dom.tableMsg.textContent = 'Error al cargar datos.';
+            return;
+        }
+
+        if (data.length === 0) {
+            dom.tableBody.innerHTML = '';
+            dom.tableMsg.textContent = 'No se encontraron paquetes.';
+            return;
+        }
+
+        renderTable(data);
     }
 
-    function resetClient() {
-        selectedClient = null;
-        ui.search.value = '';
-        ui.clientCard.classList.remove('active');
-        ui.h_nombre.value = '';
-        ui.h_box.value = '';
-        ui.h_sucursal.value = '';
+    function renderTable(paquetes) {
+        dom.tableBody.innerHTML = paquetes.map(p => {
+            // Estilo del badge según estado
+            const badgeClass = p.estado_alerta === 'Llegado' ? 'status-llegado' : 'status-pendiente';
+            const fecha = new Date(p.created_at).toLocaleDateString() + ' ' + new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            return `
+                <tr>
+                    <td style="font-family:monospace; font-weight:600">${p.tracking}</td>
+                    <td>
+                        <div style="font-weight:600">${p.cliente_nombre}</div>
+                        <div style="font-size:12px; color:#6b7280">${p.cliente_box}</div>
+                    </td>
+                    <td>${p.sucursal}</td>
+                    <td><span class="status-badge ${badgeClass}">${p.estado_alerta}</span></td>
+                    <td style="font-size:12px">${fecha}</td>
+                </tr>
+            `;
+        }).join('');
     }
+
+    // Listeners de Filtros
+    dom.filterClient.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
+    dom.filterSucursal.addEventListener('change', loadPackages);
+    dom.filterStatus.addEventListener('change', loadPackages);
+    dom.btnRefresh.addEventListener('click', loadPackages);
+
 </script>
-
 </body>
 </html>
