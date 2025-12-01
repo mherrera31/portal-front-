@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Visor JSON Crudo - Fuzion</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #4ade80; text-align: center; }
+        
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 15px; border-radius: 8px; border: 1px solid #333; background: #222; color: white; font-family: monospace; font-size: 16px; }
+        button { padding: 15px 25px; border-radius: 8px; border: none; background: #2563eb; color: white; font-weight: bold; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { opacity: 0.5; cursor: wait; }
+
+        pre { 
+            background: #1a1a1a; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid #333; 
+            overflow-x: auto; 
+            white-space: pre-wrap;       /* Ajuste de línea */
+            word-wrap: break-word;       /* Romper palabras largas */
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .key { color: #9cdcfe; }
+        .string { color: #ce9178; }
+        .number { color: #b5cea8; }
+        .boolean { color: #569cd6; }
+        .null { color: #569cd6; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📡 Escáner Crudo (trackv3)</h1>
+    <p style="text-align: center; color: #888;">Consulta directa a Fuzion sin filtros.</p>
+
+    <div class="input-group">
+        <input type="text" id="tracking" placeholder="Pega el tracking aquí..." autocomplete="off">
+        <button id="btnConsultar">Consultar</button>
+    </div>
+
+    <pre id="output">// El JSON aparecerá aquí...</pre>
+</div>
+
+<script>
+    // Configuración Supabase
+    if (typeof window.PSC_CONFIG === 'undefined') alert("Falta config.js");
+    const supabase = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+
+    const btn = document.getElementById('btnConsultar');
+    const input = document.getElementById('tracking');
+    const output = document.getElementById('output');
+
+    // Función para colorear sintaxis JSON
+    function syntaxHighlight(json) {
+        if (typeof json !== 'string') {
+            json = JSON.stringify(json, null, 4); // Indentación de 4 espacios
+        }
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            var cls = 'number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'key';
+                } else {
+                    cls = 'string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'boolean';
+            } else if (/null/.test(match)) {
+                cls = 'null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }
+
+    async function consultar() {
+        const tracking = input.value.trim();
+        if (!tracking) return;
+
+        btn.disabled = true;
+        btn.textContent = "Cargando...";
+        output.innerHTML = "Conectando con Edge Function trackv3...";
+
+        try {
+            const { data, error } = await supabase.functions.invoke('trackv3', {
+                body: { tracking: tracking }
+            });
+
+            if (error) throw error;
+
+            // Renderizar bonito
+            output.innerHTML = syntaxHighlight(data);
+            console.log("Respuesta cruda:", data);
+
+        } catch (err) {
+            output.innerHTML = `<span style="color:red">Error: ${err.message}</span>`;
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Consultar";
+        }
+    }
+
+    btn.addEventListener('click', consultar);
+    input.addEventListener('keydown', (e) => { if(e.key === 'Enter') consultar() });
+
+</script>
+
+</body>
+</html>
