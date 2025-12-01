@@ -21,7 +21,7 @@
       body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
       .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; }
-      .container.wide { max-width: 1000px; } 
+      .container.wide { max-width: 1100px; } /* Más ancho para la nueva columna */
 
       .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: hidden; }
       
@@ -70,18 +70,21 @@
       @media (max-width: 600px) { .filters-grid { grid-template-columns: 1fr; } }
 
       .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
-      table { width: 100%; border-collapse: collapse; min-width: 600px; }
+      table { width: 100%; border-collapse: collapse; min-width: 800px; }
       th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); }
-      td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; }
+      td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
       tr:last-child td { border-bottom: none; }
       
-      .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; }
+      .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; }
       .status-pendiente { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
       .status-llegado { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
 
       .hidden { display: none !important; }
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
       .status-msg.success { color: #059669; }
+      
+      /* Estilo para la columna de seguimiento */
+      .col-seguimiento { font-size: 12px; color: #4b5563; line-height: 1.4; max-width: 250px; }
     </style>
 </head>
 <body>
@@ -155,7 +158,7 @@
                         <tr>
                             <th>Tracking</th>
                             <th>Cliente / Box</th>
-                            <th>Sucursal</th>
+                            <th>Info Seguimiento</th> <th>Sucursal</th>
                             <th>Estado</th>
                             <th>Fecha</th>
                         </tr>
@@ -211,7 +214,6 @@
     // PARTE A: CARGA INICIAL (SUCURSALES)
     // =========================================================
     
-    // Función para cargar sucursales desde la tabla de Supabase
     async function loadBranches() {
         const { data, error } = await supabase
             .from('sucursales')
@@ -228,14 +230,12 @@
             dom.filterSucursal.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
             data.forEach(s => {
                 const option = document.createElement('option');
-                option.value = s.sucursal; // Usamos el nombre para filtrar
+                option.value = s.sucursal; 
                 option.textContent = s.sucursal;
                 dom.filterSucursal.appendChild(option);
             });
         }
     }
-
-    // Ejecutar al inicio
     loadBranches();
 
     // =========================================================
@@ -317,19 +317,21 @@
         
         const trk = dom.tracking.value.trim();
         if (trk.length < 3 || !selectedClient) {
-            dom.status.textContent = '❌ Faltan datos (Tracking o Cliente)';
+            dom.status.textContent = '❌ Faltan datos';
             dom.status.style.color = 'red';
             return;
         }
 
         dom.btnGuardar.disabled = true;
         
+        // Guardamos 'Sin info aún' en la columna seguimiento por defecto
         const { error } = await supabase.from('seguimiento_interno').insert([{
             tracking: trk,
             cliente_nombre: dom.h_nombre.value,
             cliente_box: dom.h_box.value,
             sucursal: dom.h_sucursal.value,
-            estado_alerta: 'Pendiente'
+            estado_alerta: 'Pendiente',
+            seguimiento: 'Sin info aún' 
         }]);
 
         dom.btnGuardar.disabled = false;
@@ -346,11 +348,11 @@
     });
 
     // =========================================================
-    // PARTE D: LÓGICA DE LA LISTA (Dashboard)
+    // PARTE D: LÓGICA DE LA LISTA
     // =========================================================
 
     async function loadPackages() {
-        dom.tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
+        dom.tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         dom.tableMsg.textContent = '';
 
         const clientTerm = dom.filterClient.value.trim();
@@ -363,18 +365,9 @@
             .order('created_at', { ascending: false })
             .limit(50);
 
-        // Filtro por Sucursal Dinámico
-        if (branch !== 'Todas') {
-            query = query.eq('sucursal', branch);
-        }
-
-        if (status !== 'Todos') {
-            query = query.eq('estado_alerta', status);
-        }
-
-        if (clientTerm) {
-            query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
-        }
+        if (branch !== 'Todas') query = query.eq('sucursal', branch);
+        if (status !== 'Todos') query = query.eq('estado_alerta', status);
+        if (clientTerm) query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
 
         const { data, error } = await query;
 
@@ -405,6 +398,7 @@
                         <div style="font-weight:600">${p.cliente_nombre}</div>
                         <div style="font-size:12px; color:#6b7280">${p.cliente_box}</div>
                     </td>
+                    <td class="col-seguimiento">${p.seguimiento || 'Sin info'}</td>
                     <td>${p.sucursal}</td>
                     <td><span class="status-badge ${badgeClass}">${p.estado_alerta}</span></td>
                     <td style="font-size:12px">${fecha}</td>
@@ -413,7 +407,7 @@
         }).join('');
     }
 
-    // Listeners de Filtros
+    // Listeners
     dom.filterClient.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
     dom.filterSucursal.addEventListener('change', loadPackages);
     dom.filterStatus.addEventListener('change', loadPackages);
