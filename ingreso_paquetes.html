@@ -56,9 +56,9 @@
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
       .st-transito { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
-      .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; } /* Carga Peligrosa */
-      .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } /* Verde Claro */
-      .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } /* Verde Oscuro (FINAL) */
+      .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; } 
+      .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } 
+      .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } 
       .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 
       .hidden { display: none !important; }
@@ -95,7 +95,8 @@
       .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
       .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
       
-      .col-seguimiento { font-size: 12px; color: #4b5563; line-height: 1.4; max-width: 250px; }
+      .col-seguimiento { font-size: 11px; color: #4b5563; line-height: 1.3; max-width: 200px; }
+      .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; }
     </style>
 </head>
 <body>
@@ -141,6 +142,7 @@
                     <option value="Activos">Activos (Ocultar Recibidos)</option>
                     <option value="Todos">Ver Todo</option>
                     <option value="Recibido">Solo Recibidos</option>
+                    <option value="Aduanas">Solo Aduanas</option>
                     <option value="ML">Solo ML</option>
                 </select>
                 
@@ -157,7 +159,7 @@
                             <th>Tracking</th>
                             <th>Cliente / Box</th>
                             <th>Info Seguimiento</th>
-                            <th>Sucursal</th>
+                            <th>Nota</th> <th>Sucursal</th>
                             <th>Estado</th>
                             <th>Fecha</th>
                         </tr>
@@ -185,7 +187,7 @@
                 <option value="Aduanas">Aduanas</option>
             </select>
         </div>
-        <div class="field"><label class="label">Nota (Opcional)</label><input type="text" id="editNota" placeholder="Razón de cambio manual..."></div>
+        <div class="field"><label class="label">Nota Personal (Se guarda en tabla)</label><input type="text" id="editNota" placeholder="Ej: Vinculado manual..."></div>
         <div class="modal-actions">
             <button class="btn" style="background:#6b7280;" onclick="closeModal()">Cancelar</button>
             <button class="btn" onclick="saveManualEdit()">Guardar</button>
@@ -235,7 +237,7 @@
     let selectedClient = null;
     let currentData = [];
 
-    // --- FUNCIONES AUXILIARES FECHAS ---
+    // --- FUNCIONES AUXILIARES ---
     function getTimestamp(val) {
         if (!val) return 0;
         const dateStr = typeof val === 'object' ? val.date : val;
@@ -249,7 +251,7 @@
     }
     init();
 
-    // 1. LIMPIEZA AUTOMÁTICA (>45 DÍAS y RECIBIDO)
+    // 1. LIMPIEZA AUTOMÁTICA
     async function autoCleanOldRecords() {
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 45); 
@@ -291,6 +293,7 @@
         }
     }
 
+    // --- REGISTRO ---
     dom.search.addEventListener('input', async (e) => {
         const term = e.target.value.trim();
         if (term.length < 2) { dom.suggestions.style.display = 'none'; return; }
@@ -318,19 +321,16 @@
         if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
         dom.btnGuardar.disabled = true;
         const { error } = await supabase.from('seguimiento_interno').insert([{
-            tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún'
+            tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún', nota: ''
         }]);
         dom.btnGuardar.disabled = false;
         if (error) { dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; }
         else { dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; dom.tracking.value = ''; dom.tracking.focus(); }
     });
 
-    // =========================================================
-    // LÓGICA DE LISTA Y FILTROS
-    // =========================================================
-
+    // --- LISTA ---
     async function loadPackages() {
-        dom.tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
+        dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         
         const trkTerm = dom.filterTracking.value.trim();
         const clientTerm = dom.filterClient.value.trim();
@@ -343,14 +343,11 @@
         if (clientTerm) query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
         if (trkTerm) query = query.ilike('tracking', `%${trkTerm}%`);
 
-        // --- FILTRO INTELIGENTE ---
         if (status === 'Activos') {
-            // OCULTAR SOLO "Recibido" (El usuario quiere ver todo lo que no ha llegado)
             query = query.neq('estado_alerta', 'Recibido');
         } else if (status === 'Todos') {
-            // Ver Todo (Incluido Recibido)
+            // Ver Todo
         } else {
-            // Filtrar por estado exacto
             query = query.eq('estado_alerta', status);
         }
 
@@ -374,34 +371,28 @@
             else if (est === 'Tránsito') badgeClass = 'st-transito';
             else if (est === 'Carga Peligrosa') badgeClass = 'st-dg';
             else if (est === 'Aduanas') badgeClass = 'st-aduanas';
-            else if (est === 'Recibido') badgeClass = 'st-recibido'; // Verde Oscuro
+            else if (est === 'Recibido') badgeClass = 'st-recibido';
             else if (est === 'ML') badgeClass = 'st-ml';
 
             const fecha = new Date(p.created_at).toLocaleDateString();
-            
-            // Botón Rayo solo si NO es recibido
             const isRecibido = est === 'Recibido';
             const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
+            // Escapar comillas para evitar errores en JS
+            const notaSafe = (p.nota || '').replace(/'/g, "\\'");
 
             return `
                 <tr id="row-${p.id}">
                     <td>
                         <div class="action-row">
-                            <button class="action-btn ${btnClass}" ${btnAction} title="Verificar Status">
-                                <i data-lucide="zap" style="width:14px"></i>
-                            </button>
-                            <button class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}')" title="Editar">
-                                <i data-lucide="pencil" style="width:14px"></i>
-                            </button>
+                            <button class="action-btn ${btnClass}" ${btnAction} title="Verificar Status"><i data-lucide="zap" style="width:14px"></i></button>
+                            <button class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}', '${notaSafe}')" title="Editar"><i data-lucide="pencil" style="width:14px"></i></button>
                         </div>
                     </td>
                     <td style="font-family:monospace; font-weight:600">${p.tracking}</td>
-                    <td>
-                        <div style="font-weight:600">${p.cliente_nombre}</div>
-                        <div style="font-size:12px; color:#6b7280">${p.cliente_box}</div>
-                    </td>
+                    <td><div style="font-weight:600">${p.cliente_nombre}</div><div style="font-size:12px; color:#6b7280">${p.cliente_box}</div></td>
                     <td class="col-seguimiento" id="seg-${p.id}">${p.seguimiento || 'Sin info'}</td>
+                    <td class="col-nota">${p.nota || ''}</td>
                     <td>${p.sucursal}</td>
                     <td><span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span></td>
                     <td style="font-size:12px">${fecha}</td>
@@ -411,16 +402,12 @@
         lucide.createIcons();
     }
 
-    // --- ACTUALIZACIÓN MASIVA (Solo de lo visible) ---
     dom.btnUpdateMassive.addEventListener('click', async () => {
         const pendientes = currentData.filter(p => p.estado_alerta !== 'Recibido');
         if (pendientes.length === 0) { alert("No hay pendientes visibles."); return; }
         if (!confirm(`Se actualizarán ${pendientes.length} paquetes. ¿Continuar?`)) return;
 
-        dom.progressBar.style.display = 'block';
-        dom.progressText.style.display = 'block';
-        dom.btnUpdateMassive.disabled = true;
-
+        dom.progressBar.style.display = 'block'; dom.progressText.style.display = 'block'; dom.btnUpdateMassive.disabled = true;
         let processed = 0;
         for (const p of pendientes) {
             dom.progressText.textContent = `Procesando ${processed + 1} de ${pendientes.length}...`;
@@ -429,52 +416,38 @@
             await new Promise(r => setTimeout(r, 200));
             processed++;
         }
-
         setTimeout(() => {
-            dom.progressBar.style.display = 'none'; dom.progressText.style.display = 'none';
-            dom.btnUpdateMassive.disabled = false;
+            dom.progressBar.style.display = 'none'; dom.progressText.style.display = 'none'; dom.btnUpdateMassive.disabled = false;
             loadPackages();
         }, 1000);
     });
 
-    // =========================================================
-    // CEREBRO DE LA OPERACIÓN (LÓGICA STATUS)
-    // =========================================================
-    
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         const badge = document.getElementById(`badge-${id}`);
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // 1. BUSCAR EN TABLA MAESTRA (¿Ya llegó?)
+            // 1. REVISAR MAESTRA
             const { data: localData, error: localError } = await supabase
                 .from('paquetes')
                 .select('status, sucursal')
                 .eq('tracking', tracking)
                 .maybeSingle();
 
-            // Si está "En Sucursal" o "Entregado" -> ES RECIBIDO
             if (!localError && localData && (localData.status === 'En Sucursal' || localData.status === 'Entregado')) {
                 const nuevoEstado = 'Recibido';
                 const detalle = `✅ Recibido en ${localData.sucursal || 'Bodega'}`;
-                
                 await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-                
                 if(segCell) segCell.textContent = detalle;
-                if(badge) { 
-                    badge.textContent = nuevoEstado; 
-                    badge.className = 'status-badge st-recibido'; 
-                }
-                return; // ¡FIN!
+                if(badge) { badge.textContent = nuevoEstado; badge.className = 'status-badge st-recibido'; }
+                return;
             }
 
-            // 2. SI NO, CONSULTAMOS FUZION (Edge Function "trackv3")
+            // 2. REVISAR FUZION
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
-            
             if (error) throw error;
 
-            // --- LÓGICA DE FECHAS EN EL CLIENTE ---
             let nuevoEstado = "Pendiente";
             let detalle = "Sin movimientos registrados";
 
@@ -483,8 +456,6 @@
                 detalle = 'Tracking no encontrado aún';
             } else {
                 const h = data.history;
-                
-                // Array de Competidores
                 const estados = [
                     { key: 'mal',      label: 'ML',              ts: getTimestamp(h.mal) },
                     { key: 'panama',   label: 'Aduanas',         ts: getTimestamp(h.panama) },
@@ -492,8 +463,6 @@
                     { key: 'dg',       label: 'Carga Peligrosa', ts: getTimestamp(h.dg) },
                     { key: 'miami',    label: 'Miami',           ts: getTimestamp(h.miami) }
                 ];
-
-                // Ordenar por fecha (el más reciente gana)
                 estados.sort((a, b) => b.ts - a.ts);
                 const ganador = estados.find(e => e.ts > 0);
 
@@ -511,7 +480,6 @@
                 }
             }
 
-            // Actualizar UI y DB
             if(segCell) segCell.textContent = detalle;
             if(badge) {
                 badge.textContent = nuevoEstado;
@@ -521,7 +489,6 @@
                 else if (nuevoEstado === 'Carga Peligrosa') badgeClass = 'st-dg';
                 else if (nuevoEstado === 'Aduanas') badgeClass = 'st-aduanas';
                 else if (nuevoEstado === 'ML') badgeClass = 'st-ml';
-                else if (nuevoEstado === 'No Info') badgeClass = 'st-no-info';
                 badge.className = `status-badge ${badgeClass}`;
             }
 
@@ -533,11 +500,11 @@
         }
     };
 
-    window.openManualEdit = (id, tracking, estadoActual) => {
+    window.openManualEdit = (id, tracking, estadoActual, notaActual) => {
         dom.editId.value = id;
         dom.editTracking.value = tracking;
         dom.editEstado.value = estadoActual;
-        dom.editNota.value = '';
+        dom.editNota.value = notaActual || ''; // Cargar nota existente
         dom.editModal.classList.remove('hidden');
     };
 
@@ -551,13 +518,14 @@
 
         if(!newTrack) return alert("Tracking obligatorio");
 
-        let detalle = "Actualizado Manualmente";
-        if(nota) detalle += `: ${nota}`;
-        if(newEstado === 'Recibido') detalle = `✅ RECIBIDO MANUAL: ${nota}`;
-        
-        const { error } = await supabase.from('seguimiento_interno')
-            .update({ tracking: newTrack, estado_alerta: newEstado, seguimiento: detalle })
-            .eq('id', id);
+        // Guardamos la NOTA en su columna, NO en seguimiento
+        const updateData = {
+            tracking: newTrack,
+            estado_alerta: newEstado,
+            nota: nota
+        };
+
+        const { error } = await supabase.from('seguimiento_interno').update(updateData).eq('id', id);
 
         if(error) alert("Error: " + error.message);
         else { closeModal(); loadPackages(); }
