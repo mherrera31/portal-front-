@@ -416,7 +416,7 @@
             let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
             if (est === 'ML') {
                 if (!p.fecha_solicitud) {
-                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitar</button>`;
+                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitado</button>`;
                 } else {
                     const dias = Math.floor((new Date() - new Date(p.fecha_solicitud)) / (1000 * 60 * 60 * 24));
                     if (dias >= 3) estadoHtml += ` <span class="ml-status-text ml-vencido">⚠️ Vencido (${dias}d)</span>`;
