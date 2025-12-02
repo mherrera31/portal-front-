@@ -52,7 +52,7 @@
       
       /* Estados */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
-      .st-pendiente { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+      .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
       .st-transito { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
       .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; } 
@@ -91,7 +91,7 @@
       .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
       .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
       
-      /* Estilo lista de coincidencias */
+      /* Match Item */
       .match-item { border: 1px solid #e5e7eb; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; background: #f9fafb; transition: all 0.2s; }
       .match-item:hover { background: #eff6ff; border-color: #bfdbfe; transform: translateX(2px); }
       .match-title { font-weight: 700; font-size: 14px; color: #1f2937; margin-bottom: 4px; }
@@ -101,7 +101,6 @@
       .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
       .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
       
-      /* Columnas Tabla */
       td:nth-child(1) { min-width: 90px; } 
       td:nth-child(2) { min-width: 140px; } 
       td:nth-child(4) { min-width: 180px; } 
@@ -149,7 +148,6 @@
                 <input type="text" id="filterTracking" placeholder="🔍 Tracking...">
                 <input type="text" id="filterClient" placeholder="👤 Cliente/Box...">
                 <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
-                
                 <select id="filterStatus">
                     <option value="Activos">Activos (Ocultar Recibidos)</option>
                     <option value="Todos">Ver Todo</option>
@@ -157,10 +155,7 @@
                     <option value="Aduanas">Solo Aduanas</option>
                     <option value="ML">Solo ML</option>
                 </select>
-                
-                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles">
-                    <i data-lucide="zap"></i>
-                </button>
+                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles"><i data-lucide="zap"></i></button>
             </div>
 
             <div class="table-wrapper">
@@ -210,11 +205,10 @@
 <div id="matchModal" class="modal-overlay hidden">
     <div class="modal-content">
         <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
-        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">
-            Se encontraron varios paquetes parecidos. Selecciona el correcto para vincular y actualizar el casillero:
-        </p>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios. Elige el correcto para vincular y actualizar el box:</p>
         <input type="hidden" id="matchTargetId">
-        <div id="matchList"></div> <div class="modal-actions">
+        <div id="matchList"></div>
+        <div class="modal-actions">
             <button class="btn" style="background:#6b7280;" onclick="closeMatchModal()">Cancelar</button>
         </div>
     </div>
@@ -303,7 +297,6 @@
         }
     }
 
-    // --- NAVEGACIÓN ---
     dom.btnGoToList.addEventListener('click', () => { toggleView('list'); loadPackages(); });
     dom.btnGoToForm.addEventListener('click', () => { toggleView('form'); });
 
@@ -377,9 +370,7 @@
         if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
 
         currentData = data;
-        if (currentData.length === 0) {
-            dom.tableBody.innerHTML = ''; dom.tableMsg.textContent = 'No se encontraron paquetes.'; return;
-        }
+        if (currentData.length === 0) { dom.tableBody.innerHTML = ''; dom.tableMsg.textContent = 'No se encontraron paquetes.'; return; }
         dom.tableMsg.textContent = '';
         renderTable(currentData);
     }
@@ -388,7 +379,6 @@
         dom.tableBody.innerHTML = paquetes.map(p => {
             let badgeClass = 'st-pendiente';
             const est = p.estado_alerta || 'Pendiente';
-            
             if (est === 'Miami') badgeClass = 'st-miami';
             else if (est === 'Tránsito') badgeClass = 'st-transito';
             else if (est === 'Carga Peligrosa') badgeClass = 'st-dg';
@@ -402,7 +392,6 @@
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
             const notaSafe = (p.nota || '').replace(/'/g, "\\'");
             
-            // Mostrar si hay tracking vinculado
             let trackingDisplay = p.tracking;
             if (p.tracking_match && p.tracking_match !== p.tracking) {
                 trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
@@ -429,30 +418,7 @@
         lucide.createIcons();
     }
 
-    dom.btnUpdateMassive.addEventListener('click', async () => {
-        const pendientes = currentData.filter(p => p.estado_alerta !== 'Recibido');
-        if (pendientes.length === 0) { alert("No hay pendientes visibles."); return; }
-        if (!confirm(`Se actualizarán ${pendientes.length} paquetes. ¿Continuar?`)) return;
-
-        dom.progressBar.style.display = 'block'; dom.progressText.style.display = 'block'; dom.btnUpdateMassive.disabled = true;
-        let processed = 0;
-        for (const p of pendientes) {
-            dom.progressText.textContent = `Procesando ${processed + 1} de ${pendientes.length}...`;
-            dom.progressFill.style.width = `${((processed + 1) / pendientes.length) * 100}%`;
-            await checkStatus(p.id, p.tracking);
-            await new Promise(r => setTimeout(r, 200));
-            processed++;
-        }
-        setTimeout(() => {
-            dom.progressBar.style.display = 'none'; dom.progressText.style.display = 'none'; dom.btnUpdateMassive.disabled = false;
-            loadPackages();
-        }, 1000);
-    });
-
-    // =========================================================
-    // CEREBRO CHECK STATUS (CON SELECCIÓN DE MATCH)
-    // =========================================================
-    
+    // --- CEREBRO CHECK STATUS ---
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         const badge = document.getElementById(`badge-${id}`);
@@ -462,31 +428,29 @@
             // 1. BUSCAR EN 'PAQUETES_CARGADOS'
             const { data: matches, error: localError } = await supabase
                 .from('paquetes_cargados')
-                .select('tracking, cliente_box, cliente_nombre, fecha_bodega, sucursal')
-                .ilike('tracking', `%${tracking}%`) // Búsqueda flexible
-                .limit(5); // Traer hasta 5 posibles
+                .select('*')
+                .ilike('tracking', `%${tracking}%`)
+                .limit(5);
 
             if (!localError && matches && matches.length > 0) {
-                
-                // CASO A: Múltiples opciones -> Abrir Modal
                 if (matches.length > 1) {
                     openMatchModal(id, matches);
-                    if(segCell) segCell.textContent = "⚠️ Múltiples opciones (Click para elegir)";
+                    if(segCell) segCell.textContent = "⚠️ Múltiples opciones";
                     return; 
                 }
-
-                // CASO B: 1 Coincidencia Única -> Auto-Link
                 const match = matches[0];
                 await applyMatch(id, match);
                 
-                // Actualizar UI rápido
-                const detalle = `✅ Recibido: ${match.cliente_nombre} (${match.cliente_box})`;
+                const box = match.cliente_box || match.box || match.casillero || "S/Box";
+                const nombre = match.cliente_nombre || match.cliente || match.nombre || "Cliente";
+                const detalle = `✅ Recibido: ${nombre} (${box})`;
+                
                 if(segCell) segCell.textContent = detalle;
                 if(badge) { badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; }
                 return;
             }
 
-            // 2. CONSULTAR FUZION (Si no hay match local)
+            // 2. CONSULTAR FUZION
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -522,7 +486,6 @@
                 }
             }
 
-            // Actualizar DB con Fuzion
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
             
             if(segCell) segCell.textContent = detalle;
@@ -543,17 +506,22 @@
         }
     };
 
-    // --- FUNCIÓN APPLY MATCH (El corazón de la vinculación) ---
+    // --- APPLY MATCH ---
     async function applyMatch(rowId, matchData) {
-        const detalle = `✅ Recibido: ${matchData.cliente_nombre} (${matchData.cliente_box}) - ${new Date(matchData.fecha_bodega).toLocaleDateString()}`;
+        const box = matchData.cliente_box || matchData.box || matchData.casillero || "";
+        const nombre = matchData.cliente_nombre || matchData.cliente || matchData.nombre || "";
+        const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
+        const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
         
-        await supabase.from('seguimiento_interno').update({
+        const updatePayload = {
             estado_alerta: 'Recibido',
             seguimiento: detalle,
-            cliente_box: matchData.cliente_box, // RELLENAR BOX
-            tracking_match: matchData.tracking, // GUARDAR VINCULACIÓN
-            // sucursal: matchData.sucursal 
-        }).eq('id', rowId);
+            tracking_match: matchData.tracking
+        };
+        // Solo actualizamos box si hay data nueva y no está vacío
+        if (box) updatePayload.cliente_box = box;
+
+        await supabase.from('seguimiento_interno').update(updatePayload).eq('id', rowId);
     }
 
     // --- MODALES ---
@@ -579,16 +547,20 @@
         else { closeEditModal(); loadPackages(); }
     };
 
-    // Modal Match
     window.openMatchModal = (id, matches) => {
         dom.matchTargetId.value = id;
-        dom.matchList.innerHTML = matches.map((m, idx) => `
+        dom.matchList.innerHTML = matches.map((m, idx) => {
+            const box = m.cliente_box || m.box || "S/Box";
+            const nombre = m.cliente_nombre || m.cliente || "Cliente";
+            const fecha = m.fecha_bodega || m.created_at || new Date();
+            
+            return `
             <div class="match-item" onclick="selectMatch(${idx})">
                 <div class="match-title">${m.tracking}</div>
-                <div class="match-sub"><span class="match-highlight">${m.cliente_nombre} (${m.cliente_box})</span></div>
-                <div class="match-sub">${new Date(m.fecha_bodega).toLocaleString()} | ${m.sucursal}</div>
-            </div>
-        `).join('');
+                <div class="match-sub"><span class="match-highlight">${nombre} (${box})</span></div>
+                <div class="match-sub">${new Date(fecha).toLocaleString()}</div>
+            </div>`;
+        }).join('');
         dom.matchList.dataset.matches = JSON.stringify(matches);
         dom.matchModal.classList.remove('hidden');
     };
@@ -599,13 +571,32 @@
         const id = dom.matchTargetId.value;
         const matches = JSON.parse(dom.matchList.dataset.matches);
         const selected = matches[index];
-
         if (selected) {
             await applyMatch(id, selected);
             closeMatchModal();
-            loadPackages(); // Recargar para ver el cambio
+            loadPackages();
         }
     };
+
+    dom.btnUpdateMassive.addEventListener('click', async () => {
+        const pendientes = currentData.filter(p => p.estado_alerta !== 'Recibido');
+        if (pendientes.length === 0) { alert("No hay pendientes visibles."); return; }
+        if (!confirm(`Se actualizarán ${pendientes.length} paquetes. ¿Continuar?`)) return;
+
+        dom.progressBar.style.display = 'block'; dom.progressText.style.display = 'block'; dom.btnUpdateMassive.disabled = true;
+        let processed = 0;
+        for (const p of pendientes) {
+            dom.progressText.textContent = `Procesando ${processed + 1} de ${pendientes.length}...`;
+            dom.progressFill.style.width = `${((processed + 1) / pendientes.length) * 100}%`;
+            await checkStatus(p.id, p.tracking);
+            await new Promise(r => setTimeout(r, 200));
+            processed++;
+        }
+        setTimeout(() => {
+            dom.progressBar.style.display = 'none'; dom.progressText.style.display = 'none'; dom.btnUpdateMassive.disabled = false;
+            loadPackages();
+        }, 1000);
+    });
 
     dom.filterTracking.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
     dom.filterClient.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
