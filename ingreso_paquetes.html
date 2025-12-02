@@ -64,7 +64,7 @@
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
       .status-msg.success { color: #059669; }
       
-      /* Botones de Acción */
+      /* Botones Tabla */
       .action-row { display: flex; gap: 5px; }
       .action-btn { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; color: var(--fg); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; transition: all 0.2s; }
       .action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -73,6 +73,17 @@
       .btn-orange { color: #c2410c; border-color: #fed7aa; background: #fff7ed; }
       .btn-red { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
       .btn-disabled { opacity: 0.5; cursor: default; background: #f3f4f6; border-color: #e5e7eb; color: #9ca3af; transform: none !important; }
+
+      /* Botón Solicitar ML */
+      .btn-req { 
+          background: #2563eb; color: white; border: none; border-radius: 4px; 
+          padding: 3px 8px; font-size: 10px; font-weight: bold; cursor: pointer; 
+          margin-left: 5px; vertical-align: middle; display: inline-flex; align-items: center; gap: 3px;
+      }
+      .btn-req:hover { background: #1d4ed8; }
+      .ml-status-text { font-size: 10px; display: block; margin-top: 4px; font-weight: 700; }
+      .ml-vencido { color: #dc2626; }
+      .ml-espera { color: #059669; }
 
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
@@ -103,7 +114,7 @@
       .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
       .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
       
-      td:nth-child(1) { min-width: 120px; } /* Ajustado para 3 botones */
+      td:nth-child(1) { min-width: 120px; } 
       td:nth-child(2) { min-width: 140px; } 
       td:nth-child(4) { min-width: 180px; } 
       
@@ -150,6 +161,7 @@
                 <input type="text" id="filterTracking" placeholder="🔍 Tracking...">
                 <input type="text" id="filterClient" placeholder="👤 Cliente/Box...">
                 <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
+                
                 <select id="filterStatus">
                     <option value="Activos">Activos (Ocultar Recibidos)</option>
                     <option value="Todos">Ver Todo</option>
@@ -157,7 +169,10 @@
                     <option value="Aduanas">Solo Aduanas</option>
                     <option value="ML">Solo ML</option>
                 </select>
-                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles"><i data-lucide="zap"></i></button>
+                
+                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles">
+                    <i data-lucide="zap"></i>
+                </button>
             </div>
 
             <div class="table-wrapper">
@@ -207,7 +222,7 @@
 <div id="matchModal" class="modal-overlay hidden">
     <div class="modal-content">
         <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
-        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios. Elige el correcto:</p>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios paquetes parecidos en inventario:</p>
         <input type="hidden" id="matchTargetId">
         <div id="matchList"></div>
         <div class="modal-actions">
@@ -275,6 +290,7 @@
     }
     init();
 
+    // 1. LIMPIEZA
     async function autoCleanOldRecords() {
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 45); 
@@ -313,6 +329,7 @@
         }
     }
 
+    // --- REGISTRO ---
     dom.search.addEventListener('input', async (e) => {
         const term = e.target.value.trim();
         if (term.length < 2) { dom.suggestions.style.display = 'none'; return; }
@@ -334,33 +351,23 @@
     
     document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
-    // --- SUBMIT CON BLOQUEO DE DUPLICADOS ---
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const trk = dom.tracking.value.trim();
         if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
         
         dom.btnGuardar.disabled = true;
-
-        // 1. Chequeo de Duplicado en Lista Interna
-        const { data: existing } = await supabase
-            .from('seguimiento_interno')
-            .select('id')
-            .eq('tracking', trk)
-            .maybeSingle();
-
+        const { data: existing } = await supabase.from('seguimiento_interno').select('id').eq('tracking', trk).maybeSingle();
         if (existing) {
-            dom.status.textContent = '⚠️ Este tracking ya existe en la lista.';
+            dom.status.textContent = '⚠️ Este tracking ya existe.';
             dom.status.style.color = 'orange';
             dom.btnGuardar.disabled = false;
             return;
         }
 
-        // 2. Guardar
         const { error } = await supabase.from('seguimiento_interno').insert([{
             tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún', nota: ''
         }]);
-        
         dom.btnGuardar.disabled = false;
         if (error) { dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; }
         else { dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; dom.tracking.value = ''; dom.tracking.focus(); }
@@ -405,7 +412,18 @@
             else if (est === 'Recibido') badgeClass = 'st-recibido';
             else if (est === 'ML') badgeClass = 'st-ml';
 
-            const fecha = new Date(p.created_at).toLocaleDateString();
+            // Lógica ML (Solicitar / Vencido)
+            let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
+            if (est === 'ML') {
+                if (!p.fecha_solicitud) {
+                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitar</button>`;
+                } else {
+                    const dias = Math.floor((new Date() - new Date(p.fecha_solicitud)) / (1000 * 60 * 60 * 24));
+                    if (dias >= 3) estadoHtml += ` <span class="ml-status-text ml-vencido">⚠️ Vencido (${dias}d)</span>`;
+                    else estadoHtml += ` <span class="ml-status-text ml-espera">⏳ Esperando (${dias}d)</span>`;
+                }
+            }
+
             const isRecibido = est === 'Recibido';
             const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
@@ -430,30 +448,27 @@
                     <td class="col-seguimiento" id="seg-${p.id}">${p.seguimiento || 'Sin info'}</td>
                     <td class="col-nota">${p.nota || ''}</td>
                     <td>${p.sucursal}</td>
-                    <td><span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span></td>
-                    <td style="font-size:12px">${fecha}</td>
+                    <td>${estadoHtml}</td>
+                    <td style="font-size:12px">${new Date(p.created_at).toLocaleDateString()}</td>
                 </tr>
             `;
         }).join('');
         lucide.createIcons();
     }
 
-    // --- FUNCIÓN ELIMINAR ---
+    // --- ACCIONES ---
     window.deletePackage = async (id) => {
-        if (!confirm("¿Estás seguro de eliminar este paquete de la lista?")) return;
-        
-        // Efecto visual rápido
+        if (!confirm("¿Eliminar paquete?")) return;
         document.getElementById(`row-${id}`).style.opacity = '0.5';
-
         const { error } = await supabase.from('seguimiento_interno').delete().eq('id', id);
-        
-        if (error) {
-            alert("Error al eliminar: " + error.message);
-            document.getElementById(`row-${id}`).style.opacity = '1';
-        } else {
-            // Recargar tabla para actualizar
-            loadPackages();
-        }
+        if (error) { alert("Error: " + error.message); document.getElementById(`row-${id}`).style.opacity = '1'; }
+        else loadPackages();
+    };
+
+    window.marcarSolicitado = async (id) => {
+        if(!confirm("¿Confirmar que ya solicitaste info al cliente?")) return;
+        await supabase.from('seguimiento_interno').update({fecha_solicitud: new Date().toISOString()}).eq('id', id);
+        loadPackages();
     };
 
     dom.btnUpdateMassive.addEventListener('click', async () => {
@@ -482,13 +497,14 @@
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
+            // 1. Local
             const { data: matches, error: localError } = await supabase
                 .from('paquetes_cargados')
                 .select('*')
                 .ilike('tracking', `%${tracking}%`)
                 .limit(5);
 
-            if (localError) console.warn("Error leyendo paquetes_cargados", localError);
+            if (localError) console.warn("Error local:", localError);
 
             if (!localError && matches && matches.length > 0) {
                 if (matches.length > 1) {
@@ -504,10 +520,11 @@
                 const detalle = `✅ Recibido: ${nombre} (${box})`;
                 
                 if(segCell) segCell.textContent = detalle;
-                if(badge) { badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; }
+                if(badge) { badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; badge.innerHTML = 'Recibido'; }
                 return;
             }
 
+            // 2. Fuzion
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -541,19 +558,26 @@
                 }
             }
 
-            if(segCell) segCell.textContent = detalle;
-            if(badge) {
-                badge.textContent = nuevoEstado;
-                let badgeClass = 'st-pendiente';
-                if (nuevoEstado === 'Miami') badgeClass = 'st-miami';
-                else if (nuevoEstado === 'Tránsito') badgeClass = 'st-transito';
-                else if (nuevoEstado === 'Carga Peligrosa') badgeClass = 'st-dg';
-                else if (nuevoEstado === 'Aduanas') badgeClass = 'st-aduanas';
-                else if (nuevoEstado === 'ML') badgeClass = 'st-ml';
-                badge.className = `status-badge ${badgeClass}`;
-            }
-
+            // Actualizar DB
+            // NOTA: No tocamos fecha_solicitud aquí para no resetear el contador si ya estaba en ML
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
+            
+            // Recargar para que renderTable pinte bien los botones de ML
+            if(nuevoEstado === 'ML') loadPackages();
+            else {
+                if(segCell) segCell.textContent = detalle;
+                if(badge) {
+                    badge.textContent = nuevoEstado;
+                    let badgeClass = 'st-pendiente';
+                    if (nuevoEstado === 'Miami') badgeClass = 'st-miami';
+                    else if (nuevoEstado === 'Tránsito') badgeClass = 'st-transito';
+                    else if (nuevoEstado === 'Carga Peligrosa') badgeClass = 'st-dg';
+                    else if (nuevoEstado === 'Aduanas') badgeClass = 'st-aduanas';
+                    else if (nuevoEstado === 'ML') badgeClass = 'st-ml';
+                    badge.className = `status-badge ${badgeClass}`;
+                    badge.innerHTML = nuevoEstado; // Limpiar botones
+                }
+            }
 
         } catch (err) {
             console.error(err);
@@ -567,13 +591,12 @@
         const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
         const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
         
-        const updatePayload = {
+        await supabase.from('seguimiento_interno').update({
             estado_alerta: 'Recibido',
             seguimiento: detalle,
             cliente_box: box, 
             tracking_match: matchData.tracking
-        };
-        await supabase.from('seguimiento_interno').update(updatePayload).eq('id', rowId);
+        }).eq('id', rowId);
     }
 
     // --- MODALES ---
