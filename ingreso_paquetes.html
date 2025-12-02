@@ -44,12 +44,20 @@
       @media (max-width: 800px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
       @media (max-width: 500px) { .filters-grid { grid-template-columns: 1fr; } }
 
-      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 70vh; }
+      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 65vh; }
       table { width: 100%; border-collapse: collapse; min-width: 900px; }
       th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
       td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
       tr:last-child td { border-bottom: none; }
       
+      /* PAGINACIÓN */
+      .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); }
+      .page-info { font-size: 13px; color: #6b7280; }
+      .page-controls { display: flex; gap: 10px; }
+      .btn-page { padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+      .btn-page:hover:not(:disabled) { background: #f3f4f6; }
+      .btn-page:disabled { opacity: 0.5; cursor: default; }
+
       /* Estados */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
@@ -64,7 +72,6 @@
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
       .status-msg.success { color: #059669; }
       
-      /* Botones Tabla */
       .action-row { display: flex; gap: 5px; }
       .action-btn { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; color: var(--fg); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; transition: all 0.2s; }
       .action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -74,7 +81,6 @@
       .btn-red { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
       .btn-disabled { opacity: 0.5; cursor: default; background: #f3f4f6; border-color: #e5e7eb; color: #9ca3af; transform: none !important; }
 
-      /* Botón Solicitar ML */
       .btn-req { 
           background: #2563eb; color: white; border: none; border-radius: 4px; 
           padding: 3px 8px; font-size: 10px; font-weight: bold; cursor: pointer; 
@@ -161,7 +167,6 @@
                 <input type="text" id="filterTracking" placeholder="🔍 Tracking...">
                 <input type="text" id="filterClient" placeholder="👤 Cliente/Box...">
                 <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
-                
                 <select id="filterStatus">
                     <option value="Activos">Activos (Ocultar Recibidos)</option>
                     <option value="Todos">Ver Todo</option>
@@ -169,10 +174,7 @@
                     <option value="Aduanas">Solo Aduanas</option>
                     <option value="ML">Solo ML</option>
                 </select>
-                
-                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles">
-                    <i data-lucide="zap"></i>
-                </button>
+                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles"><i data-lucide="zap"></i></button>
             </div>
 
             <div class="table-wrapper">
@@ -192,6 +194,15 @@
                     <tbody id="tableBody"></tbody>
                 </table>
             </div>
+            
+            <div class="pagination">
+                <div class="page-info" id="pageInfo">Cargando...</div>
+                <div class="page-controls">
+                    <button class="btn-page" id="btnPrev">Anterior</button>
+                    <button class="btn-page" id="btnNext">Siguiente</button>
+                </div>
+            </div>
+
             <p id="tableMsg" class="status-msg" style="color: #6b7280;"></p>
         </div>
     </div>
@@ -222,7 +233,7 @@
 <div id="matchModal" class="modal-overlay hidden">
     <div class="modal-content">
         <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
-        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios paquetes parecidos en inventario:</p>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios. Elige el correcto:</p>
         <input type="hidden" id="matchTargetId">
         <div id="matchList"></div>
         <div class="modal-actions">
@@ -270,11 +281,20 @@
         editNota: document.getElementById('editNota'),
         matchModal: document.getElementById('matchModal'),
         matchList: document.getElementById('matchList'),
-        matchTargetId: document.getElementById('matchTargetId')
+        matchTargetId: document.getElementById('matchTargetId'),
+        // Paginación
+        btnPrev: document.getElementById('btnPrev'),
+        btnNext: document.getElementById('btnNext'),
+        pageInfo: document.getElementById('pageInfo')
     };
 
     let selectedClient = null;
     let currentData = [];
+    
+    // VARIABLES PAGINACIÓN
+    let currentPage = 1;
+    const pageSize = 50;
+    let totalItems = 0;
 
     // --- UTILS ---
     function getTimestamp(val) {
@@ -314,20 +334,19 @@
         }
     }
 
-    dom.btnGoToList.addEventListener('click', () => { toggleView('list'); loadPackages(); });
-    dom.btnGoToForm.addEventListener('click', () => { toggleView('form'); });
-
-    function toggleView(view) {
-        if (view === 'list') {
-            dom.viewForm.classList.add('hidden'); dom.viewList.classList.remove('hidden');
-            dom.btnGoToList.classList.add('hidden'); dom.btnGoToForm.classList.remove('hidden');
-            dom.title.textContent = "Seguimiento"; dom.container.classList.add('wide');
-        } else {
-            dom.viewList.classList.add('hidden'); dom.viewForm.classList.remove('hidden');
-            dom.btnGoToForm.classList.add('hidden'); dom.btnGoToList.classList.remove('hidden');
-            dom.title.textContent = "Registro Interno"; dom.container.classList.remove('wide');
-        }
-    }
+    // --- NAVEGACIÓN ---
+    dom.btnGoToList.addEventListener('click', () => { 
+        dom.viewForm.classList.add('hidden'); dom.viewList.classList.remove('hidden');
+        dom.btnGoToList.classList.add('hidden'); dom.btnGoToForm.classList.remove('hidden');
+        dom.title.textContent = "Seguimiento"; dom.container.classList.add('wide');
+        loadPackages(); // Cargar primera página
+    });
+    
+    dom.btnGoToForm.addEventListener('click', () => { 
+        dom.viewList.classList.add('hidden'); dom.viewForm.classList.remove('hidden');
+        dom.btnGoToForm.classList.add('hidden'); dom.btnGoToList.classList.remove('hidden');
+        dom.title.textContent = "Registro Interno"; dom.container.classList.remove('wide');
+    });
 
     // --- REGISTRO ---
     dom.search.addEventListener('input', async (e) => {
@@ -355,16 +374,10 @@
         e.preventDefault();
         const trk = dom.tracking.value.trim();
         if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
-        
         dom.btnGuardar.disabled = true;
         const { data: existing } = await supabase.from('seguimiento_interno').select('id').eq('tracking', trk).maybeSingle();
-        if (existing) {
-            dom.status.textContent = '⚠️ Este tracking ya existe.';
-            dom.status.style.color = 'orange';
-            dom.btnGuardar.disabled = false;
-            return;
-        }
-
+        if (existing) { dom.status.textContent = '⚠️ Tracking duplicado'; dom.status.style.color = 'orange'; dom.btnGuardar.disabled = false; return; }
+        
         const { error } = await supabase.from('seguimiento_interno').insert([{
             tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún', nota: ''
         }]);
@@ -373,33 +386,58 @@
         else { dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; dom.tracking.value = ''; dom.tracking.focus(); }
     });
 
-    // --- LISTA ---
+    // --- LISTA PAGINADA ---
     async function loadPackages() {
         dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         
-        const trkTerm = dom.filterTracking.value.trim();
-        const clientTerm = dom.filterClient.value.trim();
-        const branch = dom.filterSucursal.value;
-        const status = dom.filterStatus.value;
+        // Calcular Rango
+        const from = (currentPage - 1) * pageSize;
+        const to = from + pageSize - 1;
 
-        let query = supabase.from('seguimiento_interno').select('*').order('created_at', { ascending: false }).limit(100);
+        let query = supabase
+            .from('seguimiento_interno')
+            .select('*', { count: 'exact' }) // Pedimos el total exacto
+            .order('created_at', { ascending: false })
+            .range(from, to); // Solo traemos 50 filas
 
-        if (branch !== 'Todas') query = query.eq('sucursal', branch);
-        if (clientTerm) query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
-        if (trkTerm) query = query.ilike('tracking', `%${trkTerm}%`);
+        // Filtros
+        if (dom.filterSucursal.value !== 'Todas') query = query.eq('sucursal', dom.filterSucursal.value);
+        if (dom.filterClient.value) query = query.or(`cliente_nombre.ilike.%${dom.filterClient.value}%,cliente_box.ilike.%${dom.filterClient.value}%`);
+        if (dom.filterTracking.value) query = query.ilike('tracking', `%${dom.filterTracking.value}%`);
 
-        if (status === 'Activos') query = query.neq('estado_alerta', 'Recibido');
-        else if (status === 'Todos') {} 
-        else query = query.eq('estado_alerta', status);
+        const st = dom.filterStatus.value;
+        if (st === 'Activos') query = query.neq('estado_alerta', 'Recibido');
+        else if (st !== 'Todos') query = query.eq('estado_alerta', st);
 
-        const { data, error } = await query;
+        const { data, count, error } = await query;
         if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
 
-        currentData = data;
-        if (currentData.length === 0) { dom.tableBody.innerHTML = ''; dom.tableMsg.textContent = 'No se encontraron paquetes.'; return; }
+        currentData = data || [];
+        totalItems = count || 0;
+        
+        updatePaginationUI();
+
+        if (currentData.length === 0) {
+            dom.tableBody.innerHTML = ''; dom.tableMsg.textContent = 'No se encontraron paquetes.'; return;
+        }
         dom.tableMsg.textContent = '';
         renderTable(currentData);
     }
+
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(totalItems / pageSize);
+        dom.pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1} (Total: ${totalItems})`;
+        
+        dom.btnPrev.disabled = currentPage === 1;
+        dom.btnNext.disabled = currentPage >= totalPages;
+    }
+
+    // Botones de Paginación
+    dom.btnPrev.onclick = () => { if(currentPage > 1) { currentPage--; loadPackages(); } };
+    dom.btnNext.onclick = () => { currentPage++; loadPackages(); };
+
+    // Resetear a página 1 al filtrar
+    const resetPage = () => { currentPage = 1; loadPackages(); };
 
     function renderTable(paquetes) {
         dom.tableBody.innerHTML = paquetes.map(p => {
@@ -412,11 +450,19 @@
             else if (est === 'Recibido') badgeClass = 'st-recibido';
             else if (est === 'ML') badgeClass = 'st-ml';
 
-            // Lógica ML (Solicitar / Vencido)
+            const fecha = new Date(p.created_at).toLocaleDateString();
+            const notaSafe = (p.nota || '').replace(/'/g, "\\'");
+            
+            let trackingDisplay = p.tracking;
+            if (p.tracking_match && p.tracking_match !== p.tracking) {
+                trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
+            }
+
+            // GESTIÓN DE ML
             let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
             if (est === 'ML') {
                 if (!p.fecha_solicitud) {
-                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitado</button>`;
+                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitar</button>`;
                 } else {
                     const dias = Math.floor((new Date() - new Date(p.fecha_solicitud)) / (1000 * 60 * 60 * 24));
                     if (dias >= 3) estadoHtml += ` <span class="ml-status-text ml-vencido">⚠️ Vencido (${dias}d)</span>`;
@@ -424,15 +470,10 @@
                 }
             }
 
+            // Botones
             const isRecibido = est === 'Recibido';
             const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
-            const notaSafe = (p.nota || '').replace(/'/g, "\\'");
-            
-            let trackingDisplay = p.tracking;
-            if (p.tracking_match && p.tracking_match !== p.tracking) {
-                trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
-            }
 
             return `
                 <tr id="row-${p.id}">
@@ -449,7 +490,7 @@
                     <td class="col-nota">${p.nota || ''}</td>
                     <td>${p.sucursal}</td>
                     <td>${estadoHtml}</td>
-                    <td style="font-size:12px">${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td style="font-size:12px">${fecha}</td>
                 </tr>
             `;
         }).join('');
@@ -459,52 +500,30 @@
     // --- ACCIONES ---
     window.deletePackage = async (id) => {
         if (!confirm("¿Eliminar paquete?")) return;
-        document.getElementById(`row-${id}`).style.opacity = '0.5';
         const { error } = await supabase.from('seguimiento_interno').delete().eq('id', id);
-        if (error) { alert("Error: " + error.message); document.getElementById(`row-${id}`).style.opacity = '1'; }
+        if (error) alert("Error: " + error.message);
         else loadPackages();
     };
 
     window.marcarSolicitado = async (id) => {
-        if(!confirm("¿Confirmar que ya solicitaste info al cliente?")) return;
+        if(!confirm("¿Confirmar solicitud?")) return;
         await supabase.from('seguimiento_interno').update({fecha_solicitud: new Date().toISOString()}).eq('id', id);
         loadPackages();
     };
 
-    dom.btnUpdateMassive.addEventListener('click', async () => {
-        const pendientes = currentData.filter(p => p.estado_alerta !== 'Recibido');
-        if (pendientes.length === 0) { alert("No hay pendientes visibles."); return; }
-        if (!confirm(`Se actualizarán ${pendientes.length} paquetes. ¿Continuar?`)) return;
-
-        dom.progressBar.style.display = 'block'; dom.progressText.style.display = 'block'; dom.btnUpdateMassive.disabled = true;
-        let processed = 0;
-        for (const p of pendientes) {
-            dom.progressText.textContent = `Procesando ${processed + 1} de ${pendientes.length}...`;
-            dom.progressFill.style.width = `${((processed + 1) / pendientes.length) * 100}%`;
-            await checkStatus(p.id, p.tracking);
-            await new Promise(r => setTimeout(r, 200));
-            processed++;
-        }
-        setTimeout(() => {
-            dom.progressBar.style.display = 'none'; dom.progressText.style.display = 'none'; dom.btnUpdateMassive.disabled = false;
-            loadPackages();
-        }, 1000);
-    });
-
+    // --- CHECK STATUS ---
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         const badge = document.getElementById(`badge-${id}`);
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // 1. Local
+            // 1. LOCAL
             const { data: matches, error: localError } = await supabase
                 .from('paquetes_cargados')
-                .select('*')
+                .select('*') // Trae todas las columnas para evitar errores de nombres
                 .ilike('tracking', `%${tracking}%`)
                 .limit(5);
-
-            if (localError) console.warn("Error local:", localError);
 
             if (!localError && matches && matches.length > 0) {
                 if (matches.length > 1) {
@@ -515,16 +534,20 @@
                 const match = matches[0];
                 await applyMatch(id, match);
                 
+                // Intentar leer nombres comunes
                 const box = match.cliente_box || match.box || "S/Box";
                 const nombre = match.cliente_nombre || match.cliente || "Cliente";
                 const detalle = `✅ Recibido: ${nombre} (${box})`;
                 
                 if(segCell) segCell.textContent = detalle;
-                if(badge) { badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; badge.innerHTML = 'Recibido'; }
+                if(badge) { 
+                    badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; 
+                    badge.innerHTML = 'Recibido';
+                }
                 return;
             }
 
-            // 2. Fuzion
+            // 2. FUZION
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -536,34 +559,27 @@
                 detalle = 'Tracking no encontrado aún';
             } else {
                 const h = data.history;
-                const estados = [
-                    { key: 'mal',      label: 'ML',              ts: getTimestamp(h.mal) },
-                    { key: 'panama',   label: 'Aduanas',         ts: getTimestamp(h.panama) },
-                    { key: 'transito', label: 'Tránsito',        ts: getTimestamp(h.transito) },
-                    { key: 'dg',       label: 'Carga Peligrosa', ts: getTimestamp(h.dg) },
-                    { key: 'miami',    label: 'Miami',           ts: getTimestamp(h.miami) }
+                let best = {label:'No Info', ts:0};
+                const candidates = [
+                    {l:'ML', t:h.mal}, {l:'Aduanas', t:h.panama}, {l:'Tránsito', t:h.transito}, 
+                    {l:'Carga Peligrosa', t:h.dg}, {l:'Miami', t:h.miami}
                 ];
-                estados.sort((a, b) => b.ts - a.ts);
-                const ganador = estados.find(e => e.ts > 0);
-
-                if (ganador) {
-                    nuevoEstado = ganador.label;
-                    const fechaLegible = new Date(ganador.ts).toLocaleDateString("es-PA", { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
-                    
-                    if (ganador.key === 'mal') detalle = `🔴 Mal Identificado (${fechaLegible})`;
-                    else if (ganador.key === 'panama') detalle = `🛬 En Aduanas Panamá (${fechaLegible})`;
-                    else if (ganador.key === 'transito') detalle = `✈️ En Tránsito (${fechaLegible})`;
-                    else if (ganador.key === 'dg') detalle = `☣️ Carga Peligrosa (${fechaLegible})`;
-                    else if (ganador.key === 'miami') detalle = `📦 Recibido en Miami (${fechaLegible})`;
-                }
+                candidates.forEach(c => {
+                    const time = getTimestamp(c.t);
+                    if(time > best.ts) best = {label:c.l, ts:time};
+                });
+                nuevoEstado = best.label;
+                
+                if (nuevoEstado === 'ML') detalle = `🔴 Mal Identificado`;
+                else if (nuevoEstado === 'Aduanas') detalle = `🛬 En Aduanas`;
+                else if (nuevoEstado === 'Tránsito') detalle = `✈️ En Tránsito`;
+                else if (nuevoEstado === 'Carga Peligrosa') detalle = `☣️ Carga Peligrosa`;
+                else if (nuevoEstado === 'Miami') detalle = `📦 Recibido en Miami`;
             }
 
-            // Actualizar DB
-            // NOTA: No tocamos fecha_solicitud aquí para no resetear el contador si ya estaba en ML
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
             
-            // Recargar para que renderTable pinte bien los botones de ML
-            if(nuevoEstado === 'ML') loadPackages();
+            if(nuevoEstado === 'ML') loadPackages(); // Recargar para mostrar botones
             else {
                 if(segCell) segCell.textContent = detalle;
                 if(badge) {
@@ -575,7 +591,7 @@
                     else if (nuevoEstado === 'Aduanas') badgeClass = 'st-aduanas';
                     else if (nuevoEstado === 'ML') badgeClass = 'st-ml';
                     badge.className = `status-badge ${badgeClass}`;
-                    badge.innerHTML = nuevoEstado; // Limpiar botones
+                    badge.innerHTML = nuevoEstado;
                 }
             }
 
@@ -586,17 +602,19 @@
     };
 
     async function applyMatch(rowId, matchData) {
-        const box = matchData.cliente_box || matchData.box || matchData.casillero || "";
-        const nombre = matchData.cliente_nombre || matchData.cliente || matchData.nombre || "";
+        const box = matchData.cliente_box || matchData.box || "";
+        const nombre = matchData.cliente_nombre || matchData.cliente || "";
         const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
         const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
         
-        await supabase.from('seguimiento_interno').update({
+        const updatePayload = {
             estado_alerta: 'Recibido',
             seguimiento: detalle,
-            cliente_box: box, 
             tracking_match: matchData.tracking
-        }).eq('id', rowId);
+        };
+        if (box) updatePayload.cliente_box = box;
+
+        await supabase.from('seguimiento_interno').update(updatePayload).eq('id', rowId);
     }
 
     // --- MODALES ---
@@ -652,10 +670,17 @@
         }
     };
 
-    dom.filterTracking.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
-    dom.filterClient.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
-    dom.filterSucursal.addEventListener('change', loadPackages);
-    dom.filterStatus.addEventListener('change', loadPackages);
+    // Listeners
+    dom.filterTracking.onkeydown = (e) => e.key === 'Enter' && resetPage();
+    dom.filterClient.onkeydown = (e) => e.key === 'Enter' && resetPage();
+    dom.filterSucursal.onchange = resetPage;
+    dom.filterStatus.onchange = resetPage;
+    
+    dom.btnUpdateMassive.onclick = async () => {
+        const pends = currentData.filter(p => p.estado_alerta !== 'Recibido');
+        if(!confirm(`Actualizar ${pends.length} paquetes?`)) return;
+        for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
+    };
 
 </script>
 </body>
