@@ -8,7 +8,6 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
@@ -21,35 +20,57 @@
       body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
       .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; }
-      .container.wide { max-width: 1100px; } /* Más ancho para la nueva columna */
+      .container.wide { max-width: 1200px; }
 
       .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: hidden; }
       
-      /* Header & Nav */
       .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
       .title { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
       .nav-btn { background: none; border: none; cursor: pointer; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 6px; padding: 8px; border-radius: 6px; }
       .nav-btn:hover { background-color: #eff6ff; }
 
-      /* Form Elements */
       .field { margin-bottom: 16px; position: relative; }
       .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
       
-      input, select {
-        width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border);
-        border-radius: 8px; font-size: 15px; outline: none; background: #fff;
-      }
+      input, select { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; background: #fff; }
       input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
       
-      .btn {
-        width: 100%; height: 44px; background: var(--primary); color: white;
-        border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
-        cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
-      }
+      .btn { width: 100%; height: 44px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; }
       .btn:hover { background: var(--primary-hover); }
-      .btn:disabled { opacity: 0.7; }
+      .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+      .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
-      /* Autocomplete */
+      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; }
+      @media (max-width: 800px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
+      @media (max-width: 500px) { .filters-grid { grid-template-columns: 1fr; } }
+
+      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 70vh; }
+      table { width: 100%; border-collapse: collapse; min-width: 900px; }
+      th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+      td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
+      tr:last-child td { border-bottom: none; }
+      
+      /* Estados */
+      .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
+      
+      .st-pendiente { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+      .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+      .st-transito { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+      .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; }
+      .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } /* Verde Claro */
+      .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } /* Verde Oscuro (Final) */
+      .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+      .hidden { display: none !important; }
+      .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
+      .status-msg.success { color: #059669; }
+      
+      .action-row { display: flex; gap: 5px; }
+      .action-btn { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; color: var(--fg); display: flex; align-items: center; justify-content: center; }
+      .action-btn:hover { background: #f3f4f6; }
+      .btn-blue { color: var(--primary); border-color: #bfdbfe; background: #eff6ff; }
+      .btn-orange { color: #c2410c; border-color: #fed7aa; background: #fff7ed; }
+
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
         border: 1px solid var(--border); background-color: white;
@@ -59,32 +80,19 @@
       .suggestion-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
       .suggestion-item:hover { background-color: #eff6ff; }
 
-      /* Info Card */
       .client-info-card { background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-bottom: 20px; display: none; }
       .client-info-card.active { display: block; }
       .client-info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
       .client-info-val { font-weight: 700; color: #1e40af; }
 
-      /* Tabla & Filtros */
-      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; }
-      @media (max-width: 600px) { .filters-grid { grid-template-columns: 1fr; } }
-
-      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
-      table { width: 100%; border-collapse: collapse; min-width: 800px; }
-      th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); }
-      td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
-      tr:last-child td { border-bottom: none; }
+      /* Modal */
+      .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+      .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+      .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
       
-      .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; }
-      .status-pendiente { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
-      .status-llegado { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
-
-      .hidden { display: none !important; }
-      .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
-      .status-msg.success { color: #059669; }
-      
-      /* Estilo para la columna de seguimiento */
-      .col-seguimiento { font-size: 12px; color: #4b5563; line-height: 1.4; max-width: 250px; }
+      .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
+      .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
     </style>
 </head>
 <body>
@@ -94,61 +102,48 @@
         
         <div class="header">
             <h1 class="title" id="pageTitle">Registro Interno</h1>
-            
-            <button id="btnGoToList" class="nav-btn">
-                <i data-lucide="list"></i> Ver Lista
-            </button>
-            
-            <button id="btnGoToForm" class="nav-btn hidden">
-                <i data-lucide="arrow-left"></i> Volver
-            </button>
+            <button id="btnGoToList" class="nav-btn"><i data-lucide="list"></i> Ver Lista</button>
+            <button id="btnGoToForm" class="nav-btn hidden"><i data-lucide="arrow-left"></i> Volver</button>
         </div>
 
         <div id="viewForm">
             <form id="formIngreso">
-                <div class="field">
-                    <label class="label">Tracking Number</label>
-                    <input type="text" id="tracking" placeholder="Escanea o escribe..." autocomplete="off">
-                </div>
-
+                <div class="field"><label class="label">Tracking Number</label><input type="text" id="tracking" placeholder="Escanea o escribe..." autocomplete="off"></div>
                 <div class="field">
                     <label class="label">Buscar Cliente</label>
                     <input type="text" id="clienteSearch" placeholder="Nombre o Casillero..." autocomplete="off">
-                    <div id="suggestions" class="autocomplete-suggestions"></div>
+                    <div id="suggestions" class="autocomplete-suggestions" style="display:none;"></div>
                 </div>
-
-                <div id="clientInfo" class="client-info-card">
+                <div id="clientInfo" class="client-info-card" style="display:none;">
                     <div class="client-info-row"><span>Nombre:</span><span class="client-info-val" id="dispNombre">-</span></div>
                     <div class="client-info-row"><span>Casillero:</span><span class="client-info-val" id="dispBox">-</span></div>
                     <div class="client-info-row"><span>Sucursal:</span><span class="client-info-val" id="dispSucursal">-</span></div>
                 </div>
-
                 <input type="hidden" id="h_nombre"><input type="hidden" id="h_box"><input type="hidden" id="h_sucursal">
-
-                <button type="submit" class="btn" id="btnGuardar">
-                    <i data-lucide="save"></i> Guardar Paquete
-                </button>
+                <button type="submit" class="btn" id="btnGuardar"><i data-lucide="save"></i> Guardar Paquete</button>
                 <div id="status" class="status-msg"></div>
             </form>
         </div>
 
         <div id="viewList" class="hidden">
-            
+            <div id="progressBar" class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+            <p id="progressText" style="font-size:12px; text-align:center; color:#6b7280; margin-bottom:10px; display:none;"></p>
+
             <div class="filters-grid">
-                <input type="text" id="filterClient" placeholder="Buscar Cliente o Box...">
+                <input type="text" id="filterTracking" placeholder="🔍 Tracking...">
+                <input type="text" id="filterClient" placeholder="👤 Cliente/Box...">
+                <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
                 
-                <select id="filterSucursal">
-                    <option value="Todas">Cargando sucursales...</option>
-                </select>
-
                 <select id="filterStatus">
-                    <option value="Todos">Todos Estados</option>
-                    <option value="Pendiente">Pendiente</option>
-                    <option value="Llegado">Llegado</option>
+                    <option value="Activos">Ocultar Recibidos</option>
+                    <option value="Todos">Ver Todo</option>
+                    <option value="Recibido">Solo Recibidos</option>
+                    <option value="Aduanas">Solo Aduanas</option>
+                    <option value="ML">Solo ML</option>
                 </select>
-
-                <button id="btnRefresh" class="btn" style="width: auto; padding: 0 12px;">
-                    <i data-lucide="refresh-cw"></i>
+                
+                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles">
+                    <i data-lucide="zap"></i>
                 </button>
             </div>
 
@@ -156,39 +151,57 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>Acción</th>
                             <th>Tracking</th>
                             <th>Cliente / Box</th>
-                            <th>Info Seguimiento</th> <th>Sucursal</th>
+                            <th>Info Seguimiento</th>
+                            <th>Sucursal</th>
                             <th>Estado</th>
                             <th>Fecha</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody">
-                        </tbody>
+                    <tbody id="tableBody"></tbody>
                 </table>
             </div>
             <p id="tableMsg" class="status-msg" style="color: #6b7280;"></p>
         </div>
+    </div>
+</div>
 
+<div id="editModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 class="modal-title">Corrección Manual</h2>
+        <input type="hidden" id="editId">
+        
+        <div class="field"><label class="label">Corrección de Tracking</label><input type="text" id="editTracking"></div>
+        <div class="field">
+            <label class="label">Forzar Estado</label>
+            <select id="editEstado">
+                <option value="Pendiente">Pendiente</option>
+                <option value="Recibido">Recibido (Finalizar)</option>
+                <option value="ML">Mal Identificado</option>
+            </select>
+        </div>
+        <div class="field"><label class="label">Nota (Opcional)</label><input type="text" id="editNota" placeholder="Razón de cambio manual..."></div>
+        <div class="modal-actions">
+            <button class="btn" style="background:#6b7280;" onclick="closeModal()">Cancelar</button>
+            <button class="btn" onclick="saveManualEdit()">Guardar</button>
+        </div>
     </div>
 </div>
 
 <script>
-    // --- 1. CONFIGURACIÓN ---
     if (typeof window.PSC_CONFIG === 'undefined') alert("Error: Falta config.js");
     const supabase = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
     lucide.createIcons();
 
-    // --- 2. ELEMENTOS DOM ---
     const dom = {
         container: document.getElementById('mainContainer'),
         title: document.getElementById('pageTitle'),
-        // Navegación
         btnGoToList: document.getElementById('btnGoToList'),
         btnGoToForm: document.getElementById('btnGoToForm'),
         viewForm: document.getElementById('viewForm'),
         viewList: document.getElementById('viewList'),
-        // Formulario
         form: document.getElementById('formIngreso'),
         tracking: document.getElementById('tracking'),
         search: document.getElementById('clienteSearch'),
@@ -199,94 +212,79 @@
         h_nombre: document.getElementById('h_nombre'),
         h_box: document.getElementById('h_box'),
         h_sucursal: document.getElementById('h_sucursal'),
-        // Lista
         tableBody: document.getElementById('tableBody'),
         tableMsg: document.getElementById('tableMsg'),
+        filterTracking: document.getElementById('filterTracking'),
         filterClient: document.getElementById('filterClient'),
         filterSucursal: document.getElementById('filterSucursal'),
         filterStatus: document.getElementById('filterStatus'),
-        btnRefresh: document.getElementById('btnRefresh')
+        btnUpdateMassive: document.getElementById('btnUpdateMassive'),
+        progressBar: document.getElementById('progressBar'),
+        progressFill: document.getElementById('progressFill'),
+        progressText: document.getElementById('progressText'),
+        editModal: document.getElementById('editModal'),
+        editId: document.getElementById('editId'),
+        editTracking: document.getElementById('editTracking'),
+        editEstado: document.getElementById('editEstado'),
+        editNota: document.getElementById('editNota')
     };
 
     let selectedClient = null;
+    let currentData = [];
 
-    // =========================================================
-    // PARTE A: CARGA INICIAL (SUCURSALES)
-    // =========================================================
-    
+    async function init() {
+        await autoCleanOldRecords();
+        await loadBranches();
+    }
+    init();
+
+    // 1. LIMPIEZA AUTOMÁTICA (>45 DÍAS y RECIBIDO)
+    async function autoCleanOldRecords() {
+        const limitDate = new Date();
+        limitDate.setDate(limitDate.getDate() - 45); 
+
+        const { error, count } = await supabase
+            .from('seguimiento_interno')
+            .delete({ count: 'exact' })
+            .lt('created_at', limitDate.toISOString())
+            .eq('estado_alerta', 'Recibido'); // Solo borramos los que ya se entregaron
+
+        if (error) console.error("Error limpieza:", error);
+    }
+
     async function loadBranches() {
-        const { data, error } = await supabase
-            .from('sucursales')
-            .select('sucursal')
-            .order('sucursal', { ascending: true });
-
-        if (error) {
-            console.error("Error cargando sucursales:", error);
-            dom.filterSucursal.innerHTML = '<option value="Todas">Error al cargar</option>';
-            return;
-        }
-
+        const { data } = await supabase.from('sucursales').select('sucursal').order('sucursal', { ascending: true });
         if (data) {
             dom.filterSucursal.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
             data.forEach(s => {
-                const option = document.createElement('option');
-                option.value = s.sucursal; 
-                option.textContent = s.sucursal;
-                dom.filterSucursal.appendChild(option);
+                const opt = document.createElement('option');
+                opt.value = s.sucursal; opt.textContent = s.sucursal;
+                dom.filterSucursal.appendChild(opt);
             });
         }
     }
-    loadBranches();
 
-    // =========================================================
-    // PARTE B: NAVEGACIÓN
-    // =========================================================
-    
-    dom.btnGoToList.addEventListener('click', () => {
-        toggleView('list');
-        loadPackages();
-    });
-
-    dom.btnGoToForm.addEventListener('click', () => {
-        toggleView('form');
-    });
+    dom.btnGoToList.addEventListener('click', () => { toggleView('list'); loadPackages(); });
+    dom.btnGoToForm.addEventListener('click', () => { toggleView('form'); });
 
     function toggleView(view) {
         if (view === 'list') {
-            dom.viewForm.classList.add('hidden');
-            dom.viewList.classList.remove('hidden');
-            dom.btnGoToList.classList.add('hidden');
-            dom.btnGoToForm.classList.remove('hidden');
-            dom.title.textContent = "Seguimiento";
-            dom.container.classList.add('wide');
+            dom.viewForm.classList.add('hidden'); dom.viewList.classList.remove('hidden');
+            dom.btnGoToList.classList.add('hidden'); dom.btnGoToForm.classList.remove('hidden');
+            dom.title.textContent = "Seguimiento"; dom.container.classList.add('wide');
         } else {
-            dom.viewList.classList.add('hidden');
-            dom.viewForm.classList.remove('hidden');
-            dom.btnGoToForm.classList.add('hidden');
-            dom.btnGoToList.classList.remove('hidden');
-            dom.title.textContent = "Registro Interno";
-            dom.container.classList.remove('wide');
+            dom.viewList.classList.add('hidden'); dom.viewForm.classList.remove('hidden');
+            dom.btnGoToForm.classList.add('hidden'); dom.btnGoToList.classList.remove('hidden');
+            dom.title.textContent = "Registro Interno"; dom.container.classList.remove('wide');
         }
     }
 
-    // =========================================================
-    // PARTE C: LÓGICA DEL FORMULARIO
-    // =========================================================
-    
     dom.search.addEventListener('input', async (e) => {
         const term = e.target.value.trim();
         if (term.length < 2) { dom.suggestions.style.display = 'none'; return; }
-
-        const { data, error } = await supabase.rpc('buscar_clientes_flex', { search_term: term });
-
-        if (error || !data || data.length === 0) { dom.suggestions.style.display = 'none'; return; }
-
-        dom.suggestions.innerHTML = data.map(c => `
-            <div class="suggestion-item" onclick='selectClient(${JSON.stringify(c)})'>
-                <strong>${c.nombre}</strong>
-                <span style="color:#6b7280; font-size:12px">Box: ${c.box} | Suc: ${c.sucursal || 'Centro'}</span>
-            </div>
-        `).join('');
+        const { data } = await supabase.rpc('buscar_clientes_flex', { search_term: term });
+        if (!data || data.length === 0) { dom.suggestions.style.display = 'none'; return; }
+        dom.suggestions.innerHTML = data.map(c => `<div class="suggestion-item" onclick='selectClient(${JSON.stringify(c)})'><strong>${c.nombre}</strong><span style="color:#6b7280; font-size:12px">Box: ${c.box} | Suc: ${c.sucursal || 'Centro'}</span></div>`).join('');
         dom.suggestions.style.display = 'block';
     });
 
@@ -296,122 +294,230 @@
         document.getElementById('dispNombre').textContent = c.nombre;
         document.getElementById('dispBox').textContent = c.box;
         document.getElementById('dispSucursal').textContent = c.sucursal || 'Centro';
-        
-        dom.h_nombre.value = c.nombre;
-        dom.h_box.value = c.box;
-        dom.h_sucursal.value = c.sucursal || 'Centro';
-
-        dom.clientCard.classList.add('active');
-        dom.suggestions.style.display = 'none';
+        dom.h_nombre.value = c.nombre; dom.h_box.value = c.box; dom.h_sucursal.value = c.sucursal || 'Centro';
+        document.getElementById('clientInfo').style.display = 'block'; dom.suggestions.style.display = 'none';
     };
-
-    document.addEventListener('click', (e) => {
-        if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) {
-            dom.suggestions.style.display = 'none';
-        }
-    });
+    
+    document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        dom.status.textContent = '';
-        
         const trk = dom.tracking.value.trim();
-        if (trk.length < 3 || !selectedClient) {
-            dom.status.textContent = '❌ Faltan datos';
-            dom.status.style.color = 'red';
-            return;
-        }
-
+        if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
         dom.btnGuardar.disabled = true;
-        
-        // Guardamos 'Sin info aún' en la columna seguimiento por defecto
         const { error } = await supabase.from('seguimiento_interno').insert([{
-            tracking: trk,
-            cliente_nombre: dom.h_nombre.value,
-            cliente_box: dom.h_box.value,
-            sucursal: dom.h_sucursal.value,
-            estado_alerta: 'Pendiente',
-            seguimiento: 'Sin info aún' 
+            tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún'
         }]);
-
         dom.btnGuardar.disabled = false;
-
-        if (error) {
-            dom.status.textContent = '❌ Error: ' + error.message;
-            dom.status.style.color = 'red';
-        } else {
-            dom.status.textContent = '✅ Guardado exitosamente';
-            dom.status.className = 'status-msg success';
-            dom.tracking.value = '';
-            dom.tracking.focus();
-        }
+        if (error) { dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; }
+        else { dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; dom.tracking.value = ''; dom.tracking.focus(); }
     });
 
     // =========================================================
-    // PARTE D: LÓGICA DE LA LISTA
+    // LÓGICA DE LISTA Y FILTROS
     // =========================================================
 
     async function loadPackages() {
-        dom.tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
-        dom.tableMsg.textContent = '';
-
+        dom.tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
+        
+        const trkTerm = dom.filterTracking.value.trim();
         const clientTerm = dom.filterClient.value.trim();
         const branch = dom.filterSucursal.value;
         const status = dom.filterStatus.value;
 
-        let query = supabase
-            .from('seguimiento_interno')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(50);
+        let query = supabase.from('seguimiento_interno').select('*').order('created_at', { ascending: false }).limit(100);
 
         if (branch !== 'Todas') query = query.eq('sucursal', branch);
-        if (status !== 'Todos') query = query.eq('estado_alerta', status);
         if (clientTerm) query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
+        if (trkTerm) query = query.ilike('tracking', `%${trkTerm}%`);
+
+        // FILTRO DE ESTADO
+        if (status === 'Activos') {
+            // OCULTAR SOLO "Recibido" (El usuario quiere ver Aduanas, Miami, ML, etc.)
+            query = query.neq('estado_alerta', 'Recibido');
+        } else if (status === 'Todos') {
+            // No filtrar nada
+        } else {
+            // Filtrar por estado específico
+            query = query.eq('estado_alerta', status);
+        }
 
         const { data, error } = await query;
+        if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
 
-        if (error) {
-            dom.tableMsg.textContent = 'Error al cargar datos.';
-            console.error(error);
-            return;
+        currentData = data;
+        if (currentData.length === 0) {
+            dom.tableBody.innerHTML = ''; dom.tableMsg.textContent = 'No se encontraron paquetes.'; return;
         }
-
-        if (data.length === 0) {
-            dom.tableBody.innerHTML = '';
-            dom.tableMsg.textContent = 'No se encontraron paquetes.';
-            return;
-        }
-
-        renderTable(data);
+        dom.tableMsg.textContent = '';
+        renderTable(currentData);
     }
 
     function renderTable(paquetes) {
         dom.tableBody.innerHTML = paquetes.map(p => {
-            const badgeClass = p.estado_alerta === 'Llegado' ? 'status-llegado' : 'status-pendiente';
-            const fecha = new Date(p.created_at).toLocaleDateString() + ' ' + new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            let badgeClass = 'st-pendiente';
+            const est = p.estado_alerta || 'Pendiente';
+            
+            if (est === 'Miami') badgeClass = 'st-miami';
+            else if (est === 'Tránsito') badgeClass = 'st-transito';
+            else if (est === 'Carga Peligrosa') badgeClass = 'st-dg';
+            else if (est === 'Aduanas') badgeClass = 'st-aduanas';
+            else if (est === 'Recibido') badgeClass = 'st-recibido'; // Verde Oscuro
+            else if (est === 'ML') badgeClass = 'st-ml';
+
+            const fecha = new Date(p.created_at).toLocaleDateString();
+            
+            // Botón Rayo solo si NO es recibido
+            const isRecibido = est === 'Recibido';
+            const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
+            const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
 
             return `
-                <tr>
+                <tr id="row-${p.id}">
+                    <td>
+                        <div class="action-row">
+                            <button class="action-btn ${btnClass}" ${btnAction} title="Verificar Status">
+                                <i data-lucide="zap" style="width:14px"></i>
+                            </button>
+                            <button class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}')" title="Editar">
+                                <i data-lucide="pencil" style="width:14px"></i>
+                            </button>
+                        </div>
+                    </td>
                     <td style="font-family:monospace; font-weight:600">${p.tracking}</td>
                     <td>
                         <div style="font-weight:600">${p.cliente_nombre}</div>
                         <div style="font-size:12px; color:#6b7280">${p.cliente_box}</div>
                     </td>
-                    <td class="col-seguimiento">${p.seguimiento || 'Sin info'}</td>
+                    <td class="col-seguimiento" id="seg-${p.id}">${p.seguimiento || 'Sin info'}</td>
                     <td>${p.sucursal}</td>
-                    <td><span class="status-badge ${badgeClass}">${p.estado_alerta}</span></td>
+                    <td><span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span></td>
                     <td style="font-size:12px">${fecha}</td>
                 </tr>
             `;
         }).join('');
+        lucide.createIcons();
     }
 
+    dom.btnUpdateMassive.addEventListener('click', async () => {
+        const pendientes = currentData.filter(p => p.estado_alerta !== 'Recibido');
+        if (pendientes.length === 0) { alert("No hay pendientes visibles."); return; }
+        if (!confirm(`Se actualizarán ${pendientes.length} paquetes. ¿Continuar?`)) return;
+
+        dom.progressBar.style.display = 'block';
+        dom.progressText.style.display = 'block';
+        dom.btnUpdateMassive.disabled = true;
+
+        let processed = 0;
+        for (const p of pendientes) {
+            dom.progressText.textContent = `Procesando ${processed + 1} de ${pendientes.length}...`;
+            dom.progressFill.style.width = `${((processed + 1) / pendientes.length) * 100}%`;
+            await checkStatus(p.id, p.tracking); // Usamos la nueva función checkStatus
+            await new Promise(r => setTimeout(r, 200));
+            processed++;
+        }
+
+        setTimeout(() => {
+            dom.progressBar.style.display = 'none'; dom.progressText.style.display = 'none';
+            dom.btnUpdateMassive.disabled = false;
+            loadPackages();
+        }, 1000);
+    });
+
+    // =========================================================
+    // CEREBRO DE LA OPERACIÓN (CHECK STATUS)
+    // =========================================================
+    
+    window.checkStatus = async (id, tracking) => {
+        const segCell = document.getElementById(`seg-${id}`);
+        const badge = document.getElementById(`badge-${id}`);
+        if(segCell) segCell.textContent = "⏳ Buscando...";
+
+        try {
+            // 1. BUSCAR EN TABLA MAESTRA (Inventario Real)
+            const { data: localData, error: localError } = await supabase
+                .from('paquetes')
+                .select('status, sucursal, fecha_recibido')
+                .eq('tracking', tracking)
+                .maybeSingle();
+
+            // SI EXISTE Y ESTÁ "EN SUCURSAL" O "ENTREGADO" -> ES RECIBIDO
+            if (!localError && localData && (localData.status === 'En Sucursal' || localData.status === 'Entregado')) {
+                const nuevoEstado = 'Recibido';
+                const detalle = `✅ Recibido en ${localData.sucursal || 'Bodega'}`;
+                
+                // Actualizar DB Interna
+                await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
+                
+                // Actualizar UI
+                if(segCell) segCell.textContent = detalle;
+                if(badge) { 
+                    badge.textContent = nuevoEstado; 
+                    badge.className = 'status-badge st-recibido'; 
+                }
+                return; // ¡Terminamos! No consultamos a Fuzion.
+            }
+
+            // 2. SI NO ESTÁ RECIBIDO, CONSULTAMOS FUZION
+            const { data, error } = await supabase.functions.invoke('consultar-fuzion', { body: { tracking: tracking } });
+            if (error) throw error;
+
+            const nuevoEstado = data.estado;
+            const detalle = data.detalle;
+
+            if(segCell) segCell.textContent = detalle;
+            if(badge) {
+                badge.textContent = nuevoEstado;
+                badge.className = 'status-badge ' + (
+                    nuevoEstado === 'Miami' ? 'st-miami' :
+                    nuevoEstado === 'Tránsito' ? 'st-transito' :
+                    nuevoEstado === 'Aduanas' ? 'st-aduanas' :
+                    nuevoEstado === 'ML' ? 'st-ml' : 'st-pendiente'
+                );
+            }
+
+            await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
+
+        } catch (err) {
+            console.error(err);
+            if(segCell) segCell.textContent = "Err";
+        }
+    };
+
+    window.openManualEdit = (id, tracking, estadoActual) => {
+        dom.editId.value = id;
+        dom.editTracking.value = tracking;
+        dom.editEstado.value = estadoActual;
+        dom.editNota.value = '';
+        dom.editModal.classList.remove('hidden');
+    };
+
+    window.closeModal = () => { dom.editModal.classList.add('hidden'); };
+
+    window.saveManualEdit = async () => {
+        const id = dom.editId.value;
+        const newTrack = dom.editTracking.value.trim();
+        const newEstado = dom.editEstado.value;
+        const nota = dom.editNota.value.trim();
+
+        if(!newTrack) return alert("Tracking obligatorio");
+
+        let detalle = "Actualizado Manualmente";
+        if(nota) detalle += `: ${nota}`;
+        
+        const { error } = await supabase.from('seguimiento_interno')
+            .update({ tracking: newTrack, estado_alerta: newEstado, seguimiento: detalle })
+            .eq('id', id);
+
+        if(error) alert("Error: " + error.message);
+        else { closeModal(); loadPackages(); }
+    };
+
     // Listeners
+    dom.filterTracking.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
     dom.filterClient.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
     dom.filterSucursal.addEventListener('change', loadPackages);
     dom.filterStatus.addEventListener('change', loadPackages);
-    dom.btnRefresh.addEventListener('click', loadPackages);
 
 </script>
 </body>
