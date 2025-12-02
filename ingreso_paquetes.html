@@ -52,8 +52,7 @@
       
       /* Estados */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
-      
-      .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+      .st-pendiente { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
       .st-transito { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
       .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; } 
@@ -86,17 +85,30 @@
       .client-info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
       .client-info-val { font-weight: 700; color: #1e40af; }
 
-      /* Modal */
+      /* Modales */
       .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
-      .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+      .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 80vh; overflow-y: auto; }
       .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
       .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
       
+      /* Estilo lista de coincidencias */
+      .match-item { border: 1px solid #e5e7eb; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; background: #f9fafb; transition: all 0.2s; }
+      .match-item:hover { background: #eff6ff; border-color: #bfdbfe; transform: translateX(2px); }
+      .match-title { font-weight: 700; font-size: 14px; color: #1f2937; margin-bottom: 4px; }
+      .match-sub { font-size: 12px; color: #6b7280; display: block; }
+      .match-highlight { color: #2563eb; font-weight: 600; }
+
       .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
       .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
       
+      /* Columnas Tabla */
+      td:nth-child(1) { min-width: 90px; } 
+      td:nth-child(2) { min-width: 140px; } 
+      td:nth-child(4) { min-width: 180px; } 
+      
       .col-seguimiento { font-size: 11px; color: #4b5563; line-height: 1.3; max-width: 200px; }
-      .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; }
+      .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+      .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -159,7 +171,8 @@
                             <th>Tracking</th>
                             <th>Cliente / Box</th>
                             <th>Info Seguimiento</th>
-                            <th>Nota</th> <th>Sucursal</th>
+                            <th>Nota</th>
+                            <th>Sucursal</th>
                             <th>Estado</th>
                             <th>Fecha</th>
                         </tr>
@@ -176,7 +189,6 @@
     <div class="modal-content">
         <h2 class="modal-title">Corrección Manual</h2>
         <input type="hidden" id="editId">
-        
         <div class="field"><label class="label">Corrección de Tracking</label><input type="text" id="editTracking"></div>
         <div class="field">
             <label class="label">Forzar Estado</label>
@@ -187,10 +199,23 @@
                 <option value="Aduanas">Aduanas</option>
             </select>
         </div>
-        <div class="field"><label class="label">Nota Personal (Se guarda en tabla)</label><input type="text" id="editNota" placeholder="Ej: Vinculado manual..."></div>
+        <div class="field"><label class="label">Nota Personal</label><input type="text" id="editNota" placeholder="Ej: Vinculado manual..."></div>
         <div class="modal-actions">
-            <button class="btn" style="background:#6b7280;" onclick="closeModal()">Cancelar</button>
+            <button class="btn" style="background:#6b7280;" onclick="closeEditModal()">Cancelar</button>
             <button class="btn" onclick="saveManualEdit()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div id="matchModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">
+            Se encontraron varios paquetes parecidos. Selecciona el correcto para vincular y actualizar el casillero:
+        </p>
+        <input type="hidden" id="matchTargetId">
+        <div id="matchList"></div> <div class="modal-actions">
+            <button class="btn" style="background:#6b7280;" onclick="closeMatchModal()">Cancelar</button>
         </div>
     </div>
 </div>
@@ -231,13 +256,16 @@
         editId: document.getElementById('editId'),
         editTracking: document.getElementById('editTracking'),
         editEstado: document.getElementById('editEstado'),
-        editNota: document.getElementById('editNota')
+        editNota: document.getElementById('editNota'),
+        matchModal: document.getElementById('matchModal'),
+        matchList: document.getElementById('matchList'),
+        matchTargetId: document.getElementById('matchTargetId')
     };
 
     let selectedClient = null;
     let currentData = [];
 
-    // --- FUNCIONES AUXILIARES ---
+    // --- UTILS ---
     function getTimestamp(val) {
         if (!val) return 0;
         const dateStr = typeof val === 'object' ? val.date : val;
@@ -251,19 +279,16 @@
     }
     init();
 
-    // 1. LIMPIEZA AUTOMÁTICA
+    // 1. LIMPIEZA
     async function autoCleanOldRecords() {
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 45); 
-
-        const { error, count } = await supabase
+        const { error } = await supabase
             .from('seguimiento_interno')
             .delete({ count: 'exact' })
             .lt('created_at', limitDate.toISOString())
             .eq('estado_alerta', 'Recibido'); 
-
         if (error) console.error("Error limpieza:", error);
-        else if (count > 0) console.log(`Limpieza: ${count} registros viejos borrados.`);
     }
 
     async function loadBranches() {
@@ -278,6 +303,7 @@
         }
     }
 
+    // --- NAVEGACIÓN ---
     dom.btnGoToList.addEventListener('click', () => { toggleView('list'); loadPackages(); });
     dom.btnGoToForm.addEventListener('click', () => { toggleView('form'); });
 
@@ -343,13 +369,9 @@
         if (clientTerm) query = query.or(`cliente_nombre.ilike.%${clientTerm}%,cliente_box.ilike.%${clientTerm}%`);
         if (trkTerm) query = query.ilike('tracking', `%${trkTerm}%`);
 
-        if (status === 'Activos') {
-            query = query.neq('estado_alerta', 'Recibido');
-        } else if (status === 'Todos') {
-            // Ver Todo
-        } else {
-            query = query.eq('estado_alerta', status);
-        }
+        if (status === 'Activos') query = query.neq('estado_alerta', 'Recibido');
+        else if (status === 'Todos') {} 
+        else query = query.eq('estado_alerta', status);
 
         const { data, error } = await query;
         if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
@@ -378,18 +400,23 @@
             const isRecibido = est === 'Recibido';
             const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
-            // Escapar comillas para evitar errores en JS
             const notaSafe = (p.nota || '').replace(/'/g, "\\'");
+            
+            // Mostrar si hay tracking vinculado
+            let trackingDisplay = p.tracking;
+            if (p.tracking_match && p.tracking_match !== p.tracking) {
+                trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
+            }
 
             return `
                 <tr id="row-${p.id}">
                     <td>
                         <div class="action-row">
-                            <button class="action-btn ${btnClass}" ${btnAction} title="Verificar Status"><i data-lucide="zap" style="width:14px"></i></button>
-                            <button class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}', '${notaSafe}')" title="Editar"><i data-lucide="pencil" style="width:14px"></i></button>
+                            <button type="button" class="action-btn ${btnClass}" ${btnAction} title="Verificar Status"><i data-lucide="zap" style="width:14px"></i></button>
+                            <button type="button" class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}', '${notaSafe}')" title="Editar"><i data-lucide="pencil" style="width:14px"></i></button>
                         </div>
                     </td>
-                    <td style="font-family:monospace; font-weight:600">${p.tracking}</td>
+                    <td style="font-family:monospace; font-weight:600">${trackingDisplay}</td>
                     <td><div style="font-weight:600">${p.cliente_nombre}</div><div style="font-size:12px; color:#6b7280">${p.cliente_box}</div></td>
                     <td class="col-seguimiento" id="seg-${p.id}">${p.seguimiento || 'Sin info'}</td>
                     <td class="col-nota">${p.nota || ''}</td>
@@ -422,29 +449,44 @@
         }, 1000);
     });
 
+    // =========================================================
+    // CEREBRO CHECK STATUS (CON SELECCIÓN DE MATCH)
+    // =========================================================
+    
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         const badge = document.getElementById(`badge-${id}`);
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // 1. REVISAR MAESTRA
-            const { data: localData, error: localError } = await supabase
-                .from('paquetes')
-                .select('status, sucursal')
-                .eq('tracking', tracking)
-                .maybeSingle();
+            // 1. BUSCAR EN 'PAQUETES_CARGADOS'
+            const { data: matches, error: localError } = await supabase
+                .from('paquetes_cargados')
+                .select('tracking, cliente_box, cliente_nombre, fecha_bodega, sucursal')
+                .ilike('tracking', `%${tracking}%`) // Búsqueda flexible
+                .limit(5); // Traer hasta 5 posibles
 
-            if (!localError && localData && (localData.status === 'En Sucursal' || localData.status === 'Entregado')) {
-                const nuevoEstado = 'Recibido';
-                const detalle = `✅ Recibido en ${localData.sucursal || 'Bodega'}`;
-                await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
+            if (!localError && matches && matches.length > 0) {
+                
+                // CASO A: Múltiples opciones -> Abrir Modal
+                if (matches.length > 1) {
+                    openMatchModal(id, matches);
+                    if(segCell) segCell.textContent = "⚠️ Múltiples opciones (Click para elegir)";
+                    return; 
+                }
+
+                // CASO B: 1 Coincidencia Única -> Auto-Link
+                const match = matches[0];
+                await applyMatch(id, match);
+                
+                // Actualizar UI rápido
+                const detalle = `✅ Recibido: ${match.cliente_nombre} (${match.cliente_box})`;
                 if(segCell) segCell.textContent = detalle;
-                if(badge) { badge.textContent = nuevoEstado; badge.className = 'status-badge st-recibido'; }
+                if(badge) { badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; }
                 return;
             }
 
-            // 2. REVISAR FUZION
+            // 2. CONSULTAR FUZION (Si no hay match local)
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -480,6 +522,9 @@
                 }
             }
 
+            // Actualizar DB con Fuzion
+            await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
+            
             if(segCell) segCell.textContent = detalle;
             if(badge) {
                 badge.textContent = nuevoEstado;
@@ -492,43 +537,74 @@
                 badge.className = `status-badge ${badgeClass}`;
             }
 
-            await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-
         } catch (err) {
             console.error(err);
             if(segCell) segCell.textContent = "Err";
         }
     };
 
+    // --- FUNCIÓN APPLY MATCH (El corazón de la vinculación) ---
+    async function applyMatch(rowId, matchData) {
+        const detalle = `✅ Recibido: ${matchData.cliente_nombre} (${matchData.cliente_box}) - ${new Date(matchData.fecha_bodega).toLocaleDateString()}`;
+        
+        await supabase.from('seguimiento_interno').update({
+            estado_alerta: 'Recibido',
+            seguimiento: detalle,
+            cliente_box: matchData.cliente_box, // RELLENAR BOX
+            tracking_match: matchData.tracking, // GUARDAR VINCULACIÓN
+            // sucursal: matchData.sucursal 
+        }).eq('id', rowId);
+    }
+
+    // --- MODALES ---
     window.openManualEdit = (id, tracking, estadoActual, notaActual) => {
         dom.editId.value = id;
         dom.editTracking.value = tracking;
         dom.editEstado.value = estadoActual;
-        dom.editNota.value = notaActual || ''; // Cargar nota existente
+        dom.editNota.value = notaActual || '';
         dom.editModal.classList.remove('hidden');
     };
-
-    window.closeModal = () => { dom.editModal.classList.add('hidden'); };
+    window.closeEditModal = () => { dom.editModal.classList.add('hidden'); };
 
     window.saveManualEdit = async () => {
         const id = dom.editId.value;
         const newTrack = dom.editTracking.value.trim();
         const newEstado = dom.editEstado.value;
         const nota = dom.editNota.value.trim();
-
         if(!newTrack) return alert("Tracking obligatorio");
 
-        // Guardamos la NOTA en su columna, NO en seguimiento
-        const updateData = {
-            tracking: newTrack,
-            estado_alerta: newEstado,
-            nota: nota
-        };
-
+        const updateData = { tracking: newTrack, estado_alerta: newEstado, nota: nota };
         const { error } = await supabase.from('seguimiento_interno').update(updateData).eq('id', id);
-
         if(error) alert("Error: " + error.message);
-        else { closeModal(); loadPackages(); }
+        else { closeEditModal(); loadPackages(); }
+    };
+
+    // Modal Match
+    window.openMatchModal = (id, matches) => {
+        dom.matchTargetId.value = id;
+        dom.matchList.innerHTML = matches.map((m, idx) => `
+            <div class="match-item" onclick="selectMatch(${idx})">
+                <div class="match-title">${m.tracking}</div>
+                <div class="match-sub"><span class="match-highlight">${m.cliente_nombre} (${m.cliente_box})</span></div>
+                <div class="match-sub">${new Date(m.fecha_bodega).toLocaleString()} | ${m.sucursal}</div>
+            </div>
+        `).join('');
+        dom.matchList.dataset.matches = JSON.stringify(matches);
+        dom.matchModal.classList.remove('hidden');
+    };
+
+    window.closeMatchModal = () => { dom.matchModal.classList.add('hidden'); };
+
+    window.selectMatch = async (index) => {
+        const id = dom.matchTargetId.value;
+        const matches = JSON.parse(dom.matchList.dataset.matches);
+        const selected = matches[index];
+
+        if (selected) {
+            await applyMatch(id, selected);
+            closeMatchModal();
+            loadPackages(); // Recargar para ver el cambio
+        }
     };
 
     dom.filterTracking.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPackages(); });
