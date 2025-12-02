@@ -51,9 +51,9 @@
       
       /* Badges y Botones */
       .days-badge { font-weight: bold; padding: 3px 8px; border-radius: 4px; font-size: 11px; display: inline-block; }
-      .bg-red { background: rgba(220, 38, 38, 0.2); color: #fca5a5; } /* Rojo Alerta */
+      .bg-red { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
       .bg-yellow { background: rgba(202, 138, 4, 0.2); color: #fde047; }
-      .bg-green { background: rgba(5, 150, 105, 0.2); color: #6ee7b7; } /* Verde OK */
+      .bg-green { background: rgba(5, 150, 105, 0.2); color: #6ee7b7; } 
 
       .btn-action { 
           background: var(--blue-btn); color: white; border: none; 
@@ -91,7 +91,7 @@
         
         <div class="alert-card type-danger">
             <div class="card-header">
-                <span>🛑 Sin Info (>10 días registro)</span>
+                <span>🛑 Críticos Sin Info (>10 días)</span>
                 <span id="count-danger" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
             </div>
             <div class="card-body" id="body-danger">
@@ -101,7 +101,7 @@
 
         <div class="alert-card type-warning">
             <div class="card-header">
-                <span>⚠️ Gestión ML (Vencidos >3 días)</span>
+                <span>⚠️ Gestión de ML (Activos)</span>
                 <span id="count-warning" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
             </div>
             <div class="card-body" id="body-warning">
@@ -120,7 +120,7 @@
     async function init() {
         await loadBranches();
         loadAlerts();
-        setInterval(loadAlerts, 60000); // 60s Refresh
+        setInterval(loadAlerts, 60000); // Auto-refresh cada minuto
     }
     init();
 
@@ -148,7 +148,7 @@
         const today = new Date();
         const limit10Days = new Date(); limit10Days.setDate(today.getDate() - 10);
 
-        // --- 1. ZOMBIES (Sin Info > 10 Días CREACIÓN) ---
+        // --- 1. ZOMBIES ---
         let qDanger = supabase
             .from('seguimiento_interno')
             .select('*')
@@ -161,7 +161,7 @@
         renderDangerTable(bodyDanger, dataDanger || []);
         document.getElementById('count-danger').textContent = dataDanger?.length || 0;
 
-        // --- 2. GESTIÓN ML (Todos los ML) ---
+        // --- 2. GESTIÓN ML (TODOS) ---
         let qWarning = supabase
             .from('seguimiento_interno')
             .select('*')
@@ -171,14 +171,19 @@
 
         const { data: dataWarning } = await qWarning;
         
-        // Ordenar: Vencidos primero, luego sin solicitar, luego esperando
+        // ORDENAMIENTO INTELIGENTE
+        // 1. Vencidos (Rojo)
+        // 2. Sin Solicitar (Necesitan acción)
+        // 3. Esperando (Verde - Todo bien por ahora)
         if (dataWarning) {
             dataWarning.sort((a, b) => {
                 const getScore = (item) => {
-                    if (!item.fecha_solicitud) return 2; // Sin solicitar (Medio)
-                    const dias = (new Date() - new Date(item.fecha_solicitud)) / 864e5;
-                    if (dias >= 3) return 1; // Vencido (Prioridad Alta)
-                    return 3; // Esperando (Baja)
+                    if (item.fecha_solicitud) {
+                        const dias = (new Date() - new Date(item.fecha_solicitud)) / 864e5;
+                        if (dias >= 3) return 1; // Vencido (Urgente)
+                        return 3; // Esperando (Tranquilo)
+                    }
+                    return 2; // Sin Solicitar (Acción necesaria)
                 };
                 return getScore(a) - getScore(b);
             });
@@ -186,18 +191,17 @@
 
         renderMLTable(bodyWarning, dataWarning || []);
         
-        // Contamos solo los VENCIDOS para el badge del header
-        const vencidosCount = (dataWarning || []).filter(p => {
-            if(!p.fecha_solicitud) return false;
+        // El contador del header muestra solo los que requieren acción (Vencidos + Sin Solicitar)
+        const actionCount = (dataWarning || []).filter(p => {
+            if (!p.fecha_solicitud) return true; // Sin solicitar
             const dias = (new Date() - new Date(p.fecha_solicitud)) / 864e5;
-            return dias >= 3;
+            return dias >= 3; // Vencido
         }).length;
-        document.getElementById('count-warning').textContent = vencidosCount;
+        document.getElementById('count-warning').textContent = actionCount;
         
         lucide.createIcons();
     }
 
-    // --- RENDER ZOMBIES (Rojos) ---
     function renderDangerTable(container, data) {
         if (data.length === 0) {
             container.innerHTML = `<div class="empty-state">Todo limpio.</div>`;
@@ -221,7 +225,6 @@
         container.innerHTML = `<table><thead><tr><th>Tracking</th><th style="text-align:right;">Antigüedad</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
-    // --- RENDER ML (Gestión) ---
     function renderMLTable(container, data) {
         if (data.length === 0) {
             container.innerHTML = `<div class="empty-state">Sin paquetes en ML.</div>`;
@@ -231,25 +234,24 @@
         const rows = data.map(p => {
             let accionHTML = '';
             
+            // LÓGICA DE VISUALIZACIÓN EXACTA
             if (!p.fecha_solicitud) {
-                // CASO A: NO SOLICITADO -> BOTÓN
+                // Caso: No se ha solicitado
                 accionHTML = `
                     <button class="btn-action" onclick="marcarSolicitado('${p.id}')">
-                        <i data-lucide="mail" width="14"></i> Solicitado
+                        <i data-lucide="mail" width="14"></i> Solicitar
                     </button>`;
             } else {
-                // CASO B: YA SOLICITADO -> CALCULAR TIEMPO DESDE SOLICITUD
+                // Caso: Ya se solicitó (calculamos días)
                 const fechaSol = new Date(p.fecha_solicitud);
                 const diasPasados = Math.floor((new Date() - fechaSol) / (1000 * 60 * 60 * 24));
                 
                 if (diasPasados >= 3) {
-                    // VENCIDO (>3 días)
                     accionHTML = `
                         <span class="days-badge bg-red">⚠️ Vencido (${diasPasados}d)</span>
                         <div class="small-text">Solicitado: ${fechaSol.toLocaleDateString()}</div>
                     `;
                 } else {
-                    // EN ESPERA (<3 días)
                     accionHTML = `
                         <span class="days-badge bg-green">⏳ Esperando (${diasPasados}d)</span>
                         <div class="small-text">Solicitado: ${fechaSol.toLocaleDateString()}</div>
@@ -273,18 +275,19 @@
         lucide.createIcons();
     }
 
-    // --- FUNCIÓN MARCAR SOLICITADO ---
+    // Función para marcar como solicitado desde el monitor
     window.marcarSolicitado = async (id) => {
         if (!confirm("¿Confirmas que has solicitado la información al cliente?")) return;
 
         const { error } = await supabase
             .from('seguimiento_interno')
-            .update({ fecha_solicitud: new Date().toISOString() }) // Se guarda la fecha actual
+            .update({ fecha_solicitud: new Date().toISOString() })
             .eq('id', id);
 
         if (error) {
             alert("Error al actualizar: " + error.message);
         } else {
+            // Recargar para ver el cambio inmediato
             loadAlerts();
         }
     };
