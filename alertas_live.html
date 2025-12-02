@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Alertas Live — PSC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🚨</text></svg>" />
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+      :root {
+        --bg: #111827; --fg: #f3f4f6; --card: #1f2937; --border: #374151;
+        --red-bg: #450a0a; --red-border: #7f1d1d; --red-text: #fecaca;
+        --yellow-bg: #422006; --yellow-border: #713f12; --yellow-text: #fde68a;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
+      
+      .container { max-width: 1200px; margin: 0 auto; }
+      
+      /* Header */
+      .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+      .title { font-size: 24px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
+      .live-indicator { font-size: 12px; background: #059669; color: white; padding: 2px 8px; border-radius: 12px; animation: pulse 2s infinite; }
+      
+      @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+      /* Filtros */
+      .controls { display: flex; gap: 15px; align-items: center; }
+      select { background: var(--card); color: white; border: 1px solid var(--border); padding: 10px; border-radius: 8px; outline: none; min-width: 200px; }
+      .btn-refresh { background: #2563eb; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+      .btn-refresh:hover { background: #1d4ed8; }
+
+      /* Grid de Alertas */
+      .alerts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      @media (max-width: 800px) { .alerts-grid { grid-template-columns: 1fr; } }
+
+      /* Tarjetas */
+      .alert-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+      .card-header { padding: 15px; font-weight: 700; font-size: 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.2); }
+      
+      /* Estilos Específicos */
+      .type-danger .card-header { background: var(--red-bg); color: var(--red-text); border-bottom-color: var(--red-border); }
+      .type-warning .card-header { background: var(--yellow-bg); color: var(--yellow-text); border-bottom-color: var(--yellow-border); }
+
+      .card-body { padding: 0; flex: 1; overflow-y: auto; max-height: 600px; }
+      
+      /* Tabla Interna */
+      table { width: 100%; border-collapse: collapse; }
+      th { text-align: left; padding: 10px 15px; font-size: 12px; color: #9ca3af; background: rgba(0,0,0,0.2); position: sticky; top: 0; }
+      td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 14px; }
+      tr:last-child td { border-bottom: none; }
+      
+      .days-badge { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+      .bg-red { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+      .bg-yellow { background: rgba(202, 138, 4, 0.2); color: #fde047; }
+
+      .empty-state { padding: 40px; text-align: center; color: #6b7280; font-style: italic; }
+      .loading { padding: 20px; text-align: center; color: #9ca3af; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1 class="title">
+            <span>🚨 Monitor de Riesgos</span>
+            <span class="live-indicator">● LIVE</span>
+        </h1>
+        
+        <div class="controls">
+            <select id="filterSucursal" onchange="loadAlerts()">
+                <option value="Todas">Cargando sucursales...</option>
+            </select>
+            <button class="btn-refresh" onclick="loadAlerts()">
+                <i data-lucide="refresh-cw" style="width: 16px;"></i> Actualizar
+            </button>
+        </div>
+    </div>
+
+    <div class="alerts-grid">
+        
+        <div class="alert-card type-danger">
+            <div class="card-header">
+                <span>🛑 Críticos Sin Info (>10 días)</span>
+                <span id="count-danger" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
+            </div>
+            <div class="card-body" id="body-danger">
+                <div class="loading">Cargando...</div>
+            </div>
+        </div>
+
+        <div class="alert-card type-warning">
+            <div class="card-header">
+                <span>⚠️ Estancados en ML (>3 días)</span>
+                <span id="count-warning" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
+            </div>
+            <div class="card-body" id="body-warning">
+                <div class="loading">Cargando...</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    if (typeof window.PSC_CONFIG === 'undefined') alert("Error: Falta config.js");
+    const supabase = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+    lucide.createIcons();
+
+    // --- CARGA INICIAL ---
+    async function init() {
+        await loadBranches();
+        loadAlerts();
+        
+        // Auto-refresh cada 60 segundos
+        setInterval(loadAlerts, 60000);
+    }
+    init();
+
+    async function loadBranches() {
+        const { data } = await supabase.from('sucursales').select('sucursal').order('sucursal', { ascending: true });
+        const select = document.getElementById('filterSucursal');
+        if (data) {
+            select.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
+            data.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.sucursal; opt.textContent = s.sucursal;
+                select.appendChild(opt);
+            });
+        }
+    }
+
+    async function loadAlerts() {
+        const sucursal = document.getElementById('filterSucursal').value;
+        const bodyDanger = document.getElementById('body-danger');
+        const bodyWarning = document.getElementById('body-warning');
+        
+        // Set loading states
+        bodyDanger.innerHTML = '<div class="loading">Buscando paquetes perdidos...</div>';
+        bodyWarning.innerHTML = '<div class="loading">Analizando ML...</div>';
+
+        // FECHAS LIMITE
+        const today = new Date();
+        
+        const limit10Days = new Date();
+        limit10Days.setDate(today.getDate() - 10);
+        
+        const limit3Days = new Date();
+        limit3Days.setDate(today.getDate() - 3);
+
+        // --- CONSULTA 1: ZOMBIES (SIN INFO > 10 DIAS) ---
+        let qDanger = supabase
+            .from('seguimiento_interno')
+            .select('*')
+            .lt('created_at', limit10Days.toISOString()) // Más viejos de 10 días
+            // Estados que se consideran "Sin Info" o "Perdidos" (No Miami, No Panama, No ML)
+            .in('estado_alerta', ['Pendiente', 'No Info']); 
+
+        if (sucursal !== 'Todas') qDanger = qDanger.eq('sucursal', sucursal);
+        
+        const { data: dataDanger } = await qDanger;
+        renderTable(bodyDanger, dataDanger || [], 'danger');
+        document.getElementById('count-danger').textContent = dataDanger?.length || 0;
+
+
+        // --- CONSULTA 2: ML ESTANCADOS (> 3 DIAS) ---
+        let qWarning = supabase
+            .from('seguimiento_interno')
+            .select('*')
+            .eq('estado_alerta', 'ML') // Solo ML
+            .lt('created_at', limit3Days.toISOString()); // Más viejos de 3 días
+
+        if (sucursal !== 'Todas') qWarning = qWarning.eq('sucursal', sucursal);
+
+        const { data: dataWarning } = await qWarning;
+        renderTable(bodyWarning, dataWarning || [], 'warning');
+        document.getElementById('count-warning').textContent = dataWarning?.length || 0;
+    }
+
+    function renderTable(container, data, type) {
+        if (data.length === 0) {
+            container.innerHTML = `<div class="empty-state">Todo limpio. No hay alertas.</div>`;
+            return;
+        }
+
+        const rows = data.map(p => {
+            const fecha = new Date(p.created_at);
+            const hoy = new Date();
+            const dias = Math.floor((hoy - fecha) / (1000 * 60 * 60 * 24));
+            
+            const badgeClass = type === 'danger' ? 'bg-red' : 'bg-yellow';
+
+            return `
+                <tr>
+                    <td>
+                        <div style="font-weight:bold; color: white;">${p.tracking}</div>
+                        <div style="font-size:12px; color:#9ca3af;">${p.cliente_nombre}</div>
+                    </td>
+                    <td>
+                        <div style="font-size:13px;">${p.cliente_box}</div>
+                        <div style="font-size:11px; color:#6b7280;">${p.sucursal}</div>
+                    </td>
+                    <td style="text-align:right;">
+                        <span class="days-badge ${badgeClass}">${dias} días</span>
+                        <div style="font-size:10px; color:#6b7280; margin-top:2px;">${fecha.toLocaleDateString()}</div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tracking / Cliente</th>
+                        <th>Box / Sucursal</th>
+                        <th style="text-align:right;">Antigüedad</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+    }
+</script>
+
+</body>
+</html>
