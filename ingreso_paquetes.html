@@ -32,21 +32,21 @@
       .field { margin-bottom: 16px; position: relative; z-index: 5; }
       .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
       
-      /* --- FIX INPUTS (CRÍTICO) --- */
+      /* --- INPUTS BLINDADOS --- */
       input, select { 
           width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); 
           border-radius: 8px; font-size: 15px; outline: none; 
-          
-          /* FORZAR COLORES PARA EVITAR TEXTO INVISIBLE */
           background-color: #ffffff !important; 
-          color: #000000 !important; 
-          -webkit-text-fill-color: #000000 !important;
+          color: #111827 !important; /* Negro oscuro */
+          -webkit-text-fill-color: #111827 !important;
           opacity: 1 !important;
-          
           position: relative; z-index: 10; 
       }
       input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
       
+      /* Específico para filtros por si acaso */
+      #filterTracking, #filterClient { color: #000 !important; background: #fff !important; }
+
       .btn { width: 100%; height: 44px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; position: relative; z-index: 10; }
       .btn:hover { background: var(--primary-hover); }
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
@@ -62,12 +62,10 @@
       td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
       tr:last-child td { border-bottom: none; }
       
-      /* Columnas */
       td:nth-child(1) { min-width: 120px; } 
       td:nth-child(2) { min-width: 140px; } 
       td:nth-child(4) { min-width: 180px; } 
 
-      /* Paginación */
       .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); }
       .page-info { font-size: 13px; color: #6b7280; }
       .page-controls { display: flex; gap: 10px; }
@@ -75,7 +73,6 @@
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
-      /* Estados */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
@@ -181,8 +178,8 @@
             <p id="progressText" style="font-size:12px; text-align:center; color:#6b7280; margin-bottom:10px; display:none;"></p>
 
             <div class="filters-grid">
-                <input type="text" id="filterTracking" placeholder="🔍 Tracking...">
-                <input type="text" id="filterClient" placeholder="👤 Cliente/Box...">
+                <input type="text" id="filterTracking" placeholder="🔍 Buscar Tracking...">
+                <input type="text" id="filterClient" placeholder="👤 Buscar Cliente/Box...">
                 <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
                 <select id="filterStatus">
                     <option value="Activos">Activos (Ocultar Recibidos)</option>
@@ -299,7 +296,6 @@
         matchModal: document.getElementById('matchModal'),
         matchList: document.getElementById('matchList'),
         matchTargetId: document.getElementById('matchTargetId'),
-        // Paginación
         btnPrev: document.getElementById('btnPrev'),
         btnNext: document.getElementById('btnNext'),
         pageInfo: document.getElementById('pageInfo')
@@ -308,10 +304,11 @@
     let selectedClient = null;
     let currentData = [];
     
-    // VARIABLES PAGINACIÓN
+    // PAGINACIÓN Y BÚSQUEDA
     let currentPage = 1;
     const pageSize = 50;
     let totalItems = 0;
+    let searchDebounce = null;
 
     // --- UTILS ---
     function getTimestamp(val) {
@@ -327,7 +324,6 @@
     }
     init();
 
-    // 1. LIMPIEZA
     async function autoCleanOldRecords() {
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 45); 
@@ -407,7 +403,6 @@
     async function loadPackages() {
         dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         
-        // Rango
         const from = (currentPage - 1) * pageSize;
         const to = from + pageSize - 1;
 
@@ -444,16 +439,21 @@
     function updatePaginationUI() {
         const totalPages = Math.ceil(totalItems / pageSize);
         dom.pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1} (Total: ${totalItems})`;
-        
         dom.btnPrev.disabled = currentPage === 1;
         dom.btnNext.disabled = currentPage >= totalPages;
     }
 
-    // Botones Paginación
     dom.btnPrev.onclick = () => { if(currentPage > 1) { currentPage--; loadPackages(); } };
     dom.btnNext.onclick = () => { currentPage++; loadPackages(); };
 
-    const resetPage = () => { currentPage = 1; loadPackages(); };
+    // --- LIVE FILTERING (Debounce 500ms) ---
+    const liveSearch = () => {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+            currentPage = 1; 
+            loadPackages();
+        }, 500);
+    };
 
     function renderTable(paquetes) {
         dom.tableBody.innerHTML = paquetes.map(p => {
@@ -595,7 +595,7 @@
 
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
             
-            if(nuevoEstado === 'ML') loadPackages(); // Recargar para mostrar botones
+            if(nuevoEstado === 'ML') loadPackages(); 
             else {
                 if(segCell) segCell.textContent = detalle;
                 if(badge) {
@@ -623,12 +623,13 @@
         const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
         const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
         
-        await supabase.from('seguimiento_interno').update({
+        const updatePayload = {
             estado_alerta: 'Recibido',
             seguimiento: detalle,
             cliente_box: box, 
             tracking_match: matchData.tracking
-        }).eq('id', rowId);
+        };
+        await supabase.from('seguimiento_interno').update(updatePayload).eq('id', rowId);
     }
 
     // --- MODALES ---
@@ -684,11 +685,11 @@
         }
     };
 
-    // Listeners
-    dom.filterTracking.onkeydown = (e) => e.key === 'Enter' && resetPage();
-    dom.filterClient.onkeydown = (e) => e.key === 'Enter' && resetPage();
-    dom.filterSucursal.onchange = resetPage;
-    dom.filterStatus.onchange = resetPage;
+    // Listeners LIVE Filtering
+    dom.filterTracking.oninput = liveSearch;
+    dom.filterClient.oninput = liveSearch;
+    dom.filterSucursal.onchange = liveSearch;
+    dom.filterStatus.onchange = liveSearch;
     
     dom.btnUpdateMassive.onclick = async () => {
         const pends = currentData.filter(p => p.estado_alerta !== 'Recibido');
