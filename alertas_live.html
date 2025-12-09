@@ -91,7 +91,7 @@
         
         <div class="alert-card type-danger">
             <div class="card-header">
-                <span>🛑 Críticos Sin Info (>10 días)</span>
+                <span>🛑 Sin Info (>5 días)</span>
                 <span id="count-danger" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
             </div>
             <div class="card-body" id="body-danger">
@@ -120,7 +120,7 @@
     async function init() {
         await loadBranches();
         loadAlerts();
-        setInterval(loadAlerts, 60000); // Auto-refresh cada minuto
+        setInterval(loadAlerts, 60000); // Auto-refresh 1 min
     }
     init();
 
@@ -146,13 +146,14 @@
         bodyWarning.innerHTML = '<div class="loading">Analizando...</div>';
 
         const today = new Date();
-        const limit10Days = new Date(); limit10Days.setDate(today.getDate() - 10);
+        const limit5Days = new Date(); 
+        limit5Days.setDate(today.getDate() - 5); // --- CAMBIO: 5 DÍAS ---
 
-        // --- 1. ZOMBIES ---
+        // --- 1. ZOMBIES (Sin Info > 5 Días CREACIÓN) ---
         let qDanger = supabase
             .from('seguimiento_interno')
             .select('*')
-            .lt('created_at', limit10Days.toISOString())
+            .lt('created_at', limit5Days.toISOString())
             .in('estado_alerta', ['Pendiente', 'No Info']); 
 
         if (sucursal !== 'Todas') qDanger = qDanger.eq('sucursal', sucursal);
@@ -171,19 +172,13 @@
 
         const { data: dataWarning } = await qWarning;
         
-        // ORDENAMIENTO INTELIGENTE
-        // 1. Vencidos (Rojo)
-        // 2. Sin Solicitar (Necesitan acción)
-        // 3. Esperando (Verde - Todo bien por ahora)
         if (dataWarning) {
             dataWarning.sort((a, b) => {
                 const getScore = (item) => {
-                    if (item.fecha_solicitud) {
-                        const dias = (new Date() - new Date(item.fecha_solicitud)) / 864e5;
-                        if (dias >= 3) return 1; // Vencido (Urgente)
-                        return 3; // Esperando (Tranquilo)
-                    }
-                    return 2; // Sin Solicitar (Acción necesaria)
+                    if (!item.fecha_solicitud) return 2; 
+                    const dias = (new Date() - new Date(item.fecha_solicitud)) / 864e5;
+                    if (dias >= 3) return 1; 
+                    return 3; 
                 };
                 return getScore(a) - getScore(b);
             });
@@ -191,17 +186,17 @@
 
         renderMLTable(bodyWarning, dataWarning || []);
         
-        // El contador del header muestra solo los que requieren acción (Vencidos + Sin Solicitar)
         const actionCount = (dataWarning || []).filter(p => {
-            if (!p.fecha_solicitud) return true; // Sin solicitar
+            if (!p.fecha_solicitud) return true; 
             const dias = (new Date() - new Date(p.fecha_solicitud)) / 864e5;
-            return dias >= 3; // Vencido
+            return dias >= 3; 
         }).length;
         document.getElementById('count-warning').textContent = actionCount;
         
         lucide.createIcons();
     }
 
+    // --- RENDER ZOMBIES (Rojos) ---
     function renderDangerTable(container, data) {
         if (data.length === 0) {
             container.innerHTML = `<div class="empty-state">Todo limpio.</div>`;
@@ -210,6 +205,11 @@
         const rows = data.map(p => {
             const fecha = new Date(p.created_at);
             const dias = Math.floor((new Date() - fecha) / (1000 * 60 * 60 * 24));
+            
+            // Calculamos el retraso restando los 5 días de gracia
+            const retraso = dias - 5;
+            const textoRetraso = retraso > 0 ? `(+${retraso}d retraso)` : '';
+
             return `
                 <tr>
                     <td>
@@ -217,7 +217,8 @@
                         <div style="font-size:12px; color:#9ca3af;">${p.cliente_nombre}</div>
                     </td>
                     <td style="text-align:right;">
-                        <span class="days-badge bg-red">${dias} días</span>
+                        <span class="days-badge bg-red">${dias} días total</span>
+                        <div class="small-text" style="color:#fca5a5; font-weight:bold;">${textoRetraso}</div>
                         <div class="small-text">Registrado: ${fecha.toLocaleDateString()}</div>
                     </td>
                 </tr>`;
@@ -225,6 +226,7 @@
         container.innerHTML = `<table><thead><tr><th>Tracking</th><th style="text-align:right;">Antigüedad</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
+    // --- RENDER ML (Gestión Completa) ---
     function renderMLTable(container, data) {
         if (data.length === 0) {
             container.innerHTML = `<div class="empty-state">Sin paquetes en ML.</div>`;
@@ -234,15 +236,12 @@
         const rows = data.map(p => {
             let accionHTML = '';
             
-            // LÓGICA DE VISUALIZACIÓN EXACTA
             if (!p.fecha_solicitud) {
-                // Caso: No se ha solicitado
                 accionHTML = `
                     <button class="btn-action" onclick="marcarSolicitado('${p.id}')">
-                        <i data-lucide="mail" width="14"></i> Solicitado
+                        <i data-lucide="mail" width="14"></i> Solicitar
                     </button>`;
             } else {
-                // Caso: Ya se solicitó (calculamos días)
                 const fechaSol = new Date(p.fecha_solicitud);
                 const diasPasados = Math.floor((new Date() - fechaSol) / (1000 * 60 * 60 * 24));
                 
@@ -275,7 +274,7 @@
         lucide.createIcons();
     }
 
-    // Función para marcar como solicitado desde el monitor
+    // --- FUNCIÓN MARCAR SOLICITADO ---
     window.marcarSolicitado = async (id) => {
         if (!confirm("¿Confirmas que has solicitado la información al cliente?")) return;
 
@@ -287,7 +286,6 @@
         if (error) {
             alert("Error al actualizar: " + error.message);
         } else {
-            // Recargar para ver el cambio inmediato
             loadAlerts();
         }
     };
