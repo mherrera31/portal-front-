@@ -19,42 +19,59 @@
       * { box-sizing: border-box; }
       body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
-      .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; }
+      .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; position: relative; z-index: 1; }
       .container.wide { max-width: 1200px; }
 
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: hidden; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: visible; position: relative; z-index: 2; }
       
       .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
       .title { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
       .nav-btn { background: none; border: none; cursor: pointer; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 6px; padding: 8px; border-radius: 6px; }
       .nav-btn:hover { background-color: #eff6ff; }
 
-      .field { margin-bottom: 16px; position: relative; }
+      .field { margin-bottom: 16px; position: relative; z-index: 5; }
       .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
       
-      input, select { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; background: #fff; }
+      /* --- FIX INPUTS (CRÍTICO) --- */
+      input, select { 
+          width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); 
+          border-radius: 8px; font-size: 15px; outline: none; 
+          
+          /* FORZAR COLORES PARA EVITAR TEXTO INVISIBLE */
+          background-color: #ffffff !important; 
+          color: #000000 !important; 
+          -webkit-text-fill-color: #000000 !important;
+          opacity: 1 !important;
+          
+          position: relative; z-index: 10; 
+      }
       input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
       
-      .btn { width: 100%; height: 44px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; }
+      .btn { width: 100%; height: 44px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; position: relative; z-index: 10; }
       .btn:hover { background: var(--primary-hover); }
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
       .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
-      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; }
+      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
       @media (max-width: 800px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
       @media (max-width: 500px) { .filters-grid { grid-template-columns: 1fr; } }
 
-      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 65vh; }
+      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 70vh; position: relative; z-index: 1; }
       table { width: 100%; border-collapse: collapse; min-width: 900px; }
       th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
       td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
       tr:last-child td { border-bottom: none; }
       
-      /* PAGINACIÓN */
+      /* Columnas */
+      td:nth-child(1) { min-width: 120px; } 
+      td:nth-child(2) { min-width: 140px; } 
+      td:nth-child(4) { min-width: 180px; } 
+
+      /* Paginación */
       .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); }
       .page-info { font-size: 13px; color: #6b7280; }
       .page-controls { display: flex; gap: 10px; }
-      .btn-page { padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+      .btn-page { padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-size: 13px; z-index: 10; position:relative; color: #000; }
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
@@ -68,7 +85,7 @@
       .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } 
       .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 
-      .hidden { display: none !important; }
+      .hidden { display: none !important; visibility: hidden !important; pointer-events: none !important; }
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
       .status-msg.success { color: #059669; }
       
@@ -94,7 +111,7 @@
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
         border: 1px solid var(--border); background-color: white;
-        max-height: 200px; overflow-y: auto; z-index: 50;
+        max-height: 200px; overflow-y: auto; z-index: 100;
         border-radius: 0 0 8px 8px; box-shadow: var(--shadow); display: none;
       }
       .suggestion-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
@@ -106,7 +123,11 @@
       .client-info-val { font-weight: 700; color: #1e40af; }
 
       /* Modales */
-      .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+      .modal-overlay { 
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+          background: rgba(0,0,0,0.5); display: flex; align-items: center; 
+          justify-content: center; z-index: 9999 !important; 
+      }
       .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 80vh; overflow-y: auto; }
       .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
       .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
@@ -119,10 +140,6 @@
 
       .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
       .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
-      
-      td:nth-child(1) { min-width: 120px; } 
-      td:nth-child(2) { min-width: 140px; } 
-      td:nth-child(4) { min-width: 180px; } 
       
       .col-seguimiento { font-size: 11px; color: #4b5563; line-height: 1.3; max-width: 200px; }
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
@@ -233,7 +250,7 @@
 <div id="matchModal" class="modal-overlay hidden">
     <div class="modal-content">
         <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
-        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios. Elige el correcto:</p>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios paquetes parecidos en inventario:</p>
         <input type="hidden" id="matchTargetId">
         <div id="matchList"></div>
         <div class="modal-actions">
@@ -339,7 +356,7 @@
         dom.viewForm.classList.add('hidden'); dom.viewList.classList.remove('hidden');
         dom.btnGoToList.classList.add('hidden'); dom.btnGoToForm.classList.remove('hidden');
         dom.title.textContent = "Seguimiento"; dom.container.classList.add('wide');
-        loadPackages(); // Cargar primera página
+        loadPackages(); 
     });
     
     dom.btnGoToForm.addEventListener('click', () => { 
@@ -390,15 +407,15 @@
     async function loadPackages() {
         dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         
-        // Calcular Rango
+        // Rango
         const from = (currentPage - 1) * pageSize;
         const to = from + pageSize - 1;
 
         let query = supabase
             .from('seguimiento_interno')
-            .select('*', { count: 'exact' }) // Pedimos el total exacto
+            .select('*', { count: 'exact' }) 
             .order('created_at', { ascending: false })
-            .range(from, to); // Solo traemos 50 filas
+            .range(from, to); 
 
         // Filtros
         if (dom.filterSucursal.value !== 'Todas') query = query.eq('sucursal', dom.filterSucursal.value);
@@ -432,11 +449,10 @@
         dom.btnNext.disabled = currentPage >= totalPages;
     }
 
-    // Botones de Paginación
+    // Botones Paginación
     dom.btnPrev.onclick = () => { if(currentPage > 1) { currentPage--; loadPackages(); } };
     dom.btnNext.onclick = () => { currentPage++; loadPackages(); };
 
-    // Resetear a página 1 al filtrar
     const resetPage = () => { currentPage = 1; loadPackages(); };
 
     function renderTable(paquetes) {
@@ -462,7 +478,7 @@
             let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
             if (est === 'ML') {
                 if (!p.fecha_solicitud) {
-                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitado</button>`;
+                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitar</button>`;
                 } else {
                     const dias = Math.floor((new Date() - new Date(p.fecha_solicitud)) / (1000 * 60 * 60 * 24));
                     if (dias >= 3) estadoHtml += ` <span class="ml-status-text ml-vencido">⚠️ Vencido (${dias}d)</span>`;
@@ -470,7 +486,6 @@
                 }
             }
 
-            // Botones
             const isRecibido = est === 'Recibido';
             const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
@@ -521,9 +536,11 @@
             // 1. LOCAL
             const { data: matches, error: localError } = await supabase
                 .from('paquetes_cargados')
-                .select('*') // Trae todas las columnas para evitar errores de nombres
+                .select('*')
                 .ilike('tracking', `%${tracking}%`)
                 .limit(5);
+
+            if (localError) console.warn("Error local:", localError);
 
             if (!localError && matches && matches.length > 0) {
                 if (matches.length > 1) {
@@ -534,7 +551,6 @@
                 const match = matches[0];
                 await applyMatch(id, match);
                 
-                // Intentar leer nombres comunes
                 const box = match.cliente_box || match.box || "S/Box";
                 const nombre = match.cliente_nombre || match.cliente || "Cliente";
                 const detalle = `✅ Recibido: ${nombre} (${box})`;
@@ -607,14 +623,12 @@
         const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
         const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
         
-        const updatePayload = {
+        await supabase.from('seguimiento_interno').update({
             estado_alerta: 'Recibido',
             seguimiento: detalle,
+            cliente_box: box, 
             tracking_match: matchData.tracking
-        };
-        if (box) updatePayload.cliente_box = box;
-
-        await supabase.from('seguimiento_interno').update(updatePayload).eq('id', rowId);
+        }).eq('id', rowId);
     }
 
     // --- MODALES ---
