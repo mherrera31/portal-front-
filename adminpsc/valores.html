@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PSC · Cargar Valores (Update)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="./portal.css">
+  <style>
+    :root{ --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb; --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; --sel:#2325d4; }
+    *{box-sizing:border-box}
+    html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:'Poppins',system-ui,-apple-system,sans-serif; }
+    
+    .wrap{max-width:1100px;margin:16px auto 24px;padding:0 12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.04)}
+    header.card{padding:16px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+    header h1{font-size:18px;margin:0;font-weight:700}
+    
+    .controls{padding:16px}
+    .controls .group{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    
+    textarea.paste{width:100%;min-height:160px;border:1px dashed var(--border);border-radius:16px;padding:14px;font-family:monospace;outline:none}
+    .hint{font-size:12px;color:var(--muted); margin-top:8px;}
+    
+    .table-wrap{margin-top:14px;border-top:1px solid var(--border)}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#fff;font-size:12px;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);padding:10px}
+    tbody td{padding:10px;border-bottom:1px solid #f1f2f4;font-size:13px}
+    tbody tr:nth-child(even){background:#fafafa}
+    
+    /* Estados de filas */
+    tbody tr.found{background:#f0fdf4} /* Verde suave (Encontrado) */
+    tbody tr.not-found{background:#f3f4f6; color:var(--muted); opacity: 0.7;} /* Gris (No existe) */
+    tbody tr.has-value{background:#fff7ed} /* Naranja suave (Advertencia) */
+
+    .badge{border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
+    .badge.ok{border-color:var(--ok);color:var(--ok);background:#dcfce7}
+    .badge.no{border-color:var(--muted);color:var(--muted);background:#f3f4f6}
+    .badge.warn{border-color:var(--warn);color:#92400e;background:#fef3c7}
+
+    .right{display:flex;gap:8px;align-items:center}
+    .stats{display:flex;gap:14px;align-items:center}
+    .stat{font-size:12px;color:var(--muted)}
+    .stat b{color:var(--fg)}
+    
+    .toast{margin-top:8px;font-size:13px}
+    .toast.ok{color:var(--ok)}
+    .toast.err{color:var(--err)}
+    
+    .loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.6);backdrop-filter:blur(2px);z-index:50}
+    .loading.show{display:flex}
+    .spinner{width:36px;height:36px;border-radius:50%;border:3px solid #ddd;border-top-color:#333;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    
+    /* Ocultar elementos legacy igual que en el original */
+    body > header:not(.psc-header), body > nav:not(.psc-header), .app-bar { display:none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="card">
+      <h1>PSC — Cargar Valores (Update)</h1>
+      <div class="right">
+        <div class="stats">
+          <div class="stat">Leídos: <b id="statRows">0</b></div>
+          <div class="stat">Encontrados DB: <b id="statFound">0</b></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="card controls">
+      <div class="group" style="justify-content:space-between;width:100%">
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">Tabla Destino</div>
+          <select id="selTable" style="padding:4px;border-radius:6px;border:1px solid #ddd">
+            <option value="paquetes" selected>paquetes</option>
+            <option value="paquetes_cargados">paquetes_cargados</option>
+          </select>
+        </div>
+        <div class="right">
+          <button class="btn" id="btnClear">Limpiar</button>
+          <button class="btn primary" id="btnUpdate" disabled>Actualizar Valores</button>
+        </div>
+      </div>
+      
+      <div style="margin-top:12px">
+        <div style="font-weight:600;margin-bottom:6px">Pegar lista (Tracking y Valor)</div>
+        <textarea id="txtPaste" class="paste" placeholder="Ejemplo:&#10;940015089956...  25.50&#10;TBA326474...       10.00"></textarea>
+        <div class="hint">
+          <b>Formato esperado:</b> Columna 1 = Tracking, Última Columna = Valor ($).<br>
+          El sistema buscará el tracking y actualizará el campo <code>valor</code>.
+        </div>
+      </div>
+      <div id="toast" class="toast"></div>
+    </div>
+
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50px">#</th>
+            <th>Tracking Detectado</th>
+            <th>Valor Detectado</th>
+            <th>Estado en DB</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="loading" id="loading"><div class="spinner"></div></div>
+
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  // ============ Configuración ============
+  const $ = (s)=>document.querySelector(s);
+  const showLoading = (on)=> $('#loading').classList.toggle('show', !!on);
+  const toast = (msg, type='')=>{ const t=$('#toast'); t.className='toast '+type; t.textContent=msg||'' }
+
+  const CFG  = window.PSC_CONFIG || window.__PSC_CONFIG__ || {};
+  const API_BASE = (CFG.url || CFG.supabaseUrl || '').replace(/\/$/, '');
+  const API_KEY  = (CFG.apikey || CFG.anonKey || CFG.publicAnonKey || '');
+
+  // Wrapper simple para fetch a Supabase
+  async function rest(path, {method='GET', body, headers={}}={}){
+    if(!API_BASE||!API_KEY) throw new Error('Falta configuración de Supabase.');
+    const res = await fetch(`${API_BASE}${path}`,{
+      method,
+      headers:{
+        'apikey': API_KEY,
+        'Authorization': 'Bearer '+API_KEY,
+        'Content-Type':'application/json',
+        ...headers
+      },
+      body: body? JSON.stringify(body): undefined
+    });
+    if(!res.ok){
+      let detail=''; try{ detail = await res.text() }catch(_){}
+      throw new Error(`HTTP ${res.status} - ${detail}`);
+    }
+    const ct=res.headers.get('content-type')||'';
+    if(ct.includes('application/json')) return res.json();
+    return res;
+  }
+
+  // ============ Lógica Principal ============
+  let rows = []; // { tracking, valor, dbId, dbValor, found }
+
+  // 1. Parsear el texto pegado
+  function parsePasted(text){
+    const out=[];
+    const lines = String(text||'').split(/\r?\n/).filter(l=>l.trim());
+    
+    for(const ln of lines){
+      // Dividir por tab o espacios múltiples
+      const parts = ln.split(/\t|\s{2,}/).map(s=>s.trim()).filter(Boolean);
+      if(parts.length < 2) continue; // Necesitamos al menos tracking y valor
+
+      // Asumimos: Columna 0 es Tracking. La ÚLTIMA columna es Valor.
+      // Esto permite formatos: [Tracking, Peso, Valor] o [Tracking, Valor]
+      let rawTrack = parts[0];
+      let rawVal   = parts[parts.length - 1]; // Tomar el último
+
+      // Limpieza de Tracking (igual que page1)
+      let tracking = rawTrack.replace(/\]c1|\+c1|\||\]/gi,'').replace(/[\\/]+/g,' ').trim();
+
+      // Limpieza de Valor (quitar $, comas si es formato USA, o manejar formato ES)
+      // Asumimos formato estándar: 1200.50 o $1,200.50
+      let valClean = rawVal.replace('$','').replace(/,/g,''); // Quita comas (miles)
+      let valor = parseFloat(valClean);
+
+      if(!tracking) continue;
+
+      out.push({ 
+        tracking, 
+        valor: isNaN(valor) ? null : valor,
+        dbId: null, 
+        dbValor: null, 
+        found: false 
+      });
+    }
+    return out;
+  }
+
+  // 2. Comprobar contra la DB (Vista Previa)
+  async function checkDatabase(){
+    if(!rows.length) return;
+    const tableName = $('#selTable').value; // 'paquetes' o 'paquetes_cargados'
+    showLoading(true); toast('Verificando existencia en DB...');
+    
+    try {
+      // Extraer trackings únicos para consultar
+      const trackingsToCheck = rows.map(r=>r.tracking).filter(Boolean);
+      
+      // Hacemos la consulta en lotes (chunks) de 50 para no saturar la URL
+      const chunkSize = 50;
+      const foundMap = new Map(); // tracking -> {id, valor}
+
+      for (let i = 0; i < trackingsToCheck.length; i += chunkSize) {
+        const chunk = trackingsToCheck.slice(i, i + chunkSize);
+        // "in" query
+        const quoted = chunk.map(t => `"${t}"`).join(',');
+        
+        // Consultamos id, tracking y valor actual
+        const url = `/rest/v1/${tableName}?select=id,tracking,valor&tracking=in.(${encodeURIComponent(quoted)})`;
+        const data = await rest(url);
+        
+        if(Array.isArray(data)){
+          data.forEach(d => {
+            // Guardamos referencia por tracking
+            foundMap.set(d.tracking, { id: d.id, valor: d.valor });
+          });
+        }
+      }
+
+      // Cruzar datos
+      rows = rows.map(r => {
+        const match = foundMap.get(r.tracking);
+        return {
+          ...r,
+          found: !!match,
+          dbId: match ? match.id : null,
+          dbValor: match ? match.valor : null
+        };
+      });
+
+      toast('Verificación completada.', 'ok');
+
+    } catch(e){
+      console.error(e);
+      toast('Error al consultar DB: '+e.message, 'err');
+    } finally {
+      showLoading(false);
+      renderTable();
+    }
+  }
+
+  // 3. Renderizar Tabla
+  function renderTable(){
+    const tbody = $('#tbody'); tbody.innerHTML='';
+    let foundCount = 0;
+
+    rows.forEach((r,i)=>{
+      const tr = document.createElement('tr');
+      
+      // Clases de estado
+      let statusHtml = '';
+      let actionHtml = '';
+
+      if(r.found){
+        foundCount++;
+        if(r.dbValor != null){
+          tr.classList.add('has-value');
+          statusHtml = `<span class="badge warn">Tiene valor: ${r.dbValor}</span>`;
+          actionHtml = 'Sobrescribir';
+        } else {
+          tr.classList.add('found');
+          statusHtml = `<span class="badge ok">Encontrado</span>`;
+          actionHtml = '<b>Actualizar</b>';
+        }
+      } else {
+        tr.classList.add('not-found');
+        statusHtml = `<span class="badge no">No existe</span>`;
+        actionHtml = '<span style="color:#aaa">Ignorar</span>';
+      }
+
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td style="font-family:monospace">${r.tracking}</td>
+        <td><b>${r.valor !== null ? r.valor.toFixed(2) : 'Error'}</b></td>
+        <td>${statusHtml}</td>
+        <td style="font-size:12px">${actionHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    $('#statRows').textContent = rows.length;
+    $('#statFound').textContent = foundCount;
+    
+    // Solo habilitar botón si hay al menos 1 encontrado con valor válido
+    const canUpdate = rows.some(r => r.found && r.valor !== null);
+    $('#btnUpdate').disabled = !canUpdate;
+  }
+
+  // 4. Ejecutar Actualización (PATCH)
+  async function updateValues(){
+    const validRows = rows.filter(r => r.found && r.valor !== null);
+    if(!validRows.length) return;
+    
+    if(!confirm(`Se actualizarán ${validRows.length} paquetes con los nuevos valores. ¿Continuar?`)) return;
+
+    const tableName = $('#selTable').value;
+    $('#btnUpdate').disabled = true;
+    showLoading(true);
+    toast('Actualizando valores...');
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Procesamos secuencialmente o en paralelo limitado. 
+    // Para seguridad y evitar errores de concurrencia masiva, usaremos bucle simple.
+    for(const r of validRows){
+      try {
+        // PATCH /tabla?tracking=eq.XYZ { valor: 123 }
+        const url = `/rest/v1/${tableName}?tracking=eq.${encodeURIComponent(r.tracking)}`;
+        await rest(url, {
+          method: 'PATCH',
+          body: { valor: r.valor }
+        });
+        successCount++;
+      } catch(e) {
+        console.error("Error updating", r.tracking, e);
+        errorCount++;
+      }
+    }
+
+    showLoading(false);
+    toast(`Proceso finalizado. Actualizados: ${successCount}. Errores: ${errorCount}`, errorCount>0?'warn':'ok');
+    
+    // Limpiamos para evitar doble envío
+    setTimeout(()=>{
+        if(confirm("¿Limpiar la pantalla?")){
+            $('#txtPaste').value = '';
+            $('#btnClear').click();
+        }
+    }, 1000);
+  }
+
+  // Eventos
+  window.addEventListener('DOMContentLoaded', ()=>{
+    // Pegar texto
+    $('#txtPaste').addEventListener('input', async (e)=>{
+      rows = parsePasted(e.target.value);
+      renderTable(); // Renderizado preliminar
+      if(rows.length > 0) {
+        // Debounce simple o llamada directa
+        await checkDatabase();
+      }
+    });
+
+    $('#btnClear').addEventListener('click', ()=>{
+      rows=[]; $('#txtPaste').value=''; renderTable(); toast('');
+    });
+
+    $('#btnUpdate').addEventListener('click', updateValues);
+  });
+  </script>
+</body>
+</html>
