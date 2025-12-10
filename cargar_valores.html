@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PSC · Cargar Valores (Smart)</title>
+  <title>PSC · Cargar Valores (Con Corrección)</title>
   <link rel="stylesheet" href="./portal.css">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -64,7 +64,7 @@
     .spinner { width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: #333; border-radius: 50%; animation: spin 1s infinite linear; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Ocultar elementos heredados si existen */
+    /* Ocultar elementos heredados */
     body > header:not(.card), body > nav { display: none; }
   </style>
 </head>
@@ -73,7 +73,7 @@
 <div class="wrap">
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h1>Cargar Valores (Detección Inteligente)</h1>
+        <h1>Cargar Valores (Con Corrección)</h1>
         <div style="font-size:12px; color:var(--muted)">
             Leídos: <b id="statCount">0</b> | Encontrados: <b id="statFound">0</b>
         </div>
@@ -95,10 +95,10 @@
         </div>
     </div>
 
-    <textarea id="txtPaste" class="paste" placeholder="Pega aquí tu lista...&#10;Ejemplo:&#10;Normal  940011189956...  1.00  1.00  25.50"></textarea>
+    <textarea id="txtPaste" class="paste" placeholder="Pega aquí tu lista...&#10;Ejemplo:&#10;Normal  ]c1940011189956...  1.00  1.00  25.50"></textarea>
     
     <div style="font-size:12px; color:var(--muted); margin-top:5px;">
-        ℹ️ El sistema buscará automáticamente el <b>Tracking</b> (texto largo) y el <b>Valor</b> (último número) en cada línea.
+        ℹ️ Detecta tracking (limpiando <code>]c1</code>, <code>|</code>, etc.) y toma el último valor numérico como precio ($).
     </div>
     
     <div id="toast" class="toast"></div>
@@ -109,7 +109,7 @@
       <thead>
         <tr>
           <th style="width:40px">#</th>
-          <th>Tracking Detectado</th>
+          <th>Tracking Corregido</th>
           <th>Valor a Cargar</th>
           <th>Estado en DB</th>
           <th>Valor Actual</th>
@@ -124,13 +124,8 @@
 <div class="loading" id="loading"><div class="spinner"></div></div>
 
 <script>
-    // 1. INICIALIZACIÓN SUPABASE (Igual que ingreso_paquetes.html)
-    // -----------------------------------------------------------
-    if (typeof window.PSC_CONFIG === 'undefined') {
-        // Fallback por si config.js no cargó bien o tiene otro nombre
-        window.PSC_CONFIG = window.__PSC_CONFIG__ || {};
-    }
-
+    // 1. CONFIGURACIÓN
+    if (typeof window.PSC_CONFIG === 'undefined') window.PSC_CONFIG = window.__PSC_CONFIG__ || {};
     const sbUrl = window.PSC_CONFIG.supabaseUrl || window.PSC_CONFIG.url || window.PSC_CONFIG.restUrl;
     const sbKey = window.PSC_CONFIG.supabaseAnonKey || window.PSC_CONFIG.apikey || window.PSC_CONFIG.anonKey;
 
@@ -143,48 +138,52 @@
         if(!sbUrl || !sbKey) throw new Error("Faltan credenciales en config.js");
         supabase = window.supabase.createClient(sbUrl, sbKey);
     } catch(e) {
-        console.error(e);
-        toast("Error de Configuración: " + e.message, "err");
+        console.error(e); toast("Error de Configuración: " + e.message, "err");
     }
 
-    // -----------------------------------------------------------
-    
     let rowsData = [];
 
-    // 2. PARSER INTELIGENTE
+    // 2. FUNCIÓN DE LIMPIEZA (Del archivo original)
+    function normalizeTracking(code){
+        if(!code) return '';
+        let s = String(code);
+        // Corrección exacta: quita ]c1, +c1, '|' y también ']' suelto
+        s = s.replace(/\]c1|\+c1|\||\]/gi,'');
+        // Reemplaza '\' o '/' por espacio
+        s = s.replace(/[\\/]+/g,' ');
+        return s.trim();
+    }
+
+    // 3. PARSER
     function parseSmart(text) {
         const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
         const output = [];
 
         lines.forEach(line => {
-            // Dividimos por espacios o tabs
             const parts = line.split(/\s+/).map(p => p.trim()).filter(Boolean);
-            if(parts.length < 2) return; // Necesitamos al menos algo parecido a tracking y valor
+            if(parts.length < 2) return; 
 
             let tracking = null;
             let valor = null;
 
-            // A) Buscar Valor: Generalmente es el ÚLTIMO elemento numérico
-            // Recorremos desde el final hacia atrás
+            // A) Buscar Valor (Último numérico)
             for (let i = parts.length - 1; i >= 0; i--) {
-                // Limpiar simbolos de moneda
                 let cleanVal = parts[i].replace('$','').replace(',',''); 
                 if (!isNaN(parseFloat(cleanVal)) && isFinite(cleanVal)) {
                     valor = parseFloat(cleanVal);
-                    // Quitamos esa parte del array para no confundirla con el tracking
                     parts.splice(i, 1); 
                     break;
                 }
             }
 
-            // B) Buscar Tracking: Es la cadena más LARA que queda
-            // Generalmente un tracking tiene > 8 caracteres y contiene números
+            // B) Buscar Tracking (Texto más largo restante)
             let candidate = "";
             parts.forEach(p => {
                 if (p.length > candidate.length) candidate = p;
             });
-            // Limpieza básica del tracking (quitar prefijos raros si existen)
-            tracking = candidate.replace(/\]c1|\+c1/gi,'').trim();
+
+            // C) APLICAR CORRECCIÓN AL TRACKING ENCONTRADO
+            tracking = normalizeTracking(candidate);
 
             if (tracking && valor !== null) {
                 output.push({ tracking, valor, status: 'Pendiente', dbVal: null, found: false });
@@ -193,7 +192,7 @@
         return output;
     }
 
-    // 3. CONSULTAR BASE DE DATOS
+    // 4. CHECK DB
     async function checkDatabase() {
         if (!supabase) return;
         const table = $('#selTable').value;
@@ -205,18 +204,20 @@
         toast("Verificando existencia...");
 
         try {
-            // Usamos el SDK de Supabase que es más robusto
-            // Buscamos coincidencia EXACTA del tracking
-            const { data, error } = await supabase
-                .from(table)
-                .select('tracking, valor')
-                .in('tracking', trackings);
-
-            if (error) throw error;
-
-            // Mapeamos resultados
-            const foundMap = new Map();
-            if(data) data.forEach(d => foundMap.set(d.tracking, d.valor));
+            // Consulta por lotes para evitar error de URL muy larga si son muchos
+            let foundMap = new Map();
+            const chunkSize = 100;
+            
+            for (let i = 0; i < trackings.length; i += chunkSize) {
+                const chunk = trackings.slice(i, i + chunkSize);
+                const { data, error } = await supabase
+                    .from(table)
+                    .select('tracking, valor')
+                    .in('tracking', chunk);
+                    
+                if (error) throw error;
+                if (data) data.forEach(d => foundMap.set(d.tracking, d.valor));
+            }
 
             rowsData = rowsData.map(r => {
                 if (foundMap.has(r.tracking)) {
@@ -226,17 +227,17 @@
             });
 
             render();
-            toast(`Procesados ${rowsData.length}. Encontrados: ${data.length}`, "ok");
+            toast(`Proceso de verificación completo.`, "ok");
 
         } catch (err) {
             console.error(err);
-            toast("Error consultando DB: " + err.message, "err");
+            toast("Error DB: " + err.message, "err");
         } finally {
             showLoading(false);
         }
     }
 
-    // 4. RENDERIZAR
+    // 5. RENDER
     function render() {
         const tbody = $('#tbody');
         tbody.innerHTML = '';
@@ -250,17 +251,14 @@
             let action = `<span style="color:#aaa">Ignorar</span>`;
             
             if (r.found) {
-                if (r.dbVal !== null) {
-                    badge = `<span class="badge warn">Ya tiene valor</span>`;
-                } else {
-                    badge = `<span class="badge ok">Listo</span>`;
-                }
+                if (r.dbVal !== null) badge = `<span class="badge warn">Tiene valor</span>`;
+                else badge = `<span class="badge ok">Listo</span>`;
                 action = `<b>Actualizar</b>`;
             }
 
             tr.innerHTML = `
                 <td>${idx + 1}</td>
-                <td style="font-family:monospace; font-weight:600">${r.tracking}</td>
+                <td style="font-family:monospace; font-weight:600; color:#2563eb">${r.tracking}</td>
                 <td>$${r.valor.toFixed(2)}</td>
                 <td>${badge}</td>
                 <td>${r.dbVal !== null ? '$'+r.dbVal : '-'}</td>
@@ -274,68 +272,49 @@
         $('#btnUpdate').disabled = (foundCount === 0);
     }
 
-    // 5. ACTUALIZAR (PATCH)
+    // 6. UPDATE
     async function doUpdate() {
         const toUpdate = rowsData.filter(r => r.found);
         if(toUpdate.length === 0) return;
-
-        if(!confirm(`Se actualizará el valor de ${toUpdate.length} paquetes. ¿Continuar?`)) return;
+        if(!confirm(`Se actualizará el valor de ${toUpdate.length} paquetes. ¿Seguro?`)) return;
 
         showLoading(true);
-        toast("Guardando...");
         const table = $('#selTable').value;
         let errors = 0;
         let success = 0;
 
-        // Procesamos uno por uno para asegurar consistencia
-        // (Supabase free tier maneja esto bien en bucle pequeño)
         for (const item of toUpdate) {
             const { error } = await supabase
                 .from(table)
                 .update({ valor: item.valor })
                 .eq('tracking', item.tracking);
 
-            if (error) {
-                console.error("Error update", item.tracking, error);
-                errors++;
-            } else {
-                success++;
-            }
+            if (error) { console.error(item.tracking, error); errors++; } 
+            else success++;
         }
 
         showLoading(false);
-        if(errors > 0) toast(`Finalizado con ${errors} errores. Éxitos: ${success}`, "warn");
+        if(errors > 0) toast(`Finalizado: ${success} OK, ${errors} Errores`, "warn");
         else toast(`¡Éxito! ${success} paquetes actualizados.`, "ok");
 
-        // Limpieza opcional
         setTimeout(() => {
-            if(success > 0 && confirm("¿Limpiar pantalla?")) {
-                $('#txtPaste').value = '';
-                $('#btnClear').click();
-            }
+            if(success > 0 && confirm("¿Limpiar pantalla?")) $('#btnClear').click();
         }, 1000);
     }
 
-    // EVENTOS
     $('#txtPaste').addEventListener('input', (e) => {
-        // Debounce simple para no saturar si escriben
         clearTimeout(window._pasteTimer);
         window._pasteTimer = setTimeout(async () => {
-            const txt = e.target.value;
-            if(!txt.trim()) return;
-            rowsData = parseSmart(txt);
+            if(!e.target.value.trim()) return;
+            rowsData = parseSmart(e.target.value);
             render();
             if(rowsData.length > 0) await checkDatabase();
         }, 600);
     });
 
     $('#btnClear').addEventListener('click', () => {
-        $('#txtPaste').value = '';
-        rowsData = [];
-        render();
-        toast("");
+        $('#txtPaste').value = ''; rowsData = []; render(); toast("");
     });
-
     $('#btnUpdate').addEventListener('click', doUpdate);
 
 </script>
