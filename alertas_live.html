@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <title>Alertas Live — PSC</title>
+    <title>Monitor Live 3 Niveles</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🚨</text></svg>" />
     
@@ -15,12 +15,13 @@
         --bg: #111827; --fg: #f3f4f6; --card: #1f2937; --border: #374151;
         --red-bg: #450a0a; --red-border: #7f1d1d; --red-text: #fecaca;
         --yellow-bg: #422006; --yellow-border: #713f12; --yellow-text: #fde68a;
+        --green-bg: #14532d; --green-border: #166534; --green-text: #bbf7d0;
         --blue-btn: #2563eb; --blue-hover: #1d4ed8;
       }
       * { box-sizing: border-box; }
       body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
-      .container { max-width: 1200px; margin: 0 auto; }
+      .container { max-width: 1400px; margin: 0 auto; }
       
       .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
       .title { font-size: 24px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
@@ -33,39 +34,51 @@
       .btn-refresh { background: #2563eb; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
       .btn-refresh:hover { background: #1d4ed8; }
 
-      .alerts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-      @media (max-width: 800px) { .alerts-grid { grid-template-columns: 1fr; } }
+      /* GRID DE 3 COLUMNAS */
+      .alerts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; height: calc(100vh - 120px); }
+      @media (max-width: 1000px) { .alerts-grid { grid-template-columns: 1fr; height: auto; } }
 
       .alert-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 400px; }
-      .card-header { padding: 15px; font-weight: 700; font-size: 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.2); }
+      .card-header { padding: 15px; font-weight: 700; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.2); text-transform: uppercase; letter-spacing: 0.5px; }
       
+      /* COLORES DE COLUMNAS */
       .type-danger .card-header { background: var(--red-bg); color: var(--red-text); border-bottom-color: var(--red-border); }
       .type-warning .card-header { background: var(--yellow-bg); color: var(--yellow-text); border-bottom-color: var(--yellow-border); }
+      .type-ml .card-header { background: var(--green-bg); color: var(--green-text); border-bottom-color: var(--green-border); }
 
-      .card-body { padding: 0; flex: 1; overflow-y: auto; max-height: 600px; }
+      .card-body { padding: 10px; flex: 1; overflow-y: auto; }
       
-      table { width: 100%; border-collapse: collapse; }
-      th { text-align: left; padding: 10px 15px; font-size: 12px; color: #9ca3af; background: rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 10; }
-      td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
-      tr:last-child td { border-bottom: none; }
+      /* ITEMS DE LISTA */
+      .item { 
+          background: rgba(255,255,255,0.03); 
+          border: 1px solid rgba(255,255,255,0.05);
+          margin-bottom: 10px; padding: 12px; border-radius: 8px; 
+          border-left: 4px solid transparent; 
+      }
+      .type-danger .item { border-left-color: #ef4444; }
+      .type-warning .item { border-left-color: #f59e0b; }
+      .type-ml .item { border-left-color: #22c55e; }
+
+      .item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+      .trk { font-weight: bold; font-family: monospace; font-size: 15px; color: white; }
+      .days-badge { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; color: #111827; }
       
-      /* Badges y Botones */
-      .days-badge { font-weight: bold; padding: 3px 8px; border-radius: 4px; font-size: 11px; display: inline-block; }
-      .bg-red { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
-      .bg-yellow { background: rgba(202, 138, 4, 0.2); color: #fde047; }
-      .bg-green { background: rgba(5, 150, 105, 0.2); color: #6ee7b7; } 
+      .client-info { font-size: 13px; color: #9ca3af; margin-bottom: 6px; }
+      .meta-info { font-size: 11px; color: #6b7280; display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-top: 6px; align-items: center; }
 
       .btn-action { 
           background: var(--blue-btn); color: white; border: none; 
-          padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; 
-          cursor: pointer; display: flex; align-items: center; gap: 5px; 
-          transition: background 0.2s;
+          padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; 
+          cursor: pointer; display: flex; align-items: center; gap: 4px; margin-left: auto;
       }
       .btn-action:hover { background: var(--blue-hover); }
 
       .empty-state { padding: 40px; text-align: center; color: #6b7280; font-style: italic; }
       .loading { padding: 20px; text-align: center; color: #9ca3af; }
-      .small-text { font-size: 11px; color: #6b7280; display: block; margin-top: 2px; }
+      
+      /* ML STATES */
+      .ml-urgent { color: #f87171; font-weight: bold; }
+      .ml-waiting { color: #4ade80; }
     </style>
 </head>
 <body>
@@ -91,7 +104,7 @@
         
         <div class="alert-card type-danger">
             <div class="card-header">
-                <span>🛑 Sin Info (>5 días)</span>
+                <span>📦 Bodega (>5 días)</span>
                 <span id="count-danger" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
             </div>
             <div class="card-body" id="body-danger">
@@ -101,10 +114,20 @@
 
         <div class="alert-card type-warning">
             <div class="card-header">
-                <span>⚠️ Gestión de ML (Activos)</span>
+                <span>🚚 Tránsito (>10 días)</span>
                 <span id="count-warning" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
             </div>
             <div class="card-body" id="body-warning">
+                <div class="loading">Cargando...</div>
+            </div>
+        </div>
+
+        <div class="alert-card type-ml">
+            <div class="card-header">
+                <span>⚠️ Gestión ML (>3 días)</span>
+                <span id="count-ml" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
+            </div>
+            <div class="card-body" id="body-ml">
                 <div class="loading">Cargando...</div>
             </div>
         </div>
@@ -141,153 +164,146 @@
         const sucursal = document.getElementById('filterSucursal').value;
         const bodyDanger = document.getElementById('body-danger');
         const bodyWarning = document.getElementById('body-warning');
+        const bodyMl = document.getElementById('body-ml');
         
-        bodyDanger.innerHTML = '<div class="loading">Buscando...</div>';
-        bodyWarning.innerHTML = '<div class="loading">Analizando...</div>';
+        bodyDanger.innerHTML = '<div class="loading">...</div>';
+        bodyWarning.innerHTML = '<div class="loading">...</div>';
+        bodyMl.innerHTML = '<div class="loading">...</div>';
 
-        const today = new Date();
-        const limit5Days = new Date(); 
-        limit5Days.setDate(today.getDate() - 5); // --- CAMBIO: 5 DÍAS ---
-
-        // --- 1. ZOMBIES (Sin Info > 5 Días CREACIÓN) ---
-        let qDanger = supabase
+        // TRAER TODO LO ACTIVO (No Recibido)
+        let query = supabase
             .from('seguimiento_interno')
             .select('*')
-            .lt('created_at', limit5Days.toISOString())
-            .in('estado_alerta', ['Pendiente', 'No Info']); 
+            .neq('estado_alerta', 'Recibido'); 
 
-        if (sucursal !== 'Todas') qDanger = qDanger.eq('sucursal', sucursal);
+        if (sucursal !== 'Todas') query = query.eq('sucursal', sucursal);
         
-        const { data: dataDanger } = await qDanger;
-        renderDangerTable(bodyDanger, dataDanger || []);
-        document.getElementById('count-danger').textContent = dataDanger?.length || 0;
+        const { data, error } = await query;
+        if(error || !data) return;
 
-        // --- 2. GESTIÓN ML (TODOS) ---
-        let qWarning = supabase
-            .from('seguimiento_interno')
-            .select('*')
-            .eq('estado_alerta', 'ML');
+        const now = new Date();
+        const arrBodega = [];   
+        const arrTransito = []; 
+        const arrMl = [];       
 
-        if (sucursal !== 'Todas') qWarning = qWarning.eq('sucursal', sucursal);
+        data.forEach(p => {
+            // 1. CLASIFICACIÓN ML (TU LOGICA CRITICA)
+            if (p.estado_alerta === 'ML') {
+                if (p.fecha_solicitud) {
+                    // Ya se solicitó: Contamos desde la solicitud
+                    p.diasCalc = Math.floor((now - new Date(p.fecha_solicitud)) / 864e5);
+                    p.needsAction = false;
+                } else {
+                    // No se ha solicitado: Urgente acción
+                    p.diasCalc = 0;
+                    p.needsAction = true;
+                }
+                arrMl.push(p);
+                return;
+            }
 
-        const { data: dataWarning } = await qWarning;
-        
-        if (dataWarning) {
-            dataWarning.sort((a, b) => {
-                const getScore = (item) => {
-                    if (!item.fecha_solicitud) return 2; 
-                    const dias = (new Date() - new Date(item.fecha_solicitud)) / 864e5;
-                    if (dias >= 3) return 1; 
-                    return 3; 
-                };
-                return getScore(a) - getScore(b);
-            });
-        }
+            // 2. CLASIFICACIÓN BODEGA (Tiene fecha entrega)
+            if (p.fecha_entrega_miami) {
+                const dias = Math.floor((now - new Date(p.fecha_entrega_miami)) / 864e5);
+                if (dias > 5) {
+                    p.diasCalc = dias;
+                    arrBodega.push(p);
+                }
+                return;
+            }
 
-        renderMLTable(bodyWarning, dataWarning || []);
-        
-        const actionCount = (dataWarning || []).filter(p => {
-            if (!p.fecha_solicitud) return true; 
-            const dias = (new Date() - new Date(p.fecha_solicitud)) / 864e5;
-            return dias >= 3; 
-        }).length;
-        document.getElementById('count-warning').textContent = actionCount;
+            // 3. CLASIFICACIÓN TRÁNSITO (No tiene fecha entrega)
+            if (!p.fecha_entrega_miami) {
+                const dias = Math.floor((now - new Date(p.created_at)) / 864e5);
+                if (dias > 10) {
+                    p.diasCalc = dias;
+                    arrTransito.push(p);
+                }
+            }
+        });
+
+        renderList(bodyDanger, arrBodega, 'danger');
+        renderList(bodyWarning, arrTransito, 'warning');
+        renderList(bodyMl, arrMl, 'ml');
+
+        document.getElementById('count-danger').textContent = arrBodega.length;
+        document.getElementById('count-warning').textContent = arrTransito.length;
+        document.getElementById('count-ml').textContent = arrMl.length;
         
         lucide.createIcons();
     }
 
-    // --- RENDER ZOMBIES (Rojos) ---
-    function renderDangerTable(container, data) {
-        if (data.length === 0) {
-            container.innerHTML = `<div class="empty-state">Todo limpio.</div>`;
-            return;
-        }
-        const rows = data.map(p => {
-            const fecha = new Date(p.created_at);
-            const dias = Math.floor((new Date() - fecha) / (1000 * 60 * 60 * 24));
-            
-            // Calculamos el retraso restando los 5 días de gracia
-            const retraso = dias - 5;
-            const textoRetraso = retraso > 0 ? `(+${retraso}d retraso)` : '';
-
-            return `
-                <tr>
-                    <td>
-                        <div style="font-weight:bold; color: white;">${p.tracking}</div>
-                        <div style="font-size:12px; color:#9ca3af;">${p.cliente_nombre}</div>
-                    </td>
-                    <td style="text-align:right;">
-                        <span class="days-badge bg-red">${dias} días total</span>
-                        <div class="small-text" style="color:#fca5a5; font-weight:bold;">${textoRetraso}</div>
-                        <div class="small-text">Registrado: ${fecha.toLocaleDateString()}</div>
-                    </td>
-                </tr>`;
-        }).join('');
-        container.innerHTML = `<table><thead><tr><th>Tracking</th><th style="text-align:right;">Antigüedad</th></tr></thead><tbody>${rows}</tbody></table>`;
-    }
-
-    // --- RENDER ML (Gestión Completa) ---
-    function renderMLTable(container, data) {
-        if (data.length === 0) {
-            container.innerHTML = `<div class="empty-state">Sin paquetes en ML.</div>`;
+    function renderList(container, items, type) {
+        if (items.length === 0) {
+            container.innerHTML = `<div class="empty-state">✅ Todo limpio</div>`;
             return;
         }
 
-        const rows = data.map(p => {
-            let accionHTML = '';
-            
-            if (!p.fecha_solicitud) {
-                accionHTML = `
-                    <button class="btn-action" onclick="marcarSolicitado('${p.id}')">
-                        <i data-lucide="mail" width="14"></i> Solicitar
-                    </button>`;
-            } else {
-                const fechaSol = new Date(p.fecha_solicitud);
-                const diasPasados = Math.floor((new Date() - fechaSol) / (1000 * 60 * 60 * 24));
+        // Ordenar: Los más antiguos primero
+        items.sort((a, b) => b.diasCalc - a.diasCalc);
+
+        const html = items.map(p => {
+            let badgeColor = '#e5e7eb';
+            let labelTiempo = '';
+            let extraAction = '';
+
+            // LOGICA VISUAL PARA ML
+            if (type === 'ml') {
+                badgeColor = '#bbf7d0';
                 
-                if (diasPasados >= 3) {
-                    accionHTML = `
-                        <span class="days-badge bg-red">⚠️ Vencido (${diasPasados}d)</span>
-                        <div class="small-text">Solicitado: ${fechaSol.toLocaleDateString()}</div>
-                    `;
+                if (p.needsAction) {
+                    // CASO: FALTA SOLICITAR (BOTON AZUL)
+                    labelTiempo = 'Sin gestionar';
+                    extraAction = `<button class="btn-action" onclick="marcarSolicitado('${p.id}')"><i data-lucide="send" width="12"></i> Solicitar Info</button>`;
                 } else {
-                    accionHTML = `
-                        <span class="days-badge bg-green">⏳ Esperando (${diasPasados}d)</span>
-                        <div class="small-text">Solicitado: ${fechaSol.toLocaleDateString()}</div>
-                    `;
+                    // CASO: YA SOLICITADO (CUENTA REGRESIVA 3 DIAS)
+                    if (p.diasCalc > 3) {
+                        labelTiempo = `VENCIDO (${p.diasCalc}d)`;
+                        extraAction = `<span class="ml-urgent">⚠️ Urgente</span>`;
+                        badgeColor = '#fca5a5'; // Rojo claro
+                    } else {
+                        labelTiempo = `Esperando: ${p.diasCalc}d`;
+                        extraAction = `<span class="ml-waiting">⏳ En espera</span>`;
+                    }
                 }
+            } 
+            // OTRAS COLUMNAS
+            else if (type === 'danger') {
+                badgeColor = '#fecaca'; 
+                labelTiempo = `Retraso: ${p.diasCalc}d`;
+            } else if (type === 'warning') {
+                badgeColor = '#fde68a';
+                labelTiempo = `Transito: ${p.diasCalc}d`;
             }
 
             return `
-                <tr>
-                    <td>
-                        <div style="font-weight:bold; color: white;">${p.tracking}</div>
-                        <div style="font-size:12px; color:#9ca3af;">${p.cliente_nombre} (${p.cliente_box})</div>
-                    </td>
-                    <td style="text-align:right;">
-                        <div style="display:flex; justify-content:flex-end;">${accionHTML}</div>
-                    </td>
-                </tr>`;
+            <div class="item">
+                <div class="item-top">
+                    <span class="trk">${p.tracking}</span>
+                    <span class="days-badge" style="background:${badgeColor}">${labelTiempo}</span>
+                </div>
+                <div class="client-info">${p.cliente_nombre} (${p.cliente_box})</div>
+                <div class="meta-info">
+                    <span>${p.sucursal || 'Centro'}</span>
+                    ${extraAction}
+                </div>
+            </div>`;
         }).join('');
 
-        container.innerHTML = `<table><thead><tr><th>Tracking / Cliente</th><th style="text-align:right;">Gestión</th></tr></thead><tbody>${rows}</tbody></table>`;
-        lucide.createIcons();
+        container.innerHTML = html;
     }
 
-    // --- FUNCIÓN MARCAR SOLICITADO ---
+    // --- ACCIÓN PARA ML (ACTIVA EL CONTADOR DE 3 DÍAS) ---
     window.marcarSolicitado = async (id) => {
-        if (!confirm("¿Confirmas que has solicitado la información al cliente?")) return;
-
+        if (!confirm("¿Confirmas que ya escribiste al cliente? \nEsto iniciará la cuenta de 3 días.")) return;
+        
         const { error } = await supabase
             .from('seguimiento_interno')
             .update({ fecha_solicitud: new Date().toISOString() })
             .eq('id', id);
 
-        if (error) {
-            alert("Error al actualizar: " + error.message);
-        } else {
-            loadAlerts();
-        }
+        if (error) alert("Error: " + error.message);
+        else loadAlerts(); // Recarga inmediata
     };
 
 </script>
