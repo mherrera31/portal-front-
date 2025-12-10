@@ -141,6 +141,16 @@
       .col-seguimiento { font-size: 11px; color: #4b5563; line-height: 1.3; max-width: 200px; }
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
       .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+
+      /* --- NUEVO ESTILO PARA EL CHECKBOX --- */
+      .check-row {
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 16px; padding: 10px;
+          background: #eff6ff; border: 1px solid #bfdbfe;
+          border-radius: 8px; cursor: pointer;
+      }
+      .check-row input { width: 20px; height: 20px; margin: 0; cursor: pointer; }
+      .check-text { font-size: 14px; font-weight: 600; color: #1e40af; }
     </style>
 </head>
 <body>
@@ -162,6 +172,12 @@
                     <input type="text" id="clienteSearch" placeholder="Nombre o Casillero..." autocomplete="off">
                     <div id="suggestions" class="autocomplete-suggestions" style="display:none;"></div>
                 </div>
+
+                <div class="check-row" onclick="toggleCheck()">
+                    <input type="checkbox" id="chkEntregado" onclick="event.stopPropagation()">
+                    <span class="check-text">¿Ya figura "Entregado" por el Carrier?</span>
+                </div>
+
                 <div id="clientInfo" class="client-info-card" style="display:none;">
                     <div class="client-info-row"><span>Nombre:</span><span class="client-info-val" id="dispNombre">-</span></div>
                     <div class="client-info-row"><span>Casillero:</span><span class="client-info-val" id="dispBox">-</span></div>
@@ -272,6 +288,7 @@
         tracking: document.getElementById('tracking'),
         search: document.getElementById('clienteSearch'),
         suggestions: document.getElementById('suggestions'),
+        chkEntregado: document.getElementById('chkEntregado'), // NUEVO
         clientCard: document.getElementById('clientInfo'),
         status: document.getElementById('status'),
         btnGuardar: document.getElementById('btnGuardar'),
@@ -317,6 +334,9 @@
         if (!dateStr) return 0;
         return new Date(dateStr).getTime();
     }
+    
+    // Helper para checkbox
+    window.toggleCheck = () => { /* dom.chkEntregado.checked = !dom.chkEntregado.checked; */ };
 
     async function init() {
         await autoCleanOldRecords();
@@ -383,20 +403,41 @@
     
     document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
+    // --- GUARDAR (CON LÓGICA DE FECHA) ---
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const trk = dom.tracking.value.trim();
         if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
+        
         dom.btnGuardar.disabled = true;
+
+        // NUEVO: Verificamos el Checkbox
+        const yaEntregado = dom.chkEntregado.checked;
+        const fechaMiami = yaEntregado ? new Date().toISOString() : null;
+        const textoSeguimiento = yaEntregado ? 'Esperando ingreso a bodega' : 'Pre-alerta (En tránsito)';
+
         const { data: existing } = await supabase.from('seguimiento_interno').select('id').eq('tracking', trk).maybeSingle();
         if (existing) { dom.status.textContent = '⚠️ Tracking duplicado'; dom.status.style.color = 'orange'; dom.btnGuardar.disabled = false; return; }
         
         const { error } = await supabase.from('seguimiento_interno').insert([{
-            tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún', nota: ''
+            tracking: trk, 
+            cliente_nombre: dom.h_nombre.value, 
+            cliente_box: dom.h_box.value, 
+            sucursal: dom.h_sucursal.value, 
+            estado_alerta: 'Pendiente', 
+            seguimiento: textoSeguimiento, 
+            nota: '',
+            fecha_entrega_miami: fechaMiami // Guardamos fecha si está checkeado
         }]);
+
         dom.btnGuardar.disabled = false;
         if (error) { dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; }
-        else { dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; dom.tracking.value = ''; dom.tracking.focus(); }
+        else { 
+            dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; 
+            dom.tracking.value = ''; 
+            dom.chkEntregado.checked = false; // Reset
+            dom.tracking.focus(); 
+        }
     });
 
     // --- LISTA PAGINADA ---
@@ -484,6 +525,16 @@
                     if (dias >= 3) estadoHtml += ` <span class="ml-status-text ml-vencido">⚠️ Vencido (${dias}d)</span>`;
                     else estadoHtml += ` <span class="ml-status-text ml-espera">⏳ Esperando (${dias}d)</span>`;
                 }
+            } else if (est !== 'Recibido') {
+                // NUEVO BOTÓN: SI NO ES ML NI RECIBIDO
+                if (!p.fecha_entrega_miami) {
+                    // Si no tiene fecha, mostrar botón para activarla
+                    estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
+                } else {
+                    // Si ya tiene fecha, mostramos hace cuánto
+                    const dias = Math.floor((new Date() - new Date(p.fecha_entrega_miami)) / (1000 * 60 * 60 * 24));
+                    estadoHtml += ` <div class="ml-status-text" style="color:#d97706">Llegó hace ${dias}d</div>`;
+                }
             }
 
             const isRecibido = est === 'Recibido';
@@ -512,7 +563,19 @@
         lucide.createIcons();
     }
 
-    // --- ACCIONES ---
+    // --- NUEVA FUNCION: MARCAR LLEGADA MANUAL ---
+    window.marcarLlegada = async (id) => {
+        if(!confirm("¿Confirmar que el Carrier YA entregó este paquete? \nEsto activará la cuenta de 5 días.")) return;
+        
+        await supabase.from('seguimiento_interno').update({
+            fecha_entrega_miami: new Date().toISOString(),
+            seguimiento: 'Marcado entregado Manualmente'
+        }).eq('id', id);
+        
+        loadPackages(); // Recargar tabla
+    };
+
+    // --- ACCIONES ORIGINALES ---
     window.deletePackage = async (id) => {
         if (!confirm("¿Eliminar paquete?")) return;
         const { error } = await supabase.from('seguimiento_interno').delete().eq('id', id);
@@ -526,7 +589,7 @@
         loadPackages();
     };
 
-    // --- CHECK STATUS ---
+    // --- CHECK STATUS (TU FUNCION ORIGINAL) ---
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         const badge = document.getElementById(`badge-${id}`);
@@ -556,10 +619,7 @@
                 const detalle = `✅ Recibido: ${nombre} (${box})`;
                 
                 if(segCell) segCell.textContent = detalle;
-                if(badge) { 
-                    badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; 
-                    badge.innerHTML = 'Recibido';
-                }
+                loadPackages(); // Recargar para actualizar status
                 return;
             }
 
@@ -594,22 +654,7 @@
             }
 
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-            
-            if(nuevoEstado === 'ML') loadPackages(); 
-            else {
-                if(segCell) segCell.textContent = detalle;
-                if(badge) {
-                    badge.textContent = nuevoEstado;
-                    let badgeClass = 'st-pendiente';
-                    if (nuevoEstado === 'Miami') badgeClass = 'st-miami';
-                    else if (nuevoEstado === 'Tránsito') badgeClass = 'st-transito';
-                    else if (nuevoEstado === 'Carga Peligrosa') badgeClass = 'st-dg';
-                    else if (nuevoEstado === 'Aduanas') badgeClass = 'st-aduanas';
-                    else if (nuevoEstado === 'ML') badgeClass = 'st-ml';
-                    badge.className = `status-badge ${badgeClass}`;
-                    badge.innerHTML = nuevoEstado;
-                }
-            }
+            loadPackages(); // Recarga para ver cambios
 
         } catch (err) {
             console.error(err);
