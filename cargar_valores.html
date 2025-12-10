@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PSC · Cargar Valores (Smart)</title>
+  <link rel="stylesheet" href="./portal.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+
+  <style>
+    :root{ --bg:#f7f7f9; --card:#fff; --fg:#0c0c0d; --muted:#6b7280; --border:#e5e7eb; --ok:#16a34a; --err:#ef4444; --warn:#f59e0b; --accent:#111111; }
+    *{box-sizing:border-box}
+    html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    
+    .wrap{max-width:1100px;margin:20px auto;padding:0 12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05); padding:20px;}
+    
+    h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 1rem 0; }
+    
+    .controls { display: flex; gap: 10px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
+    .group { display: flex; gap: 10px; align-items: center; }
+    
+    label { font-size: 0.85rem; font-weight: 600; color: var(--fg); display: block; margin-bottom: 4px; }
+    select, input { padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+    
+    textarea.paste { 
+        width: 100%; min-height: 150px; 
+        border: 1px dashed var(--border); border-radius: 8px; 
+        padding: 12px; font-family: 'Menlo', 'Monaco', monospace; font-size: 13px;
+        margin-top: 10px; outline: none;
+    }
+    textarea.paste:focus { border-color: var(--accent); }
+
+    .btn { 
+        background: #fff; border: 1px solid var(--border); padding: 8px 16px; 
+        border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+    .btn:hover { background: #f9fafb; }
+    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn.primary:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Tabla */
+    .table-wrap { margin-top: 20px; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th { background: #f9fafb; text-align: left; padding: 10px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 10px; border-bottom: 1px solid #f1f2f4; font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    
+    /* Estados */
+    .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+    .badge.ok { background: #dcfce7; color: #166534; }
+    .badge.no { background: #fee2e2; color: #991b1b; }
+    .badge.warn { background: #fef3c7; color: #92400e; }
+    
+    .toast { margin-top: 10px; font-size: 14px; min-height: 20px; }
+    .toast.ok { color: var(--ok); }
+    .toast.err { color: var(--err); }
+    
+    .loading { position: fixed; inset: 0; background: rgba(255,255,255,0.7); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(2px); }
+    .spinner { width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: #333; border-radius: 50%; animation: spin 1s infinite linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Ocultar elementos heredados si existen */
+    body > header:not(.card), body > nav { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h1>Cargar Valores (Detección Inteligente)</h1>
+        <div style="font-size:12px; color:var(--muted)">
+            Leídos: <b id="statCount">0</b> | Encontrados: <b id="statFound">0</b>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="group">
+            <div>
+                <label>Tabla Destino</label>
+                <select id="selTable">
+                    <option value="paquetes_cargados" selected>paquetes_cargados</option>
+                    <option value="paquetes">paquetes</option>
+                </select>
+            </div>
+        </div>
+        <div class="group">
+            <button class="btn" id="btnClear">Limpiar</button>
+            <button class="btn primary" id="btnUpdate" disabled>Actualizar Valores</button>
+        </div>
+    </div>
+
+    <textarea id="txtPaste" class="paste" placeholder="Pega aquí tu lista...&#10;Ejemplo:&#10;Normal  940011189956...  1.00  1.00  25.50"></textarea>
+    
+    <div style="font-size:12px; color:var(--muted); margin-top:5px;">
+        ℹ️ El sistema buscará automáticamente el <b>Tracking</b> (texto largo) y el <b>Valor</b> (último número) en cada línea.
+    </div>
+    
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Tracking Detectado</th>
+          <th>Valor a Cargar</th>
+          <th>Estado en DB</th>
+          <th>Valor Actual</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="loading" id="loading"><div class="spinner"></div></div>
+
+<script>
+    // 1. INICIALIZACIÓN SUPABASE (Igual que ingreso_paquetes.html)
+    // -----------------------------------------------------------
+    if (typeof window.PSC_CONFIG === 'undefined') {
+        // Fallback por si config.js no cargó bien o tiene otro nombre
+        window.PSC_CONFIG = window.__PSC_CONFIG__ || {};
+    }
+
+    const sbUrl = window.PSC_CONFIG.supabaseUrl || window.PSC_CONFIG.url || window.PSC_CONFIG.restUrl;
+    const sbKey = window.PSC_CONFIG.supabaseAnonKey || window.PSC_CONFIG.apikey || window.PSC_CONFIG.anonKey;
+
+    let supabase = null;
+    const $ = (s)=>document.querySelector(s);
+    const toast = (msg, type='') => { const t=$('#toast'); t.className='toast '+type; t.innerText=msg; };
+    const showLoading = (on) => $('#loading').style.display = on ? 'flex' : 'none';
+
+    try {
+        if(!sbUrl || !sbKey) throw new Error("Faltan credenciales en config.js");
+        supabase = window.supabase.createClient(sbUrl, sbKey);
+    } catch(e) {
+        console.error(e);
+        toast("Error de Configuración: " + e.message, "err");
+    }
+
+    // -----------------------------------------------------------
+    
+    let rowsData = [];
+
+    // 2. PARSER INTELIGENTE
+    function parseSmart(text) {
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        const output = [];
+
+        lines.forEach(line => {
+            // Dividimos por espacios o tabs
+            const parts = line.split(/\s+/).map(p => p.trim()).filter(Boolean);
+            if(parts.length < 2) return; // Necesitamos al menos algo parecido a tracking y valor
+
+            let tracking = null;
+            let valor = null;
+
+            // A) Buscar Valor: Generalmente es el ÚLTIMO elemento numérico
+            // Recorremos desde el final hacia atrás
+            for (let i = parts.length - 1; i >= 0; i--) {
+                // Limpiar simbolos de moneda
+                let cleanVal = parts[i].replace('$','').replace(',',''); 
+                if (!isNaN(parseFloat(cleanVal)) && isFinite(cleanVal)) {
+                    valor = parseFloat(cleanVal);
+                    // Quitamos esa parte del array para no confundirla con el tracking
+                    parts.splice(i, 1); 
+                    break;
+                }
+            }
+
+            // B) Buscar Tracking: Es la cadena más LARA que queda
+            // Generalmente un tracking tiene > 8 caracteres y contiene números
+            let candidate = "";
+            parts.forEach(p => {
+                if (p.length > candidate.length) candidate = p;
+            });
+            // Limpieza básica del tracking (quitar prefijos raros si existen)
+            tracking = candidate.replace(/\]c1|\+c1/gi,'').trim();
+
+            if (tracking && valor !== null) {
+                output.push({ tracking, valor, status: 'Pendiente', dbVal: null, found: false });
+            }
+        });
+        return output;
+    }
+
+    // 3. CONSULTAR BASE DE DATOS
+    async function checkDatabase() {
+        if (!supabase) return;
+        const table = $('#selTable').value;
+        const trackings = rowsData.map(r => r.tracking);
+        
+        if(trackings.length === 0) return;
+
+        showLoading(true);
+        toast("Verificando existencia...");
+
+        try {
+            // Usamos el SDK de Supabase que es más robusto
+            // Buscamos coincidencia EXACTA del tracking
+            const { data, error } = await supabase
+                .from(table)
+                .select('tracking, valor')
+                .in('tracking', trackings);
+
+            if (error) throw error;
+
+            // Mapeamos resultados
+            const foundMap = new Map();
+            if(data) data.forEach(d => foundMap.set(d.tracking, d.valor));
+
+            rowsData = rowsData.map(r => {
+                if (foundMap.has(r.tracking)) {
+                    return { ...r, found: true, dbVal: foundMap.get(r.tracking), status: 'Encontrado' };
+                }
+                return { ...r, found: false, status: 'No existe' };
+            });
+
+            render();
+            toast(`Procesados ${rowsData.length}. Encontrados: ${data.length}`, "ok");
+
+        } catch (err) {
+            console.error(err);
+            toast("Error consultando DB: " + err.message, "err");
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // 4. RENDERIZAR
+    function render() {
+        const tbody = $('#tbody');
+        tbody.innerHTML = '';
+        let foundCount = 0;
+
+        rowsData.forEach((r, idx) => {
+            const tr = document.createElement('tr');
+            if(r.found) foundCount++;
+
+            let badge = `<span class="badge no">No existe</span>`;
+            let action = `<span style="color:#aaa">Ignorar</span>`;
+            
+            if (r.found) {
+                if (r.dbVal !== null) {
+                    badge = `<span class="badge warn">Ya tiene valor</span>`;
+                } else {
+                    badge = `<span class="badge ok">Listo</span>`;
+                }
+                action = `<b>Actualizar</b>`;
+            }
+
+            tr.innerHTML = `
+                <td>${idx + 1}</td>
+                <td style="font-family:monospace; font-weight:600">${r.tracking}</td>
+                <td>$${r.valor.toFixed(2)}</td>
+                <td>${badge}</td>
+                <td>${r.dbVal !== null ? '$'+r.dbVal : '-'}</td>
+                <td>${action}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        $('#statCount').innerText = rowsData.length;
+        $('#statFound').innerText = foundCount;
+        $('#btnUpdate').disabled = (foundCount === 0);
+    }
+
+    // 5. ACTUALIZAR (PATCH)
+    async function doUpdate() {
+        const toUpdate = rowsData.filter(r => r.found);
+        if(toUpdate.length === 0) return;
+
+        if(!confirm(`Se actualizará el valor de ${toUpdate.length} paquetes. ¿Continuar?`)) return;
+
+        showLoading(true);
+        toast("Guardando...");
+        const table = $('#selTable').value;
+        let errors = 0;
+        let success = 0;
+
+        // Procesamos uno por uno para asegurar consistencia
+        // (Supabase free tier maneja esto bien en bucle pequeño)
+        for (const item of toUpdate) {
+            const { error } = await supabase
+                .from(table)
+                .update({ valor: item.valor })
+                .eq('tracking', item.tracking);
+
+            if (error) {
+                console.error("Error update", item.tracking, error);
+                errors++;
+            } else {
+                success++;
+            }
+        }
+
+        showLoading(false);
+        if(errors > 0) toast(`Finalizado con ${errors} errores. Éxitos: ${success}`, "warn");
+        else toast(`¡Éxito! ${success} paquetes actualizados.`, "ok");
+
+        // Limpieza opcional
+        setTimeout(() => {
+            if(success > 0 && confirm("¿Limpiar pantalla?")) {
+                $('#txtPaste').value = '';
+                $('#btnClear').click();
+            }
+        }, 1000);
+    }
+
+    // EVENTOS
+    $('#txtPaste').addEventListener('input', (e) => {
+        // Debounce simple para no saturar si escriben
+        clearTimeout(window._pasteTimer);
+        window._pasteTimer = setTimeout(async () => {
+            const txt = e.target.value;
+            if(!txt.trim()) return;
+            rowsData = parseSmart(txt);
+            render();
+            if(rowsData.length > 0) await checkDatabase();
+        }, 600);
+    });
+
+    $('#btnClear').addEventListener('click', () => {
+        $('#txtPaste').value = '';
+        rowsData = [];
+        render();
+        toast("");
+    });
+
+    $('#btnUpdate').addEventListener('click', doUpdate);
+
+</script>
+</body>
+</html>
