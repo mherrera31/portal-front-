@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <title>Monitor Live 3 Niveles</title>
+    <title>Monitor Live - PSC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🚨</text></svg>" />
     
@@ -13,20 +13,29 @@
     <style>
       :root {
         --bg: #111827; --fg: #f3f4f6; --card: #1f2937; --border: #374151;
+        
+        /* 1. ROJO: Sin Recibir (>10 dias) */
         --red-bg: #450a0a; --red-border: #7f1d1d; --red-text: #fecaca;
+        
+        /* 2. NARANJA: Entregado Carrier (>5 dias) */
+        --orange-bg: #431407; --orange-border: #7c2d12; --orange-text: #fdba74;
+        
+        /* 3. AMARILLO: Carga Peligrosa (Info) */
         --yellow-bg: #422006; --yellow-border: #713f12; --yellow-text: #fde68a;
+        
+        /* 4. VERDE: Mal Identificado (Gestión) */
         --green-bg: #14532d; --green-border: #166534; --green-text: #bbf7d0;
+
         --blue-btn: #2563eb; --blue-hover: #1d4ed8;
       }
       * { box-sizing: border-box; }
       body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
-      .container { max-width: 1400px; margin: 0 auto; }
+      .container { max-width: 1600px; margin: 0 auto; }
       
       .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
       .title { font-size: 24px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
       .live-indicator { font-size: 12px; background: #059669; color: white; padding: 2px 8px; border-radius: 12px; animation: pulse 2s infinite; }
-      
       @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
       .controls { display: flex; gap: 15px; align-items: center; }
@@ -34,46 +43,49 @@
       .btn-refresh { background: #2563eb; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
       .btn-refresh:hover { background: #1d4ed8; }
 
-      /* GRID DE 3 COLUMNAS */
-      .alerts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; height: calc(100vh - 120px); }
-      @media (max-width: 1000px) { .alerts-grid { grid-template-columns: 1fr; height: auto; } }
+      /* GRID DE 4 COLUMNAS */
+      .alerts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; height: calc(100vh - 120px); }
+      @media (max-width: 1200px) { .alerts-grid { grid-template-columns: 1fr 1fr; height: auto; } }
+      @media (max-width: 600px) { .alerts-grid { grid-template-columns: 1fr; height: auto; } }
 
       .alert-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 400px; }
-      .card-header { padding: 15px; font-weight: 700; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.2); text-transform: uppercase; letter-spacing: 0.5px; }
+      .card-header { padding: 12px; font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.2); text-transform: uppercase; letter-spacing: 0.5px; }
       
-      /* COLORES DE COLUMNAS */
-      .type-danger .card-header { background: var(--red-bg); color: var(--red-text); border-bottom-color: var(--red-border); }
-      .type-warning .card-header { background: var(--yellow-bg); color: var(--yellow-text); border-bottom-color: var(--yellow-border); }
+      /* ASIGNACION DE COLORES */
+      .type-sinrecibir .card-header { background: var(--red-bg); color: var(--red-text); border-bottom-color: var(--red-border); }
+      .type-entregado .card-header { background: var(--orange-bg); color: var(--orange-text); border-bottom-color: var(--orange-border); }
+      .type-dg .card-header { background: var(--yellow-bg); color: var(--yellow-text); border-bottom-color: var(--yellow-border); }
       .type-ml .card-header { background: var(--green-bg); color: var(--green-text); border-bottom-color: var(--green-border); }
 
       .card-body { padding: 10px; flex: 1; overflow-y: auto; }
       
-      /* ITEMS DE LISTA */
+      /* ITEMS */
       .item { 
           background: rgba(255,255,255,0.03); 
           border: 1px solid rgba(255,255,255,0.05);
-          margin-bottom: 10px; padding: 12px; border-radius: 8px; 
+          margin-bottom: 10px; padding: 10px; border-radius: 8px; 
           border-left: 4px solid transparent; 
       }
-      .type-danger .item { border-left-color: #ef4444; }
-      .type-warning .item { border-left-color: #f59e0b; }
+      .type-sinrecibir .item { border-left-color: #ef4444; }
+      .type-entregado .item { border-left-color: #f97316; }
+      .type-dg .item { border-left-color: #eab308; }
       .type-ml .item { border-left-color: #22c55e; }
 
       .item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-      .trk { font-weight: bold; font-family: monospace; font-size: 15px; color: white; }
-      .days-badge { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; color: #111827; }
+      .trk { font-weight: bold; font-family: monospace; font-size: 14px; color: white; word-break: break-all; }
+      .days-badge { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; color: #111827; white-space: nowrap; }
       
-      .client-info { font-size: 13px; color: #9ca3af; margin-bottom: 6px; }
+      .client-info { font-size: 12px; color: #9ca3af; margin-bottom: 6px; }
       .meta-info { font-size: 11px; color: #6b7280; display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-top: 6px; align-items: center; }
 
       .btn-action { 
           background: var(--blue-btn); color: white; border: none; 
-          padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; 
+          padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; 
           cursor: pointer; display: flex; align-items: center; gap: 4px; margin-left: auto;
       }
       .btn-action:hover { background: var(--blue-hover); }
 
-      .empty-state { padding: 40px; text-align: center; color: #6b7280; font-style: italic; }
+      .empty-state { padding: 40px; text-align: center; color: #6b7280; font-style: italic; font-size: 13px; }
       .loading { padding: 20px; text-align: center; color: #9ca3af; }
       
       /* ML STATES */
@@ -102,34 +114,36 @@
 
     <div class="alerts-grid">
         
-        <div class="alert-card type-danger">
+        <div class="alert-card type-sinrecibir">
             <div class="card-header">
-                <span>📦 Bodega (>5 días)</span>
-                <span id="count-danger" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
+                <span>🔴 Sin Recibir (>10d)</span>
+                <span id="count-sinrecibir" style="background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:10px;">0</span>
             </div>
-            <div class="card-body" id="body-danger">
-                <div class="loading">Cargando...</div>
-            </div>
+            <div class="card-body" id="list-sinrecibir"><div class="loading">...</div></div>
         </div>
 
-        <div class="alert-card type-warning">
+        <div class="alert-card type-entregado">
             <div class="card-header">
-                <span>🚚 Tránsito (>10 días)</span>
-                <span id="count-warning" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
+                <span>🟠 Entregado Carrier (>5d)</span>
+                <span id="count-entregado" style="background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:10px;">0</span>
             </div>
-            <div class="card-body" id="body-warning">
-                <div class="loading">Cargando...</div>
+            <div class="card-body" id="list-entregado"><div class="loading">...</div></div>
+        </div>
+
+        <div class="alert-card type-dg">
+            <div class="card-header">
+                <span>🟡 Carga Peligrosa</span>
+                <span id="count-dg" style="background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:10px;">0</span>
             </div>
+            <div class="card-body" id="list-dg"><div class="loading">...</div></div>
         </div>
 
         <div class="alert-card type-ml">
             <div class="card-header">
-                <span>⚠️ Gestión ML (>3 días)</span>
-                <span id="count-ml" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">0</span>
+                <span>🟢 Mal Identificado</span>
+                <span id="count-ml" style="background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:10px;">0</span>
             </div>
-            <div class="card-body" id="body-ml">
-                <div class="loading">Cargando...</div>
-            </div>
+            <div class="card-body" id="list-ml"><div class="loading">...</div></div>
         </div>
 
     </div>
@@ -162,39 +176,39 @@
 
     async function loadAlerts() {
         const sucursal = document.getElementById('filterSucursal').value;
-        const bodyDanger = document.getElementById('body-danger');
-        const bodyWarning = document.getElementById('body-warning');
-        const bodyMl = document.getElementById('body-ml');
+        const listSinRecibir = document.getElementById('list-sinrecibir');
+        const listEntregado = document.getElementById('list-entregado');
+        const listDg = document.getElementById('list-dg');
+        const listMl = document.getElementById('list-ml');
         
-        bodyDanger.innerHTML = '<div class="loading">...</div>';
-        bodyWarning.innerHTML = '<div class="loading">...</div>';
-        bodyMl.innerHTML = '<div class="loading">...</div>';
+        // Limpiar
+        listSinRecibir.innerHTML = '<div class="loading">...</div>';
+        listEntregado.innerHTML = '<div class="loading">...</div>';
+        listDg.innerHTML = '<div class="loading">...</div>';
+        listMl.innerHTML = '<div class="loading">...</div>';
 
-        // TRAER TODO LO ACTIVO (No Recibido)
-        let query = supabase
-            .from('seguimiento_interno')
-            .select('*')
-            .neq('estado_alerta', 'Recibido'); 
-
+        // Consulta principal: Todo lo activo
+        let query = supabase.from('seguimiento_interno').select('*').neq('estado_alerta', 'Recibido'); 
         if (sucursal !== 'Todas') query = query.eq('sucursal', sucursal);
         
         const { data, error } = await query;
         if(error || !data) return;
 
         const now = new Date();
-        const arrBodega = [];   
-        const arrTransito = []; 
-        const arrMl = [];       
+        const arrSinRecibir = [];
+        const arrEntregado = [];
+        const arrDg = [];
+        const arrMl = [];
 
         data.forEach(p => {
-            // 1. CLASIFICACIÓN ML (TU LOGICA CRITICA)
-            if (p.estado_alerta === 'ML') {
+            const status = p.estado_alerta || 'Pendiente';
+            
+            // --- 1. MAL IDENTIFICADO (VERDE) ---
+            if (status === 'ML') {
                 if (p.fecha_solicitud) {
-                    // Ya se solicitó: Contamos desde la solicitud
                     p.diasCalc = Math.floor((now - new Date(p.fecha_solicitud)) / 864e5);
                     p.needsAction = false;
                 } else {
-                    // No se ha solicitado: Urgente acción
                     p.diasCalc = 0;
                     p.needsAction = true;
                 }
@@ -202,32 +216,45 @@
                 return;
             }
 
-            // 2. CLASIFICACIÓN BODEGA (Tiene fecha entrega)
+            // --- 2. CARGA PELIGROSA (AMARILLO - Informativo) ---
+            // Asumimos status 'Carga Peligrosa' o 'DG'
+            if (status === 'Carga Peligrosa' || status === 'DG') {
+                p.diasCalc = Math.floor((now - new Date(p.created_at)) / 864e5);
+                arrDg.push(p);
+                return;
+            }
+
+            // --- 3. ENTREGADO SEGÚN CARRIER (NARANJA - >5 Días) ---
+            // Solo si TIENE fecha_entrega_miami (Check o botón)
             if (p.fecha_entrega_miami) {
                 const dias = Math.floor((now - new Date(p.fecha_entrega_miami)) / 864e5);
                 if (dias > 5) {
                     p.diasCalc = dias;
-                    arrBodega.push(p);
+                    arrEntregado.push(p);
                 }
                 return;
             }
 
-            // 3. CLASIFICACIÓN TRÁNSITO (No tiene fecha entrega)
-            if (!p.fecha_entrega_miami) {
+            // --- 4. SIN RECIBIR (ROJO - >10 Días) ---
+            // Si NO tiene fecha entrega, y status NO es Miami/Aduanas/Recibido
+            // "Ni respuesta de Fuzion (DG, ML, Miami)" -> ya filtramos ML y DG arriba. Filtramos 'Miami' aquí.
+            if (!p.fecha_entrega_miami && status !== 'Miami' && status !== 'Aduanas') {
                 const dias = Math.floor((now - new Date(p.created_at)) / 864e5);
                 if (dias > 10) {
                     p.diasCalc = dias;
-                    arrTransito.push(p);
+                    arrSinRecibir.push(p);
                 }
             }
         });
 
-        renderList(bodyDanger, arrBodega, 'danger');
-        renderList(bodyWarning, arrTransito, 'warning');
-        renderList(bodyMl, arrMl, 'ml');
+        renderList(listSinRecibir, arrSinRecibir, 'sinrecibir');
+        renderList(listEntregado, arrEntregado, 'entregado');
+        renderList(listDg, arrDg, 'dg');
+        renderList(listMl, arrMl, 'ml');
 
-        document.getElementById('count-danger').textContent = arrBodega.length;
-        document.getElementById('count-warning').textContent = arrTransito.length;
+        document.getElementById('count-sinrecibir').textContent = arrSinRecibir.length;
+        document.getElementById('count-entregado').textContent = arrEntregado.length;
+        document.getElementById('count-dg').textContent = arrDg.length;
         document.getElementById('count-ml').textContent = arrMl.length;
         
         lucide.createIcons();
@@ -239,7 +266,7 @@
             return;
         }
 
-        // Ordenar: Los más antiguos primero
+        // Ordenar por antigüedad (Más urgente primero)
         items.sort((a, b) => b.diasCalc - a.diasCalc);
 
         const html = items.map(p => {
@@ -247,33 +274,33 @@
             let labelTiempo = '';
             let extraAction = '';
 
-            // LOGICA VISUAL PARA ML
             if (type === 'ml') {
                 badgeColor = '#bbf7d0';
-                
                 if (p.needsAction) {
-                    // CASO: FALTA SOLICITAR (BOTON AZUL)
-                    labelTiempo = 'Sin gestionar';
-                    extraAction = `<button class="btn-action" onclick="marcarSolicitado('${p.id}')"><i data-lucide="send" width="12"></i> Solicitar Info</button>`;
+                    labelTiempo = 'Acción Requerida';
+                    extraAction = `<button class="btn-action" onclick="marcarSolicitado('${p.id}')"><i data-lucide="send" width="12"></i> Solicitar</button>`;
                 } else {
-                    // CASO: YA SOLICITADO (CUENTA REGRESIVA 3 DIAS)
                     if (p.diasCalc > 3) {
                         labelTiempo = `VENCIDO (${p.diasCalc}d)`;
                         extraAction = `<span class="ml-urgent">⚠️ Urgente</span>`;
-                        badgeColor = '#fca5a5'; // Rojo claro
+                        badgeColor = '#fca5a5';
                     } else {
                         labelTiempo = `Esperando: ${p.diasCalc}d`;
                         extraAction = `<span class="ml-waiting">⏳ En espera</span>`;
                     }
                 }
             } 
-            // OTRAS COLUMNAS
-            else if (type === 'danger') {
+            else if (type === 'sinrecibir') { // Rojo
                 badgeColor = '#fecaca'; 
-                labelTiempo = `Retraso: ${p.diasCalc}d`;
-            } else if (type === 'warning') {
+                labelTiempo = `Espera: ${p.diasCalc}d`;
+            } 
+            else if (type === 'entregado') { // Naranja
+                badgeColor = '#fdba74';
+                labelTiempo = `Entrega: ${p.diasCalc}d`;
+            }
+            else if (type === 'dg') { // Amarillo
                 badgeColor = '#fde68a';
-                labelTiempo = `Transito: ${p.diasCalc}d`;
+                labelTiempo = `Antigüedad: ${p.diasCalc}d`;
             }
 
             return `
@@ -293,17 +320,12 @@
         container.innerHTML = html;
     }
 
-    // --- ACCIÓN PARA ML (ACTIVA EL CONTADOR DE 3 DÍAS) ---
+    // ACCIÓN ML
     window.marcarSolicitado = async (id) => {
-        if (!confirm("¿Confirmas que ya escribiste al cliente? \nEsto iniciará la cuenta de 3 días.")) return;
-        
-        const { error } = await supabase
-            .from('seguimiento_interno')
-            .update({ fecha_solicitud: new Date().toISOString() })
-            .eq('id', id);
-
+        if (!confirm("¿Confirmar solicitud al cliente?")) return;
+        const { error } = await supabase.from('seguimiento_interno').update({ fecha_solicitud: new Date().toISOString() }).eq('id', id);
         if (error) alert("Error: " + error.message);
-        else loadAlerts(); // Recarga inmediata
+        else loadAlerts();
     };
 
 </script>
