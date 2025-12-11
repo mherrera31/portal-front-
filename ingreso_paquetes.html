@@ -72,9 +72,8 @@
       .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } 
       .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } 
       .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-      /* NUEVOS ESTADOS */
-      .st-carta { background: #374151; color: #f3f4f6; border-color: #1f2937; } /* Gris oscuro */
-      .st-proceso { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; } /* Morado/Azul */
+      .st-carta { background: #374151; color: #f3f4f6; border-color: #1f2937; } 
+      .st-proceso { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
 
       .hidden { display: none !important; visibility: hidden !important; pointer-events: none !important; }
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
@@ -136,7 +135,7 @@
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
       .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
       
-      /* CHECKBOX */
+      /* CHECKBOX ROW */
       .check-row {
           display: flex; align-items: center; gap: 10px;
           margin-bottom: 16px; padding: 10px;
@@ -317,7 +316,7 @@
         editModal: document.getElementById('editModal'),
         editId: document.getElementById('editId'),
         editTracking: document.getElementById('editTracking'),
-        editMatch: document.getElementById('editMatch'), // Nuevo
+        editMatch: document.getElementById('editMatch'),
         editEstado: document.getElementById('editEstado'),
         editNota: document.getElementById('editNota'),
         matchModal: document.getElementById('matchModal'),
@@ -344,7 +343,7 @@
     }
     init();
 
-    // LIMPIEZA 60 DIAS (RECIBIDOS Y CARTA)
+    // LIMPIEZA 60 DIAS
     async function autoCleanOldRecords() {
         const limitDate = new Date(); limitDate.setDate(limitDate.getDate() - 60); 
         await supabase.from('seguimiento_interno').delete({ count: 'exact' }).lt('created_at', limitDate.toISOString()).eq('estado_alerta', 'Recibido'); 
@@ -387,7 +386,7 @@
     
     document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
-    // GUARDAR + CHECK STATUS INMEDIATO
+    // GUARDAR + CHECK INMEDIATO
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const trk = dom.tracking.value.trim();
@@ -412,7 +411,7 @@
             dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; 
         } else { 
             dom.status.textContent = '✅ Guardado. Buscando info...'; dom.status.className = 'status-msg success'; 
-            // 2. Ejecutar búsqueda inmediata
+            // 2. Búsqueda inmediata
             if (newPkg) await checkStatus(newPkg.id, newPkg.tracking);
             // 3. Reset
             dom.tracking.value = ''; dom.chkEntregado.checked = false; dom.tracking.focus(); 
@@ -433,7 +432,6 @@
         if (dom.filterTracking.value) query = query.ilike('tracking', `%${dom.filterTracking.value}%`);
 
         const st = dom.filterStatus.value;
-        // Filtro Carta oculto en Activos
         if (st === 'Activos') query = query.neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta');
         else if (st !== 'Todos') query = query.eq('estado_alerta', st);
 
@@ -548,14 +546,24 @@
         loadPackages();
     };
 
-    // --- CHECK STATUS (LA LOGICA PRINCIPAL DE 3 NIVELES) ---
+    // --- CHECK STATUS (LA LOGICA PRINCIPAL) ---
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
+            // CALCULAMOS "LAST 6" DEL TRACKING
+            const term = tracking.trim();
+            const suffix = term.length > 6 ? term.slice(-6) : term;
+
             // 1. PRIORIDAD: TABLA PAQUETES (YA EN SUCURSAL) -> RECIBIDO
-            const { data: sucMatches } = await supabase.from('paquetes').select('*').or(`tracking.eq.${tracking},tracking_global.eq.${tracking}`).limit(1);
+            // Buscamos exacto OR terminación 6 dígitos
+            const { data: sucMatches } = await supabase
+                .from('paquetes')
+                .select('*')
+                .or(`tracking.ilike.%${suffix},tracking_global.ilike.%${suffix}`)
+                .limit(1);
+
             if (sucMatches && sucMatches.length > 0) {
                 await applyMatch(id, sucMatches[0], 'Recibido'); 
                 if(document.getElementById(`row-${id}`)) loadPackages();
@@ -563,7 +571,12 @@
             }
 
             // 2. PRIORIDAD: TABLA PAQUETES_CARGADOS (EN CAMINO) -> EN PROCESO DE ADUANA
-            const { data: cargaMatches } = await supabase.from('paquetes_cargados').select('*').ilike('tracking', `%${tracking}%`).limit(5);
+            const { data: cargaMatches } = await supabase
+                .from('paquetes_cargados')
+                .select('*')
+                .ilike('tracking', `%${suffix}`) // Coincidencia por últimos 6 o parcial
+                .limit(5);
+
             if (cargaMatches && cargaMatches.length > 0) {
                 if (cargaMatches.length > 1) { 
                     openMatchModal(id, cargaMatches); 
@@ -664,27 +677,15 @@
         for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
     };
 
-    // --- AUTOMATIZACION 4 HORAS (ROBOT INVISIBLE) ---
-    setInterval(() => {
-        autoUpdateRoutine();
-    }, 4 * 60 * 60 * 1000); // 4 HORAS
+    // --- AUTOMATIZACION 4 HORAS ---
+    setInterval(() => { autoUpdateRoutine(); }, 4 * 60 * 60 * 1000); 
 
     async function autoUpdateRoutine() {
-        console.log("⚡ Auto-Scan Iniciado (4h)...");
-        // Traemos los últimos 50 pendientes (para no saturar)
-        const { data: pends } = await supabase
-            .from('seguimiento_interno')
-            .select('*')
-            .neq('estado_alerta', 'Recibido')
-            .neq('estado_alerta', 'Carta')
-            .limit(50);
-            
+        console.log("⚡ Auto-Scan Iniciado...");
+        const { data: pends } = await supabase.from('seguimiento_interno').select('*').neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta').limit(50);
         if(pends && pends.length > 0) {
-            for(const p of pends) {
-                await checkStatus(p.id, p.tracking); // Esto ya actualiza la DB
-                await new Promise(r => setTimeout(r, 1000)); // 1 seg de pausa
-            }
-            if (!dom.viewList.classList.contains('hidden')) loadPackages(); // Si el usuario está viendo la lista, refrescar
+            for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r => setTimeout(r, 1000)); }
+            if (!dom.viewList.classList.contains('hidden')) loadPackages(); 
         }
     }
 
