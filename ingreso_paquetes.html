@@ -63,6 +63,7 @@
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
+      /* BADGES Y ESTADOS */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
@@ -71,8 +72,9 @@
       .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } 
       .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } 
       .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-      /* ESTILO CARTA */
-      .st-carta { background: #374151; color: #f3f4f6; border-color: #1f2937; }
+      /* NUEVOS ESTADOS */
+      .st-carta { background: #374151; color: #f3f4f6; border-color: #1f2937; } /* Gris oscuro */
+      .st-proceso { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; } /* Morado/Azul */
 
       .hidden { display: none !important; visibility: hidden !important; pointer-events: none !important; }
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
@@ -134,7 +136,7 @@
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
       .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
       
-      /* --- CHECKBOX ROW --- */
+      /* CHECKBOX */
       .check-row {
           display: flex; align-items: center; gap: 10px;
           margin-bottom: 16px; padding: 10px;
@@ -192,6 +194,7 @@
                 <select id="filterStatus">
                     <option value="Activos">Activos (Ocultar Recibidos/Carta)</option>
                     <option value="Todos">Ver Todo</option>
+                    <option value="En Proceso de Aduana">En Proceso (Bodega)</option>
                     <option value="Recibido">Solo Recibidos</option>
                     <option value="Carta">Carta (No Entregados)</option>
                     <option value="Aduanas">Solo Aduanas</option>
@@ -235,11 +238,23 @@
     <div class="modal-content">
         <h2 class="modal-title">Corrección Manual</h2>
         <input type="hidden" id="editId">
-        <div class="field"><label class="label">Corrección de Tracking</label><input type="text" id="editTracking"></div>
+        
+        <div class="field">
+            <label class="label">Corrección de Tracking</label>
+            <input type="text" id="editTracking">
+        </div>
+
+        <div class="field">
+            <label class="label">Tracking Match (Enlace Manual)</label>
+            <input type="text" id="editMatch" placeholder="Tracking exacto para enlazar...">
+            <small style="color:#6b7280; font-size:11px;">Usar si el tracking físico difiere del sistema.</small>
+        </div>
+
         <div class="field">
             <label class="label">Forzar Estado</label>
             <select id="editEstado">
                 <option value="Pendiente">Pendiente</option>
+                <option value="En Proceso de Aduana">En Proceso de Aduana</option>
                 <option value="Recibido">Recibido (Finalizar)</option>
                 <option value="Carta">Carta (No Entregado)</option>
                 <option value="ML">Mal Identificado</option>
@@ -302,6 +317,7 @@
         editModal: document.getElementById('editModal'),
         editId: document.getElementById('editId'),
         editTracking: document.getElementById('editTracking'),
+        editMatch: document.getElementById('editMatch'), // Nuevo
         editEstado: document.getElementById('editEstado'),
         editNota: document.getElementById('editNota'),
         matchModal: document.getElementById('matchModal'),
@@ -319,14 +335,7 @@
     let totalItems = 0;
     let searchDebounce = null;
 
-    // --- UTILS ---
-    function getTimestamp(val) {
-        if (!val) return 0;
-        const dateStr = typeof val === 'object' ? val.date : val;
-        if (!dateStr) return 0;
-        return new Date(dateStr).getTime();
-    }
-    
+    function getTimestamp(val) { if (!val) return 0; const dateStr = typeof val === 'object' ? val.date : val; if (!dateStr) return 0; return new Date(dateStr).getTime(); }
     window.toggleCheck = () => { /* dom.chkEntregado.checked = !dom.chkEntregado.checked; */ };
 
     async function init() {
@@ -335,56 +344,34 @@
     }
     init();
 
+    // LIMPIEZA 60 DIAS (RECIBIDOS Y CARTA)
     async function autoCleanOldRecords() {
-        // ELIMINAR REGISTROS > 60 DIAS (RECIBIDOS O CARTA)
-        const limitDate = new Date();
-        limitDate.setDate(limitDate.getDate() - 60); 
-        
-        // Supabase v2: Eliminar Recibidos > 60d
-        await supabase
-            .from('seguimiento_interno')
-            .delete({ count: 'exact' })
-            .lt('created_at', limitDate.toISOString())
-            .eq('estado_alerta', 'Recibido');
-            
-        // Supabase v2: Eliminar Carta > 60d
-        await supabase
-            .from('seguimiento_interno')
-            .delete({ count: 'exact' })
-            .lt('created_at', limitDate.toISOString())
-            .eq('estado_alerta', 'Carta');
+        const limitDate = new Date(); limitDate.setDate(limitDate.getDate() - 60); 
+        await supabase.from('seguimiento_interno').delete({ count: 'exact' }).lt('created_at', limitDate.toISOString()).eq('estado_alerta', 'Recibido'); 
+        await supabase.from('seguimiento_interno').delete({ count: 'exact' }).lt('created_at', limitDate.toISOString()).eq('estado_alerta', 'Carta'); 
     }
 
     async function loadBranches() {
         const { data } = await supabase.from('sucursales').select('sucursal').order('sucursal', { ascending: true });
         if (data) {
             dom.filterSucursal.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
-            data.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.sucursal; opt.textContent = s.sucursal;
-                dom.filterSucursal.appendChild(opt);
-            });
+            data.forEach(s => { const opt = document.createElement('option'); opt.value = s.sucursal; opt.textContent = s.sucursal; dom.filterSucursal.appendChild(opt); });
         }
     }
 
-    // --- NAVEGACIÓN ---
+    // NAVEGACIÓN
     dom.btnGoToList.addEventListener('click', () => { 
-        dom.viewForm.classList.add('hidden'); dom.viewList.classList.remove('hidden');
-        dom.btnGoToList.classList.add('hidden'); dom.btnGoToForm.classList.remove('hidden');
-        dom.title.textContent = "Seguimiento"; dom.container.classList.add('wide');
-        loadPackages(); 
+        dom.viewForm.classList.add('hidden'); dom.viewList.classList.remove('hidden'); dom.btnGoToList.classList.add('hidden'); dom.btnGoToForm.classList.remove('hidden');
+        dom.title.textContent = "Seguimiento"; dom.container.classList.add('wide'); loadPackages(); 
     });
-    
     dom.btnGoToForm.addEventListener('click', () => { 
-        dom.viewList.classList.add('hidden'); dom.viewForm.classList.remove('hidden');
-        dom.btnGoToForm.classList.add('hidden'); dom.btnGoToList.classList.remove('hidden');
+        dom.viewList.classList.add('hidden'); dom.viewForm.classList.remove('hidden'); dom.btnGoToForm.classList.add('hidden'); dom.btnGoToList.classList.remove('hidden');
         dom.title.textContent = "Registro Interno"; dom.container.classList.remove('wide');
     });
 
-    // --- REGISTRO ---
+    // REGISTRO
     dom.search.addEventListener('input', async (e) => {
-        const term = e.target.value.trim();
-        if (term.length < 2) { dom.suggestions.style.display = 'none'; return; }
+        const term = e.target.value.trim(); if (term.length < 2) { dom.suggestions.style.display = 'none'; return; }
         const { data } = await supabase.rpc('buscar_clientes_flex', { search_term: term });
         if (!data || data.length === 0) { dom.suggestions.style.display = 'none'; return; }
         dom.suggestions.innerHTML = data.map(c => `<div class="suggestion-item" onclick='selectClient(${JSON.stringify(c)})'><strong>${c.nombre}</strong><span style="color:#6b7280; font-size:12px">Box: ${c.box} | Suc: ${c.sucursal || 'Centro'}</span></div>`).join('');
@@ -392,23 +379,19 @@
     });
 
     window.selectClient = (c) => {
-        selectedClient = c;
-        dom.search.value = `${c.nombre}`;
-        document.getElementById('dispNombre').textContent = c.nombre;
-        document.getElementById('dispBox').textContent = c.box;
-        document.getElementById('dispSucursal').textContent = c.sucursal || 'Centro';
+        selectedClient = c; dom.search.value = `${c.nombre}`;
+        document.getElementById('dispNombre').textContent = c.nombre; document.getElementById('dispBox').textContent = c.box; document.getElementById('dispSucursal').textContent = c.sucursal || 'Centro';
         dom.h_nombre.value = c.nombre; dom.h_box.value = c.box; dom.h_sucursal.value = c.sucursal || 'Centro';
         document.getElementById('clientInfo').style.display = 'block'; dom.suggestions.style.display = 'none';
     };
     
     document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
-    // --- GUARDAR + CHECK INMEDIATO ---
+    // GUARDAR + CHECK STATUS INMEDIATO
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const trk = dom.tracking.value.trim();
         if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
-        
         dom.btnGuardar.disabled = true;
 
         const yaEntregado = dom.chkEntregado.checked;
@@ -418,31 +401,26 @@
         const { data: existing } = await supabase.from('seguimiento_interno').select('id').eq('tracking', trk).maybeSingle();
         if (existing) { dom.status.textContent = '⚠️ Tracking duplicado'; dom.status.style.color = 'orange'; dom.btnGuardar.disabled = false; return; }
         
-        // 1. INSERTAR EL PAQUETE
+        // 1. Insertar
         const { data: newPkg, error } = await supabase.from('seguimiento_interno').insert([{
             tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, 
-            estado_alerta: 'Pendiente', seguimiento: textoSeguimiento, nota: '',
-            fecha_entrega_miami: fechaMiami
+            estado_alerta: 'Pendiente', seguimiento: textoSeguimiento, nota: '', fecha_entrega_miami: fechaMiami
         }]).select().single();
 
         dom.btnGuardar.disabled = false;
-        
         if (error) { 
             dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; 
         } else { 
-            dom.status.textContent = '✅ Guardado. Verificando en Fuzion...'; 
-            dom.status.className = 'status-msg success'; 
-            
-            // 2. CHECK INMEDIATO A FUZION
-            await checkStatus(newPkg.id, newPkg.tracking);
-            
-            // 3. LIMPIAR FORM
+            dom.status.textContent = '✅ Guardado. Buscando info...'; dom.status.className = 'status-msg success'; 
+            // 2. Ejecutar búsqueda inmediata
+            if (newPkg) await checkStatus(newPkg.id, newPkg.tracking);
+            // 3. Reset
             dom.tracking.value = ''; dom.chkEntregado.checked = false; dom.tracking.focus(); 
             setTimeout(() => { dom.status.textContent = '✅ Listo'; }, 2000);
         }
     });
 
-    // --- LISTA ---
+    // LISTA PAGINADA
     async function loadPackages() {
         dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         
@@ -455,29 +433,22 @@
         if (dom.filterTracking.value) query = query.ilike('tracking', `%${dom.filterTracking.value}%`);
 
         const st = dom.filterStatus.value;
-        if (st === 'Activos') {
-             // Ocultar Recibidos Y Carta
-             query = query.neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta');
-        } else if (st !== 'Todos') {
-             query = query.eq('estado_alerta', st);
-        }
+        // Filtro Carta oculto en Activos
+        if (st === 'Activos') query = query.neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta');
+        else if (st !== 'Todos') query = query.eq('estado_alerta', st);
 
         const { data, count, error } = await query;
         if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
 
-        currentData = data || [];
-        totalItems = count || 0;
-        updatePaginationUI();
+        currentData = data || []; totalItems = count || 0; updatePaginationUI();
         renderTable(currentData);
     }
 
     function updatePaginationUI() {
         const totalPages = Math.ceil(totalItems / pageSize);
         dom.pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1} (Total: ${totalItems})`;
-        dom.btnPrev.disabled = currentPage === 1;
-        dom.btnNext.disabled = currentPage >= totalPages;
+        dom.btnPrev.disabled = currentPage === 1; dom.btnNext.disabled = currentPage >= totalPages;
     }
-
     dom.btnPrev.onclick = () => { if(currentPage > 1) { currentPage--; loadPackages(); } };
     dom.btnNext.onclick = () => { currentPage++; loadPackages(); };
 
@@ -490,11 +461,13 @@
         dom.tableBody.innerHTML = paquetes.map(p => {
             let badgeClass = 'st-pendiente';
             const est = p.estado_alerta || 'Pendiente';
-            if (est === 'Miami') badgeClass = 'st-miami';
+            
+            if (est === 'En Proceso de Aduana') badgeClass = 'st-proceso';
+            else if (est === 'Recibido') badgeClass = 'st-recibido';
+            else if (est === 'Miami') badgeClass = 'st-miami';
             else if (est === 'Tránsito') badgeClass = 'st-transito';
             else if (est === 'Carga Peligrosa' || est === 'DG') badgeClass = 'st-dg';
             else if (est === 'Aduanas') badgeClass = 'st-aduanas';
-            else if (est === 'Recibido') badgeClass = 'st-recibido';
             else if (est === 'ML') badgeClass = 'st-ml';
             else if (est === 'Carta') badgeClass = 'st-carta';
 
@@ -504,7 +477,7 @@
             let trackingDisplay = p.tracking;
             if (p.tracking_match && p.tracking_match !== p.tracking) trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
 
-            // GESTIÓN DE ESTADO + BOTONES
+            // GESTIÓN DE ML
             let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
             
             if (est === 'ML') {
@@ -517,23 +490,20 @@
             } 
             // LOGICA DEL BOTON "LLEGO"
             else {
-                // Estados conocidos donde NO mostramos el botón
-                const statusConocidos = ['Recibido', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML', 'Carta'];
+                // Estados donde YA LLEGÓ (No necesitamos preguntar)
+                const statusConocidos = ['Recibido', 'En Proceso de Aduana', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML', 'Carta'];
                 
-                // Si el status actual NO está en esa lista (ej: es Pendiente o No Info)
                 if (!statusConocidos.includes(est)) {
                     if (!p.fecha_entrega_miami) {
-                        // No tiene fecha: Mostramos Botón
-                        estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
+                         estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
                     } else {
-                        // Ya tiene fecha: Mostramos Texto
                         const dias = Math.floor((new Date() - new Date(p.fecha_entrega_miami)) / (1000 * 60 * 60 * 24));
                         estadoHtml += ` <div class="ml-status-text" style="color:#d97706">Llegó hace ${dias}d</div>`;
                     }
                 }
             }
 
-            const isRecibido = est === 'Recibido';
+            const isRecibido = est === 'Recibido' || est === 'Carta';
             const btnClass = isRecibido ? 'btn-disabled' : 'btn-blue';
             const btnAction = isRecibido ? '' : `onclick="checkStatus('${p.id}', '${p.tracking}')"`;
 
@@ -542,7 +512,7 @@
                     <td>
                         <div class="action-row">
                             <button type="button" class="action-btn ${btnClass}" ${btnAction} title="Verificar Status"><i data-lucide="zap" style="width:14px"></i></button>
-                            <button type="button" class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}', '${notaSafe}')" title="Editar"><i data-lucide="pencil" style="width:14px"></i></button>
+                            <button type="button" class="action-btn btn-orange" onclick="openManualEdit('${p.id}', '${p.tracking}', '${est}', '${notaSafe}', '${p.tracking_match||''}')" title="Editar"><i data-lucide="pencil" style="width:14px"></i></button>
                             <button type="button" class="action-btn btn-red" onclick="deletePackage('${p.id}')" title="Eliminar"><i data-lucide="trash-2" style="width:14px"></i></button>
                         </div>
                     </td>
@@ -562,18 +532,14 @@
     // --- ACCIONES ---
     window.marcarLlegada = async (id) => {
         if(!confirm("¿Confirmar que el Carrier YA entregó este paquete? \nEsto activará la cuenta de 5 días.")) return;
-        await supabase.from('seguimiento_interno').update({
-            fecha_entrega_miami: new Date().toISOString(),
-            seguimiento: 'Marcado entregado Manualmente'
-        }).eq('id', id);
+        await supabase.from('seguimiento_interno').update({ fecha_entrega_miami: new Date().toISOString(), seguimiento: 'Marcado entregado Manualmente' }).eq('id', id);
         loadPackages();
     };
 
     window.deletePackage = async (id) => {
         if (!confirm("¿Eliminar paquete?")) return;
         const { error } = await supabase.from('seguimiento_interno').delete().eq('id', id);
-        if (error) alert("Error: " + error.message);
-        else loadPackages();
+        if (error) alert("Error: " + error.message); else loadPackages();
     };
 
     window.marcarSolicitado = async (id) => {
@@ -582,22 +548,34 @@
         loadPackages();
     };
 
+    // --- CHECK STATUS (LA LOGICA PRINCIPAL DE 3 NIVELES) ---
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // 1. LOCAL
-            const { data: matches } = await supabase.from('paquetes_cargados').select('*').ilike('tracking', `%${tracking}%`).limit(5);
-
-            if (matches && matches.length > 0) {
-                if (matches.length > 1) { openMatchModal(id, matches); if(segCell) segCell.textContent = "⚠️ Múltiples opciones"; return; }
-                await applyMatch(id, matches[0]);
-                loadPackages(); 
+            // 1. PRIORIDAD: TABLA PAQUETES (YA EN SUCURSAL) -> RECIBIDO
+            const { data: sucMatches } = await supabase.from('paquetes').select('*').or(`tracking.eq.${tracking},tracking_global.eq.${tracking}`).limit(1);
+            if (sucMatches && sucMatches.length > 0) {
+                await applyMatch(id, sucMatches[0], 'Recibido'); 
+                if(document.getElementById(`row-${id}`)) loadPackages();
                 return;
             }
 
-            // 2. FUZION
+            // 2. PRIORIDAD: TABLA PAQUETES_CARGADOS (EN CAMINO) -> EN PROCESO DE ADUANA
+            const { data: cargaMatches } = await supabase.from('paquetes_cargados').select('*').ilike('tracking', `%${tracking}%`).limit(5);
+            if (cargaMatches && cargaMatches.length > 0) {
+                if (cargaMatches.length > 1) { 
+                    openMatchModal(id, cargaMatches); 
+                    if(segCell) segCell.textContent = "⚠️ Múltiples opciones"; 
+                    return; 
+                }
+                await applyMatch(id, cargaMatches[0], 'En Proceso de Aduana');
+                if(document.getElementById(`row-${id}`)) loadPackages();
+                return;
+            }
+
+            // 3. PRIORIDAD: FUZION (EXTERNO)
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -627,35 +605,40 @@
             }
 
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-            
-            // Si llamamos a esto desde un boton, recargamos la tabla. 
-            // Si es desde el insert automatico, no recargamos para no interrumpir.
             if(document.getElementById(`row-${id}`)) loadPackages(); 
 
         } catch (err) { console.error(err); if(segCell) segCell.textContent = "Err"; }
     };
 
-    async function applyMatch(rowId, matchData) {
+    async function applyMatch(rowId, matchData, estadoDestino) {
         const box = matchData.cliente_box || matchData.box || "";
         const nombre = matchData.cliente_nombre || matchData.cliente || "";
-        const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
-        const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
+        const fecha = matchData.fecha_bodega || matchData.fecha_sucursal || matchData.created_at || new Date();
         
+        const texto = estadoDestino === 'Recibido' ? `✅ Recibido en Sucursal: ${nombre}` : `✈️ En Proceso Aduana: ${nombre}`;
+
         await supabase.from('seguimiento_interno').update({
-            estado_alerta: 'Recibido', seguimiento: detalle, cliente_box: box, tracking_match: matchData.tracking
+            estado_alerta: estadoDestino, seguimiento: texto, cliente_box: box, tracking_match: matchData.tracking
         }).eq('id', rowId);
     }
 
     // --- MODALES ---
-    window.openManualEdit = (id, tracking, estadoActual, notaActual) => {
-        dom.editId.value = id; dom.editTracking.value = tracking; dom.editEstado.value = estadoActual; dom.editNota.value = notaActual || ''; dom.editModal.classList.remove('hidden');
+    window.openManualEdit = (id, tracking, estadoActual, notaActual, matchActual) => {
+        dom.editId.value = id; dom.editTracking.value = tracking; dom.editEstado.value = estadoActual; dom.editNota.value = notaActual || ''; dom.editMatch.value = matchActual || ''; 
+        dom.editModal.classList.remove('hidden');
     };
     window.closeEditModal = () => { dom.editModal.classList.add('hidden'); };
 
     window.saveManualEdit = async () => {
-        const id = dom.editId.value; const newTrack = dom.editTracking.value.trim(); const newEstado = dom.editEstado.value; const nota = dom.editNota.value.trim();
+        const id = dom.editId.value; const newTrack = dom.editTracking.value.trim(); const newEstado = dom.editEstado.value; 
+        const nota = dom.editNota.value.trim(); const match = dom.editMatch.value.trim();
+        
         if(!newTrack) return alert("Tracking obligatorio");
-        const { error } = await supabase.from('seguimiento_interno').update({ tracking: newTrack, estado_alerta: newEstado, nota: nota }).eq('id', id);
+        
+        const { error } = await supabase.from('seguimiento_interno').update({ 
+            tracking: newTrack, estado_alerta: newEstado, nota: nota, tracking_match: match 
+        }).eq('id', id);
+        
         if(error) alert("Error: " + error.message); else { closeEditModal(); loadPackages(); }
     };
 
@@ -670,13 +653,13 @@
     window.closeMatchModal = () => { dom.matchModal.classList.add('hidden'); };
     window.selectMatch = async (index) => {
         const id = dom.matchTargetId.value; const matches = JSON.parse(dom.matchList.dataset.matches);
-        if (matches[index]) { await applyMatch(id, matches[index]); closeMatchModal(); loadPackages(); }
+        if (matches[index]) { await applyMatch(id, matches[index], 'En Proceso de Aduana'); closeMatchModal(); loadPackages(); }
     };
 
     // Listeners
     dom.filterTracking.oninput = liveSearch; dom.filterClient.oninput = liveSearch; dom.filterSucursal.onchange = liveSearch; dom.filterStatus.onchange = liveSearch;
     dom.btnUpdateMassive.onclick = async () => {
-        const pends = currentData.filter(p => p.estado_alerta !== 'Recibido');
+        const pends = currentData.filter(p => p.estado_alerta !== 'Recibido' && p.estado_alerta !== 'Carta');
         if(!confirm(`Actualizar ${pends.length} paquetes?`)) return;
         for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
     };
@@ -693,7 +676,7 @@
             .from('seguimiento_interno')
             .select('*')
             .neq('estado_alerta', 'Recibido')
-            .neq('estado_alerta', 'Carta') // No revisamos cartas
+            .neq('estado_alerta', 'Carta')
             .limit(50);
             
         if(pends && pends.length > 0) {
