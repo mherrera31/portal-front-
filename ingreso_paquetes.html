@@ -71,6 +71,8 @@
       .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } 
       .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } 
       .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+      /* ESTILO CARTA */
+      .st-carta { background: #374151; color: #f3f4f6; border-color: #1f2937; }
 
       .hidden { display: none !important; visibility: hidden !important; pointer-events: none !important; }
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
@@ -188,9 +190,10 @@
                 <input type="text" id="filterClient" placeholder="👤 Buscar Cliente/Box...">
                 <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
                 <select id="filterStatus">
-                    <option value="Activos">Activos (Ocultar Recibidos)</option>
+                    <option value="Activos">Activos (Ocultar Recibidos/Carta)</option>
                     <option value="Todos">Ver Todo</option>
                     <option value="Recibido">Solo Recibidos</option>
+                    <option value="Carta">Carta (No Entregados)</option>
                     <option value="Aduanas">Solo Aduanas</option>
                     <option value="ML">Solo ML</option>
                 </select>
@@ -238,6 +241,7 @@
             <select id="editEstado">
                 <option value="Pendiente">Pendiente</option>
                 <option value="Recibido">Recibido (Finalizar)</option>
+                <option value="Carta">Carta (No Entregado)</option>
                 <option value="ML">Mal Identificado</option>
                 <option value="Aduanas">Aduanas</option>
             </select>
@@ -332,9 +336,23 @@
     init();
 
     async function autoCleanOldRecords() {
+        // ELIMINAR REGISTROS > 60 DIAS (RECIBIDOS O CARTA)
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 60); 
-        const { error } = await supabase.from('seguimiento_interno').delete({ count: 'exact' }).lt('created_at', limitDate.toISOString()).eq('estado_alerta', 'Recibido'); 
+        
+        // Supabase v2: Eliminar Recibidos > 60d
+        await supabase
+            .from('seguimiento_interno')
+            .delete({ count: 'exact' })
+            .lt('created_at', limitDate.toISOString())
+            .eq('estado_alerta', 'Recibido');
+            
+        // Supabase v2: Eliminar Carta > 60d
+        await supabase
+            .from('seguimiento_interno')
+            .delete({ count: 'exact' })
+            .lt('created_at', limitDate.toISOString())
+            .eq('estado_alerta', 'Carta');
     }
 
     async function loadBranches() {
@@ -415,7 +433,7 @@
             dom.status.textContent = '✅ Guardado. Verificando en Fuzion...'; 
             dom.status.className = 'status-msg success'; 
             
-            // 2. CHECK INMEDIATO A FUZION (Para no dejarlo en pendiente si ya hay info)
+            // 2. CHECK INMEDIATO A FUZION
             await checkStatus(newPkg.id, newPkg.tracking);
             
             // 3. LIMPIAR FORM
@@ -437,8 +455,12 @@
         if (dom.filterTracking.value) query = query.ilike('tracking', `%${dom.filterTracking.value}%`);
 
         const st = dom.filterStatus.value;
-        if (st === 'Activos') query = query.neq('estado_alerta', 'Recibido');
-        else if (st !== 'Todos') query = query.eq('estado_alerta', st);
+        if (st === 'Activos') {
+             // Ocultar Recibidos Y Carta
+             query = query.neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta');
+        } else if (st !== 'Todos') {
+             query = query.eq('estado_alerta', st);
+        }
 
         const { data, count, error } = await query;
         if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
@@ -474,6 +496,7 @@
             else if (est === 'Aduanas') badgeClass = 'st-aduanas';
             else if (est === 'Recibido') badgeClass = 'st-recibido';
             else if (est === 'ML') badgeClass = 'st-ml';
+            else if (est === 'Carta') badgeClass = 'st-carta';
 
             const fecha = new Date(p.created_at).toLocaleDateString();
             const notaSafe = (p.nota || '').replace(/'/g, "\\'");
@@ -481,7 +504,7 @@
             let trackingDisplay = p.tracking;
             if (p.tracking_match && p.tracking_match !== p.tracking) trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
 
-            // GESTIÓN DE ML
+            // GESTIÓN DE ESTADO + BOTONES
             let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
             
             if (est === 'ML') {
@@ -495,7 +518,7 @@
             // LOGICA DEL BOTON "LLEGO"
             else {
                 // Estados conocidos donde NO mostramos el botón
-                const statusConocidos = ['Recibido', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML'];
+                const statusConocidos = ['Recibido', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML', 'Carta'];
                 
                 // Si el status actual NO está en esa lista (ej: es Pendiente o No Info)
                 if (!statusConocidos.includes(est)) {
@@ -670,6 +693,7 @@
             .from('seguimiento_interno')
             .select('*')
             .neq('estado_alerta', 'Recibido')
+            .neq('estado_alerta', 'Carta') // No revisamos cartas
             .limit(50);
             
         if(pends && pends.length > 0) {
