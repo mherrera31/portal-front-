@@ -385,7 +385,7 @@
     
     document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
-    // --- GUARDAR ---
+    // --- GUARDAR + CHECK INMEDIATO ---
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const trk = dom.tracking.value.trim();
@@ -400,17 +400,27 @@
         const { data: existing } = await supabase.from('seguimiento_interno').select('id').eq('tracking', trk).maybeSingle();
         if (existing) { dom.status.textContent = '⚠️ Tracking duplicado'; dom.status.style.color = 'orange'; dom.btnGuardar.disabled = false; return; }
         
-        const { error } = await supabase.from('seguimiento_interno').insert([{
+        // 1. INSERTAR EL PAQUETE
+        const { data: newPkg, error } = await supabase.from('seguimiento_interno').insert([{
             tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, 
             estado_alerta: 'Pendiente', seguimiento: textoSeguimiento, nota: '',
             fecha_entrega_miami: fechaMiami
-        }]);
+        }]).select().single();
 
         dom.btnGuardar.disabled = false;
-        if (error) { dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; }
-        else { 
-            dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; 
+        
+        if (error) { 
+            dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; 
+        } else { 
+            dom.status.textContent = '✅ Guardado. Verificando en Fuzion...'; 
+            dom.status.className = 'status-msg success'; 
+            
+            // 2. CHECK INMEDIATO A FUZION (Para no dejarlo en pendiente si ya hay info)
+            await checkStatus(newPkg.id, newPkg.tracking);
+            
+            // 3. LIMPIAR FORM
             dom.tracking.value = ''; dom.chkEntregado.checked = false; dom.tracking.focus(); 
+            setTimeout(() => { dom.status.textContent = '✅ Listo'; }, 2000);
         }
     });
 
@@ -482,16 +492,18 @@
                     else estadoHtml += ` <span class="ml-status-text ml-espera">⏳ Esperando (${dias}d)</span>`;
                 }
             } 
-            // LOGICA CORREGIDA PARA BOTÓN DE LLEGADA
+            // LOGICA DEL BOTON "LLEGO"
             else {
-                // Lista de Estados donde YA SABEMOS que está en bodega/procesado
+                // Estados conocidos donde NO mostramos el botón
                 const statusConocidos = ['Recibido', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML'];
                 
-                // Si el estado NO está en la lista de conocidos (ej: Pendiente, No Info, Tránsito)
+                // Si el status actual NO está en esa lista (ej: es Pendiente o No Info)
                 if (!statusConocidos.includes(est)) {
                     if (!p.fecha_entrega_miami) {
-                         estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
+                        // No tiene fecha: Mostramos Botón
+                        estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
                     } else {
+                        // Ya tiene fecha: Mostramos Texto
                         const dias = Math.floor((new Date() - new Date(p.fecha_entrega_miami)) / (1000 * 60 * 60 * 24));
                         estadoHtml += ` <div class="ml-status-text" style="color:#d97706">Llegó hace ${dias}d</div>`;
                     }
@@ -592,7 +604,10 @@
             }
 
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-            loadPackages(); 
+            
+            // Si llamamos a esto desde un boton, recargamos la tabla. 
+            // Si es desde el insert automatico, no recargamos para no interrumpir.
+            if(document.getElementById(`row-${id}`)) loadPackages(); 
 
         } catch (err) { console.error(err); if(segCell) segCell.textContent = "Err"; }
     };
@@ -642,6 +657,29 @@
         if(!confirm(`Actualizar ${pends.length} paquetes?`)) return;
         for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
     };
+
+    // --- AUTOMATIZACION 4 HORAS (ROBOT INVISIBLE) ---
+    setInterval(() => {
+        autoUpdateRoutine();
+    }, 4 * 60 * 60 * 1000); // 4 HORAS
+
+    async function autoUpdateRoutine() {
+        console.log("⚡ Auto-Scan Iniciado (4h)...");
+        // Traemos los últimos 50 pendientes (para no saturar)
+        const { data: pends } = await supabase
+            .from('seguimiento_interno')
+            .select('*')
+            .neq('estado_alerta', 'Recibido')
+            .limit(50);
+            
+        if(pends && pends.length > 0) {
+            for(const p of pends) {
+                await checkStatus(p.id, p.tracking); // Esto ya actualiza la DB
+                await new Promise(r => setTimeout(r, 1000)); // 1 seg de pausa
+            }
+            if (!dom.viewList.classList.contains('hidden')) loadPackages(); // Si el usuario está viendo la lista, refrescar
+        }
+    }
 
 </script>
 </body>
