@@ -12,131 +12,62 @@
 
     <style>
       :root {
-        --bg: #f3f4f6;
-        --fg: #1f2937;
-        --muted: #6b7280;
-        --border: #e5e7eb;
-        --card: #ffffff;
-        --primary: #2563eb;
-        --primary-hover: #1d4ed8;
-        --radius: 12px;
-        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --bg: #f3f4f6; --fg: #1f2937; --muted: #6b7280; --border: #e5e7eb;
+        --card: #ffffff; --primary: #2563eb; --primary-hover: #1d4ed8;
+        --radius: 12px; --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       }
-
       * { box-sizing: border-box; }
-
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        padding: 20px;
-      }
+      body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
       
       .container { max-width: 500px; margin: 0 auto; transition: max-width 0.3s; position: relative; z-index: 1; }
       .container.wide { max-width: 1200px; }
 
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        padding: 24px;
-        overflow: visible; /* Importante para que se vean los dropdowns */
-        position: relative; 
-        z-index: 2;
-      }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; overflow: visible; position: relative; z-index: 2; }
       
       .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
       .title { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
-      
-      .nav-btn {
-        background: none; border: none; cursor: pointer;
-        color: var(--primary); font-weight: 600;
-        display: flex; align-items: center; gap: 6px;
-        padding: 8px; border-radius: 6px;
-      }
+      .nav-btn { background: none; border: none; cursor: pointer; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 6px; padding: 8px; border-radius: 6px; }
       .nav-btn:hover { background-color: #eff6ff; }
 
-      /* --- FORMULARIOS --- */
       .field { margin-bottom: 16px; position: relative; z-index: 5; }
       .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
       
-      /* FIX INPUTS: Asegurar texto visible y accesible */
       input, select { 
-          width: 100%; height: 42px; padding: 0 12px;
-          border: 1px solid var(--border); border-radius: 8px;
-          font-size: 15px; outline: none;
-          
-          /* Forzar colores para evitar texto invisible en algunos navegadores */
+          width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); 
+          border-radius: 8px; font-size: 15px; outline: none; 
           background-color: #ffffff !important; 
-          color: #000000 !important; 
-          -webkit-text-fill-color: #000000 !important;
-          opacity: 1 !important;
-          
+          color: #111827 !important;
           position: relative; z-index: 10; 
       }
       input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
       
-      .btn {
-        width: 100%; height: 44px; background: var(--primary); color: white;
-        border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
-        cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
-        position: relative; z-index: 10;
-      }
+      .btn { width: 100%; height: 44px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; position: relative; z-index: 10; }
       .btn:hover { background: var(--primary-hover); }
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
       .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
-      /* --- LISTA Y FILTROS --- */
-      .filters-grid { 
-          display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; 
-          gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; 
-      }
+      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
       @media (max-width: 800px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
       @media (max-width: 500px) { .filters-grid { grid-template-columns: 1fr; } }
 
-      .table-wrapper { 
-          overflow-x: auto; border: 1px solid var(--border); 
-          border-radius: 8px; max-height: 70vh; 
-          position: relative; z-index: 1; 
-      }
-      
+      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 70vh; position: relative; z-index: 1; }
       table { width: 100%; border-collapse: collapse; min-width: 900px; }
-      th { 
-          background: #f9fafb; text-align: left; padding: 12px; 
-          font-size: 12px; color: #6b7280; font-weight: 600; 
-          border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; 
-      }
+      th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
       td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
       tr:last-child td { border-bottom: none; }
       
-      /* Anchos de columna fijos */
-      td:nth-child(1) { min-width: 120px; } /* Acciones */
-      td:nth-child(2) { min-width: 140px; } /* Tracking */
-      td:nth-child(4) { min-width: 180px; } /* Info */
-
-      /* Paginación */
-      .pagination { 
-          display: flex; justify-content: space-between; align-items: center; 
-          margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); 
-      }
+      .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); }
       .page-info { font-size: 13px; color: #6b7280; }
       .page-controls { display: flex; gap: 10px; }
-      .btn-page { 
-          padding: 6px 12px; border: 1px solid var(--border); background: white; 
-          border-radius: 6px; cursor: pointer; font-size: 13px; z-index: 10; position:relative; color: #000; 
-      }
+      .btn-page { padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-size: 13px; z-index: 10; position:relative; color: #000; }
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
-      /* --- ESTADOS Y BADGES --- */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
-      
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
       .st-transito { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
-      .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; } /* Carga Peligrosa */
+      .st-dg { background: #fefce8; color: #854d0e; border-color: #fef08a; } 
       .st-aduanas { background: #dcfce7; color: #15803d; border-color: #bbf7d0; } 
       .st-recibido { background: #166534; color: #ffffff; border-color: #14532d; } 
       .st-ml { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
@@ -145,13 +76,8 @@
       .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
       .status-msg.success { color: #059669; }
       
-      /* Botones de Acción en Tabla */
       .action-row { display: flex; gap: 5px; }
-      .action-btn { 
-          padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: white; 
-          cursor: pointer; color: var(--fg); display: flex; align-items: center; justify-content: center; 
-          width: 32px; height: 32px; transition: all 0.2s; 
-      }
+      .action-btn { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; color: var(--fg); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; transition: all 0.2s; }
       .action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
       
       .btn-blue { color: var(--primary); border-color: #bfdbfe; background: #eff6ff; }
@@ -159,7 +85,6 @@
       .btn-red { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
       .btn-disabled { opacity: 0.5; cursor: default; background: #f3f4f6; border-color: #e5e7eb; color: #9ca3af; transform: none !important; }
 
-      /* Botón Solicitar ML */
       .btn-req { 
           background: #2563eb; color: white; border: none; border-radius: 4px; 
           padding: 3px 8px; font-size: 10px; font-weight: bold; cursor: pointer; 
@@ -170,7 +95,6 @@
       .ml-vencido { color: #dc2626; }
       .ml-espera { color: #059669; }
 
-      /* Autocompletar */
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
         border: 1px solid var(--border); background-color: white;
@@ -193,7 +117,7 @@
       }
       .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 80vh; overflow-y: auto; }
       .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
-      .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
       
       .match-item { border: 1px solid #e5e7eb; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; background: #f9fafb; transition: all 0.2s; }
       .match-item:hover { background: #eff6ff; border-color: #bfdbfe; transform: translateX(2px); }
@@ -207,6 +131,16 @@
       .col-seguimiento { font-size: 11px; color: #4b5563; line-height: 1.3; max-width: 200px; }
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
       .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+      
+      /* --- CHECKBOX ROW --- */
+      .check-row {
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 16px; padding: 10px;
+          background: #eff6ff; border: 1px solid #bfdbfe;
+          border-radius: 8px; cursor: pointer;
+      }
+      .check-row input { width: 20px; height: 20px; margin: 0; cursor: pointer; }
+      .check-text { font-size: 14px; font-weight: 600; color: #1e40af; }
     </style>
 </head>
 <body>
@@ -222,16 +156,19 @@
 
         <div id="viewForm">
             <form id="formIngreso">
-                <div class="field">
-                    <label class="label">Tracking Number</label>
-                    <input type="text" id="tracking" placeholder="Escanea o escribe..." autocomplete="off">
-                </div>
+                <div class="field"><label class="label">Tracking Number</label><input type="text" id="tracking" placeholder="Escanea o escribe..." autocomplete="off"></div>
                 <div class="field">
                     <label class="label">Buscar Cliente</label>
                     <input type="text" id="clienteSearch" placeholder="Nombre o Casillero..." autocomplete="off">
-                    <div id="suggestions" class="autocomplete-suggestions"></div>
+                    <div id="suggestions" class="autocomplete-suggestions" style="display:none;"></div>
                 </div>
-                <div id="clientInfo" class="client-info-card">
+
+                <div class="check-row" onclick="toggleCheck()">
+                    <input type="checkbox" id="chkEntregado" onclick="event.stopPropagation()">
+                    <span class="check-text">¿Ya figura "Entregado" por el Carrier?</span>
+                </div>
+
+                <div id="clientInfo" class="client-info-card" style="display:none;">
                     <div class="client-info-row"><span>Nombre:</span><span class="client-info-val" id="dispNombre">-</span></div>
                     <div class="client-info-row"><span>Casillero:</span><span class="client-info-val" id="dispBox">-</span></div>
                     <div class="client-info-row"><span>Sucursal:</span><span class="client-info-val" id="dispSucursal">-</span></div>
@@ -307,8 +244,8 @@
         </div>
         <div class="field"><label class="label">Nota Personal</label><input type="text" id="editNota" placeholder="Ej: Vinculado manual..."></div>
         <div class="modal-actions">
-            <button class="btn" style="background:#6b7280; width:auto;" onclick="closeEditModal()">Cancelar</button>
-            <button class="btn" style="width:auto;" onclick="saveManualEdit()">Guardar</button>
+            <button class="btn" style="background:#6b7280;" onclick="closeEditModal()">Cancelar</button>
+            <button class="btn" onclick="saveManualEdit()">Guardar</button>
         </div>
     </div>
 </div>
@@ -316,11 +253,11 @@
 <div id="matchModal" class="modal-overlay hidden">
     <div class="modal-content">
         <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
-        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios paquetes parecidos en inventario. Elige el correcto:</p>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios paquetes parecidos en inventario:</p>
         <input type="hidden" id="matchTargetId">
         <div id="matchList"></div>
         <div class="modal-actions">
-            <button class="btn" style="background:#6b7280; width:auto;" onclick="closeMatchModal()">Cancelar</button>
+            <button class="btn" style="background:#6b7280;" onclick="closeMatchModal()">Cancelar</button>
         </div>
     </div>
 </div>
@@ -341,6 +278,7 @@
         tracking: document.getElementById('tracking'),
         search: document.getElementById('clienteSearch'),
         suggestions: document.getElementById('suggestions'),
+        chkEntregado: document.getElementById('chkEntregado'), 
         clientCard: document.getElementById('clientInfo'),
         status: document.getElementById('status'),
         btnGuardar: document.getElementById('btnGuardar'),
@@ -372,8 +310,6 @@
 
     let selectedClient = null;
     let currentData = [];
-    
-    // PAGINACIÓN Y BÚSQUEDA
     let currentPage = 1;
     const pageSize = 50;
     let totalItems = 0;
@@ -386,6 +322,8 @@
         if (!dateStr) return 0;
         return new Date(dateStr).getTime();
     }
+    
+    window.toggleCheck = () => { /* dom.chkEntregado.checked = !dom.chkEntregado.checked; */ };
 
     async function init() {
         await autoCleanOldRecords();
@@ -393,16 +331,10 @@
     }
     init();
 
-    // 1. LIMPIEZA
     async function autoCleanOldRecords() {
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 45); 
-        const { error } = await supabase
-            .from('seguimiento_interno')
-            .delete({ count: 'exact' })
-            .lt('created_at', limitDate.toISOString())
-            .eq('estado_alerta', 'Recibido'); 
-        if (error) console.error("Error limpieza:", error);
+        const { error } = await supabase.from('seguimiento_interno').delete({ count: 'exact' }).lt('created_at', limitDate.toISOString()).eq('estado_alerta', 'Recibido'); 
     }
 
     async function loadBranches() {
@@ -453,36 +385,43 @@
     
     document.addEventListener('click', (e) => { if (!dom.search.contains(e.target) && !dom.suggestions.contains(e.target)) dom.suggestions.style.display = 'none'; });
 
+    // --- GUARDAR ---
     dom.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const trk = dom.tracking.value.trim();
         if (trk.length < 3 || !selectedClient) { dom.status.textContent = '❌ Faltan datos'; dom.status.style.color = 'red'; return; }
+        
         dom.btnGuardar.disabled = true;
+
+        const yaEntregado = dom.chkEntregado.checked;
+        const fechaMiami = yaEntregado ? new Date().toISOString() : null;
+        const textoSeguimiento = yaEntregado ? 'Esperando ingreso a bodega' : 'Pre-alerta (En tránsito)';
+
         const { data: existing } = await supabase.from('seguimiento_interno').select('id').eq('tracking', trk).maybeSingle();
         if (existing) { dom.status.textContent = '⚠️ Tracking duplicado'; dom.status.style.color = 'orange'; dom.btnGuardar.disabled = false; return; }
         
         const { error } = await supabase.from('seguimiento_interno').insert([{
-            tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, estado_alerta: 'Pendiente', seguimiento: 'Sin info aún', nota: ''
+            tracking: trk, cliente_nombre: dom.h_nombre.value, cliente_box: dom.h_box.value, sucursal: dom.h_sucursal.value, 
+            estado_alerta: 'Pendiente', seguimiento: textoSeguimiento, nota: '',
+            fecha_entrega_miami: fechaMiami
         }]);
+
         dom.btnGuardar.disabled = false;
         if (error) { dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; }
-        else { dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; dom.tracking.value = ''; dom.tracking.focus(); }
+        else { 
+            dom.status.textContent = '✅ Guardado'; dom.status.className = 'status-msg success'; 
+            dom.tracking.value = ''; dom.chkEntregado.checked = false; dom.tracking.focus(); 
+        }
     });
 
-    // --- LISTA PAGINADA ---
+    // --- LISTA ---
     async function loadPackages() {
         dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
         
         const from = (currentPage - 1) * pageSize;
         const to = from + pageSize - 1;
 
-        let query = supabase
-            .from('seguimiento_interno')
-            .select('*', { count: 'exact' }) 
-            .order('created_at', { ascending: false })
-            .range(from, to); 
-
-        // Filtros
+        let query = supabase.from('seguimiento_interno').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to); 
         if (dom.filterSucursal.value !== 'Todas') query = query.eq('sucursal', dom.filterSucursal.value);
         if (dom.filterClient.value) query = query.or(`cliente_nombre.ilike.%${dom.filterClient.value}%,cliente_box.ilike.%${dom.filterClient.value}%`);
         if (dom.filterTracking.value) query = query.ilike('tracking', `%${dom.filterTracking.value}%`);
@@ -496,13 +435,7 @@
 
         currentData = data || [];
         totalItems = count || 0;
-        
         updatePaginationUI();
-
-        if (currentData.length === 0) {
-            dom.tableBody.innerHTML = ''; dom.tableMsg.textContent = 'No se encontraron paquetes.'; return;
-        }
-        dom.tableMsg.textContent = '';
         renderTable(currentData);
     }
 
@@ -516,19 +449,18 @@
     dom.btnPrev.onclick = () => { if(currentPage > 1) { currentPage--; loadPackages(); } };
     dom.btnNext.onclick = () => { currentPage++; loadPackages(); };
 
-    // --- LIVE FILTERING ---
-    const liveSearch = () => {
-        clearTimeout(searchDebounce);
-        searchDebounce = setTimeout(() => { currentPage = 1; loadPackages(); }, 500);
-    };
+    const liveSearch = () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(() => { currentPage = 1; loadPackages(); }, 500); };
+    dom.filterTracking.oninput = liveSearch; dom.filterClient.oninput = liveSearch; dom.filterSucursal.onchange = liveSearch; dom.filterStatus.onchange = liveSearch;
 
     function renderTable(paquetes) {
+        if (!paquetes.length) { dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No se encontraron paquetes.</td></tr>'; return; }
+
         dom.tableBody.innerHTML = paquetes.map(p => {
             let badgeClass = 'st-pendiente';
             const est = p.estado_alerta || 'Pendiente';
             if (est === 'Miami') badgeClass = 'st-miami';
             else if (est === 'Tránsito') badgeClass = 'st-transito';
-            else if (est === 'Carga Peligrosa') badgeClass = 'st-dg';
+            else if (est === 'Carga Peligrosa' || est === 'DG') badgeClass = 'st-dg';
             else if (est === 'Aduanas') badgeClass = 'st-aduanas';
             else if (est === 'Recibido') badgeClass = 'st-recibido';
             else if (est === 'ML') badgeClass = 'st-ml';
@@ -537,19 +469,32 @@
             const notaSafe = (p.nota || '').replace(/'/g, "\\'");
             
             let trackingDisplay = p.tracking;
-            if (p.tracking_match && p.tracking_match !== p.tracking) {
-                trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
-            }
+            if (p.tracking_match && p.tracking_match !== p.tracking) trackingDisplay += `<br><span class="col-match">🔗 ${p.tracking_match}</span>`;
 
             // GESTIÓN DE ML
             let estadoHtml = `<span class="status-badge ${badgeClass}" id="badge-${p.id}">${est}</span>`;
+            
             if (est === 'ML') {
-                if (!p.fecha_solicitud) {
-                    estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitar</button>`;
-                } else {
+                if (!p.fecha_solicitud) estadoHtml += ` <button class="btn-req" onclick="marcarSolicitado('${p.id}')"><i data-lucide="mail" width="10"></i> Solicitar</button>`;
+                else {
                     const dias = Math.floor((new Date() - new Date(p.fecha_solicitud)) / (1000 * 60 * 60 * 24));
                     if (dias >= 3) estadoHtml += ` <span class="ml-status-text ml-vencido">⚠️ Vencido (${dias}d)</span>`;
                     else estadoHtml += ` <span class="ml-status-text ml-espera">⏳ Esperando (${dias}d)</span>`;
+                }
+            } 
+            // LOGICA CORREGIDA PARA BOTÓN DE LLEGADA
+            else {
+                // Lista de Estados donde YA SABEMOS que está en bodega/procesado
+                const statusConocidos = ['Recibido', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML'];
+                
+                // Si el estado NO está en la lista de conocidos (ej: Pendiente, No Info, Tránsito)
+                if (!statusConocidos.includes(est)) {
+                    if (!p.fecha_entrega_miami) {
+                         estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
+                    } else {
+                        const dias = Math.floor((new Date() - new Date(p.fecha_entrega_miami)) / (1000 * 60 * 60 * 24));
+                        estadoHtml += ` <div class="ml-status-text" style="color:#d97706">Llegó hace ${dias}d</div>`;
+                    }
                 }
             }
 
@@ -580,6 +525,15 @@
     }
 
     // --- ACCIONES ---
+    window.marcarLlegada = async (id) => {
+        if(!confirm("¿Confirmar que el Carrier YA entregó este paquete? \nEsto activará la cuenta de 5 días.")) return;
+        await supabase.from('seguimiento_interno').update({
+            fecha_entrega_miami: new Date().toISOString(),
+            seguimiento: 'Marcado entregado Manualmente'
+        }).eq('id', id);
+        loadPackages();
+    };
+
     window.deletePackage = async (id) => {
         if (!confirm("¿Eliminar paquete?")) return;
         const { error } = await supabase.from('seguimiento_interno').delete().eq('id', id);
@@ -593,45 +547,22 @@
         loadPackages();
     };
 
-    // --- CHECK STATUS (MATCH LOCAL + FUZION) ---
     window.checkStatus = async (id, tracking) => {
         const segCell = document.getElementById(`seg-${id}`);
-        const badge = document.getElementById(`badge-${id}`);
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // 1. LOCAL (SELECT *) - Prioridad Inventario
-            const { data: matches, error: localError } = await supabase
-                .from('paquetes_cargados')
-                .select('*') 
-                .ilike('tracking', `%${tracking}%`)
-                .limit(5);
+            // 1. LOCAL
+            const { data: matches } = await supabase.from('paquetes_cargados').select('*').ilike('tracking', `%${tracking}%`).limit(5);
 
-            if (localError) console.warn("Error local:", localError);
-
-            if (!localError && matches && matches.length > 0) {
-                if (matches.length > 1) {
-                    openMatchModal(id, matches);
-                    if(segCell) segCell.textContent = "⚠️ Múltiples opciones";
-                    return; 
-                }
-                const match = matches[0];
-                await applyMatch(id, match);
-                
-                // Fallbacks nombres columnas
-                const box = match.cliente_box || match.box || match.casillero || "S/Box";
-                const nombre = match.cliente_nombre || match.cliente || match.nombre || "Cliente";
-                const detalle = `✅ Recibido: ${nombre} (${box})`;
-                
-                if(segCell) segCell.textContent = detalle;
-                if(badge) { 
-                    badge.textContent = 'Recibido'; badge.className = 'status-badge st-recibido'; 
-                    badge.innerHTML = 'Recibido';
-                }
-                return; // STOP. No busca en Fuzion.
+            if (matches && matches.length > 0) {
+                if (matches.length > 1) { openMatchModal(id, matches); if(segCell) segCell.textContent = "⚠️ Múltiples opciones"; return; }
+                await applyMatch(id, matches[0]);
+                loadPackages(); 
+                return;
             }
 
-            // 2. FUZION (Remoto)
+            // 2. FUZION
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -639,8 +570,7 @@
             let detalle = "Sin movimientos registrados";
 
             if (!data.history || data.error) {
-                nuevoEstado = 'No Info';
-                detalle = 'Tracking no encontrado aún';
+                nuevoEstado = 'No Info'; detalle = 'Tracking no encontrado aún';
             } else {
                 const h = data.history;
                 let best = {label:'No Info', ts:0};
@@ -662,27 +592,9 @@
             }
 
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-            
-            if(nuevoEstado === 'ML') loadPackages(); 
-            else {
-                if(segCell) segCell.textContent = detalle;
-                if(badge) {
-                    badge.textContent = nuevoEstado;
-                    let badgeClass = 'st-pendiente';
-                    if (nuevoEstado === 'Miami') badgeClass = 'st-miami';
-                    else if (nuevoEstado === 'Tránsito') badgeClass = 'st-transito';
-                    else if (nuevoEstado === 'Carga Peligrosa') badgeClass = 'st-dg';
-                    else if (nuevoEstado === 'Aduanas') badgeClass = 'st-aduanas';
-                    else if (nuevoEstado === 'ML') badgeClass = 'st-ml';
-                    badge.className = `status-badge ${badgeClass}`;
-                    badge.innerHTML = nuevoEstado;
-                }
-            }
+            loadPackages(); 
 
-        } catch (err) {
-            console.error(err);
-            if(segCell) segCell.textContent = "Err";
-        }
+        } catch (err) { console.error(err); if(segCell) segCell.textContent = "Err"; }
     };
 
     async function applyMatch(rowId, matchData) {
@@ -691,75 +603,40 @@
         const fecha = matchData.fecha_bodega || matchData.created_at || new Date();
         const detalle = `✅ Recibido: ${nombre} (${box}) - ${new Date(fecha).toLocaleDateString()}`;
         
-        const updatePayload = {
-            estado_alerta: 'Recibido',
-            seguimiento: detalle,
-            tracking_match: matchData.tracking
-        };
-        if (box) updatePayload.cliente_box = box;
-
-        await supabase.from('seguimiento_interno').update(updatePayload).eq('id', rowId);
+        await supabase.from('seguimiento_interno').update({
+            estado_alerta: 'Recibido', seguimiento: detalle, cliente_box: box, tracking_match: matchData.tracking
+        }).eq('id', rowId);
     }
 
     // --- MODALES ---
     window.openManualEdit = (id, tracking, estadoActual, notaActual) => {
-        dom.editId.value = id;
-        dom.editTracking.value = tracking;
-        dom.editEstado.value = estadoActual;
-        dom.editNota.value = notaActual || '';
-        dom.editModal.style.display = 'flex'; // Usamos flex para centrar
+        dom.editId.value = id; dom.editTracking.value = tracking; dom.editEstado.value = estadoActual; dom.editNota.value = notaActual || ''; dom.editModal.classList.remove('hidden');
     };
-    window.closeEditModal = () => { dom.editModal.style.display = 'none'; };
+    window.closeEditModal = () => { dom.editModal.classList.add('hidden'); };
 
     window.saveManualEdit = async () => {
-        const id = dom.editId.value;
-        const newTrack = dom.editTracking.value.trim();
-        const newEstado = dom.editEstado.value;
-        const nota = dom.editNota.value.trim();
+        const id = dom.editId.value; const newTrack = dom.editTracking.value.trim(); const newEstado = dom.editEstado.value; const nota = dom.editNota.value.trim();
         if(!newTrack) return alert("Tracking obligatorio");
-
-        const updateData = { tracking: newTrack, estado_alerta: newEstado, nota: nota };
-        const { error } = await supabase.from('seguimiento_interno').update(updateData).eq('id', id);
-        if(error) alert("Error: " + error.message);
-        else { closeEditModal(); loadPackages(); }
+        const { error } = await supabase.from('seguimiento_interno').update({ tracking: newTrack, estado_alerta: newEstado, nota: nota }).eq('id', id);
+        if(error) alert("Error: " + error.message); else { closeEditModal(); loadPackages(); }
     };
 
     window.openMatchModal = (id, matches) => {
         dom.matchTargetId.value = id;
         dom.matchList.innerHTML = matches.map((m, idx) => {
-            const box = m.cliente_box || m.box || "S/Box";
-            const nombre = m.cliente_nombre || m.cliente || "Cliente";
-            const fecha = m.fecha_bodega || m.created_at || new Date();
-            return `
-            <div class="match-item" onclick="selectMatch(${idx})">
-                <div class="match-title">${m.tracking}</div>
-                <div class="match-sub"><span class="match-highlight">${nombre} (${box})</span></div>
-                <div class="match-sub">${new Date(fecha).toLocaleString()}</div>
-            </div>`;
+            const box = m.cliente_box || m.box || "S/Box"; const nombre = m.cliente_nombre || m.cliente || "Cliente"; const fecha = m.fecha_bodega || m.created_at || new Date();
+            return `<div class="match-item" onclick="selectMatch(${idx})"><div class="match-title">${m.tracking}</div><div class="match-sub"><span class="match-highlight">${nombre} (${box})</span></div><div class="match-sub">${new Date(fecha).toLocaleString()}</div></div>`;
         }).join('');
-        dom.matchList.dataset.matches = JSON.stringify(matches);
-        dom.matchModal.style.display = 'flex';
+        dom.matchList.dataset.matches = JSON.stringify(matches); dom.matchModal.classList.remove('hidden');
     };
-
-    window.closeMatchModal = () => { dom.matchModal.style.display = 'none'; };
-
+    window.closeMatchModal = () => { dom.matchModal.classList.add('hidden'); };
     window.selectMatch = async (index) => {
-        const id = dom.matchTargetId.value;
-        const matches = JSON.parse(dom.matchList.dataset.matches);
-        const selected = matches[index];
-        if (selected) {
-            await applyMatch(id, selected);
-            closeMatchModal();
-            loadPackages();
-        }
+        const id = dom.matchTargetId.value; const matches = JSON.parse(dom.matchList.dataset.matches);
+        if (matches[index]) { await applyMatch(id, matches[index]); closeMatchModal(); loadPackages(); }
     };
 
-    // Listeners LIVE Filtering
-    dom.filterTracking.oninput = liveSearch;
-    dom.filterClient.oninput = liveSearch;
-    dom.filterSucursal.onchange = liveSearch;
-    dom.filterStatus.onchange = liveSearch;
-    
+    // Listeners
+    dom.filterTracking.oninput = liveSearch; dom.filterClient.oninput = liveSearch; dom.filterSucursal.onchange = liveSearch; dom.filterStatus.onchange = liveSearch;
     dom.btnUpdateMassive.onclick = async () => {
         const pends = currentData.filter(p => p.estado_alerta !== 'Recibido');
         if(!confirm(`Actualizar ${pends.length} paquetes?`)) return;
