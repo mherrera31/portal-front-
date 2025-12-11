@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <title>Monitor Live - PSC</title>
+    <title>Monitor Live 4 Niveles - PSC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🚨</text></svg>" />
     
@@ -181,14 +181,19 @@
         const listDg = document.getElementById('list-dg');
         const listMl = document.getElementById('list-ml');
         
-        // Limpiar
+        // Indicador de carga
         listSinRecibir.innerHTML = '<div class="loading">...</div>';
         listEntregado.innerHTML = '<div class="loading">...</div>';
         listDg.innerHTML = '<div class="loading">...</div>';
         listMl.innerHTML = '<div class="loading">...</div>';
 
-        // Consulta principal: Todo lo activo
-        let query = supabase.from('seguimiento_interno').select('*').neq('estado_alerta', 'Recibido'); 
+        // CONSULTA PRINCIPAL: Todo lo activo EXCEPTO 'Recibido' Y EXCEPTO 'Carta'
+        let query = supabase
+            .from('seguimiento_interno')
+            .select('*')
+            .neq('estado_alerta', 'Recibido')
+            .neq('estado_alerta', 'Carta'); 
+
         if (sucursal !== 'Todas') query = query.eq('sucursal', sucursal);
         
         const { data, error } = await query;
@@ -200,44 +205,48 @@
         const arrDg = [];
         const arrMl = [];
 
+        // CLASIFICACION INTELIGENTE
         data.forEach(p => {
             const status = p.estado_alerta || 'Pendiente';
             
             // --- 1. MAL IDENTIFICADO (VERDE) ---
             if (status === 'ML') {
                 if (p.fecha_solicitud) {
+                    // Ya se solicitó info, contar días desde solicitud
                     p.diasCalc = Math.floor((now - new Date(p.fecha_solicitud)) / 864e5);
                     p.needsAction = false;
                 } else {
+                    // No se ha solicitado, urgente
                     p.diasCalc = 0;
                     p.needsAction = true;
                 }
                 arrMl.push(p);
-                return;
+                return; // Clasificado, pasamos al siguiente
             }
 
             // --- 2. CARGA PELIGROSA (AMARILLO - Informativo) ---
-            // Asumimos status 'Carga Peligrosa' o 'DG'
             if (status === 'Carga Peligrosa' || status === 'DG') {
                 p.diasCalc = Math.floor((now - new Date(p.created_at)) / 864e5);
                 arrDg.push(p);
-                return;
+                return; // Clasificado
             }
 
             // --- 3. ENTREGADO SEGÚN CARRIER (NARANJA - >5 Días) ---
-            // Solo si TIENE fecha_entrega_miami (Check o botón)
+            // Solo si TIENE fecha_entrega_miami (Puesto manual)
             if (p.fecha_entrega_miami) {
                 const dias = Math.floor((now - new Date(p.fecha_entrega_miami)) / 864e5);
                 if (dias > 5) {
                     p.diasCalc = dias;
                     arrEntregado.push(p);
                 }
-                return;
+                return; // Clasificado
             }
 
             // --- 4. SIN RECIBIR (ROJO - >10 Días) ---
-            // Si NO tiene fecha entrega, y status NO es Miami/Aduanas/Recibido
-            // "Ni respuesta de Fuzion (DG, ML, Miami)" -> ya filtramos ML y DG arriba. Filtramos 'Miami' aquí.
+            // Solo entra si:
+            // a) NO tiene fecha entrega manual
+            // b) NO es un status de éxito/proceso (Miami, Aduanas)
+            // c) Tiene > 10 días de creado
             if (!p.fecha_entrega_miami && status !== 'Miami' && status !== 'Aduanas') {
                 const dias = Math.floor((now - new Date(p.created_at)) / 864e5);
                 if (dias > 10) {
@@ -247,11 +256,13 @@
             }
         });
 
+        // RENDERIZAR LAS LISTAS
         renderList(listSinRecibir, arrSinRecibir, 'sinrecibir');
         renderList(listEntregado, arrEntregado, 'entregado');
         renderList(listDg, arrDg, 'dg');
         renderList(listMl, arrMl, 'ml');
 
+        // ACTUALIZAR CONTADORES
         document.getElementById('count-sinrecibir').textContent = arrSinRecibir.length;
         document.getElementById('count-entregado').textContent = arrEntregado.length;
         document.getElementById('count-dg').textContent = arrDg.length;
@@ -276,10 +287,13 @@
 
             if (type === 'ml') {
                 badgeColor = '#bbf7d0';
+                
                 if (p.needsAction) {
+                    // BOTON DE SOLICITAR
                     labelTiempo = 'Acción Requerida';
                     extraAction = `<button class="btn-action" onclick="marcarSolicitado('${p.id}')"><i data-lucide="send" width="12"></i> Solicitar</button>`;
                 } else {
+                    // CUENTA REGRESIVA
                     if (p.diasCalc > 3) {
                         labelTiempo = `VENCIDO (${p.diasCalc}d)`;
                         extraAction = `<span class="ml-urgent">⚠️ Urgente</span>`;
