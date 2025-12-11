@@ -333,7 +333,7 @@
 
     async function autoCleanOldRecords() {
         const limitDate = new Date();
-        limitDate.setDate(limitDate.getDate() - 45); 
+        limitDate.setDate(limitDate.getDate() - 60); 
         const { error } = await supabase.from('seguimiento_interno').delete({ count: 'exact' }).lt('created_at', limitDate.toISOString()).eq('estado_alerta', 'Recibido'); 
     }
 
