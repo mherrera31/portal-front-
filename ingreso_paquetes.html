@@ -32,7 +32,6 @@
       .field { margin-bottom: 16px; position: relative; z-index: 5; }
       .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
       
-      /* INPUTS */
       input, select { 
           width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); 
           border-radius: 8px; font-size: 15px; outline: none; 
@@ -47,11 +46,21 @@
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
       .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
-      /* COLUMNAS DE FILTRO */
+      /* FILTROS */
       .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
       @media (max-width: 900px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
 
-      .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 70vh; position: relative; z-index: 1; }
+      .table-container-relative { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); }
+      
+      .scan-line {
+          position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+          background: linear-gradient(90deg, transparent, #10b981, transparent);
+          z-index: 50; display: none;
+          animation: scan-anim 1.5s infinite;
+      }
+      @keyframes scan-anim { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+      .table-wrapper { overflow-x: auto; max-height: 70vh; position: relative; z-index: 1; border: none; }
       table { width: 100%; border-collapse: collapse; min-width: 900px; }
       th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
       td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151; vertical-align: middle; }
@@ -65,7 +74,7 @@
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
       /* COLORES DE ESTADO */
-      .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
+      .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; transition: all 0.3s; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
       .st-transito { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
@@ -99,10 +108,8 @@
       .ml-vencido { color: #dc2626; }
       .ml-espera { color: #059669; }
 
-      /* ESTILOS BOTON AUTO */
       .btn-auto-off { background-color: #64748b !important; color: white; }
-      .btn-auto-on { background-color: #10b981 !important; color: white; animation: pulse-green 2s infinite; }
-      @keyframes pulse-green { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+      .btn-auto-on { background-color: #10b981 !important; color: white; border: 1px solid #059669; }
 
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
@@ -134,14 +141,10 @@
       .match-sub { font-size: 12px; color: #6b7280; display: block; }
       .match-highlight { color: #2563eb; font-weight: 600; }
 
-      .progress-bar { height: 4px; background: #e5e7eb; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
-      .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
-      
       .col-seguimiento { font-size: 11px; color: #4b5563; line-height: 1.3; max-width: 200px; }
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
       .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
       
-      /* CHECKBOX */
       .check-row {
           display: flex; align-items: center; gap: 10px;
           margin-bottom: 16px; padding: 10px;
@@ -189,9 +192,6 @@
         </div>
 
         <div id="viewList" class="hidden">
-            <div id="progressBar" class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
-            <p id="progressText" style="font-size:12px; text-align:center; color:#6b7280; margin-bottom:10px; display:none;"></p>
-
             <div class="filters-grid">
                 <input type="text" id="filterTracking" placeholder="🔍 Buscar Tracking...">
                 <input type="text" id="filterClient" placeholder="👤 Buscar Cliente/Box...">
@@ -210,22 +210,25 @@
                 <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar Manualmente"><i data-lucide="zap"></i></button>
             </div>
 
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Acción</th>
-                            <th>Tracking</th>
-                            <th>Cliente / Box</th>
-                            <th>Info Seguimiento</th>
-                            <th>Nota</th>
-                            <th>Sucursal</th>
-                            <th>Estado</th>
-                            <th>Fecha</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                </table>
+            <div class="table-container-relative">
+                <div id="scanLine" class="scan-line"></div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Acción</th>
+                                <th>Tracking</th>
+                                <th>Cliente / Box</th>
+                                <th>Info Seguimiento</th>
+                                <th>Nota</th>
+                                <th>Sucursal</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
             </div>
             
             <div class="pagination">
@@ -236,7 +239,7 @@
                 </div>
             </div>
 
-            <p id="tableMsg" class="status-msg" style="color: #6b7280;"></p>
+            <p id="tableMsg" class="status-msg" style="color: #6b7280; font-size:12px;"></p>
         </div>
     </div>
 </div>
@@ -245,18 +248,12 @@
     <div class="modal-content">
         <h2 class="modal-title">Corrección Manual</h2>
         <input type="hidden" id="editId">
-        
-        <div class="field">
-            <label class="label">Corrección de Tracking</label>
-            <input type="text" id="editTracking">
-        </div>
-
+        <div class="field"><label class="label">Corrección de Tracking</label><input type="text" id="editTracking"></div>
         <div class="field">
             <label class="label">Tracking Match (Enlace Manual)</label>
             <input type="text" id="editMatch" placeholder="Tracking exacto para enlazar...">
             <small style="color:#6b7280; font-size:11px;">Usar si el tracking físico difiere del sistema.</small>
         </div>
-
         <div class="field">
             <label class="label">Forzar Estado</label>
             <select id="editEstado">
@@ -279,7 +276,7 @@
 <div id="matchModal" class="modal-overlay hidden">
     <div class="modal-content">
         <h2 class="modal-title">🔗 Seleccionar Coincidencia</h2>
-        <p style="font-size:13px; color:#6b7280; margin-bottom:15px;">Se encontraron varios paquetes parecidos en inventario:</p>
+        <p class="text-sm text-slate-500 mb-2">Buscando para: <b id="dispMatchTracking">...</b></p>
         <input type="hidden" id="matchTargetId">
         <div id="matchList"></div>
         <div class="modal-actions">
@@ -318,9 +315,8 @@
         filterSucursal: document.getElementById('filterSucursal'),
         filterStatus: document.getElementById('filterStatus'),
         btnUpdateMassive: document.getElementById('btnUpdateMassive'),
-        progressBar: document.getElementById('progressBar'),
-        progressFill: document.getElementById('progressFill'),
-        progressText: document.getElementById('progressText'),
+        btnToggleAuto: document.getElementById('btnToggleAuto'),
+        scanLine: document.getElementById('scanLine'),
         editModal: document.getElementById('editModal'),
         editId: document.getElementById('editId'),
         editTracking: document.getElementById('editTracking'),
@@ -330,10 +326,10 @@
         matchModal: document.getElementById('matchModal'),
         matchList: document.getElementById('matchList'),
         matchTargetId: document.getElementById('matchTargetId'),
+        dispMatchTracking: document.getElementById('dispMatchTracking'),
         btnPrev: document.getElementById('btnPrev'),
         btnNext: document.getElementById('btnNext'),
-        pageInfo: document.getElementById('pageInfo'),
-        btnToggleAuto: document.getElementById('btnToggleAuto') // NUEVO
+        pageInfo: document.getElementById('pageInfo')
     };
 
     let selectedClient = null;
@@ -343,7 +339,7 @@
     let totalItems = 0;
     let searchDebounce = null;
     
-    // VARIABLES AUTO-UPDATE
+    // AUTO UPDATE VARS
     let autoUpdateInterval = null;
     let isAutoUpdateActive = false;
 
@@ -423,19 +419,19 @@
         if (error) { 
             dom.status.textContent = 'Error: ' + error.message; dom.status.style.color = 'red'; 
         } else { 
-            dom.status.textContent = '✅ Guardado. Buscando info...'; dom.status.className = 'status-msg success'; 
-            // 2. Búsqueda inmediata
-            if (newPkg) await checkStatus(newPkg.id, newPkg.tracking);
-            // 3. Reset
+            dom.status.textContent = '✅ Guardado.'; dom.status.className = 'status-msg success'; 
+            if (newPkg) await checkStatus(newPkg.id, newPkg.tracking, false);
             dom.tracking.value = ''; dom.chkEntregado.checked = false; dom.tracking.focus(); 
             setTimeout(() => { dom.status.textContent = '✅ Listo'; }, 2000);
         }
     });
 
     // LISTA PAGINADA
-    async function loadPackages() {
-        dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando página ' + currentPage + '...</td></tr>';
-        dom.tableMsg.textContent = '';
+    async function loadPackages(silent = false) {
+        if(!silent) {
+            dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando página ' + currentPage + '...</td></tr>';
+            dom.tableMsg.textContent = '';
+        }
 
         const from = (currentPage - 1) * pageSize;
         const to = from + pageSize - 1;
@@ -456,19 +452,15 @@
         const { data, count, error } = await query;
         if (error) { console.error(error); dom.tableMsg.textContent = 'Error al cargar.'; return; }
 
-        currentData = data || [];
-        totalItems = count || 0;
-        updatePaginationUI();
+        currentData = data || []; totalItems = count || 0; updatePaginationUI();
         renderTable(currentData);
     }
 
     function updatePaginationUI() {
         const totalPages = Math.ceil(totalItems / pageSize);
         dom.pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1} (Total: ${totalItems})`;
-        dom.btnPrev.disabled = currentPage === 1;
-        dom.btnNext.disabled = currentPage >= totalPages || totalPages === 0;
+        dom.btnPrev.disabled = currentPage === 1; dom.btnNext.disabled = currentPage >= totalPages || totalPages === 0;
     }
-
     dom.btnPrev.onclick = () => { if (currentPage > 1) { currentPage--; loadPackages(); } };
     dom.btnNext.onclick = () => { const total = Math.ceil(totalItems / pageSize); if (currentPage < total) { currentPage++; loadPackages(); } };
 
@@ -511,7 +503,6 @@
             // LOGICA DEL BOTON "LLEGO"
             else {
                 const statusConocidos = ['Recibido', 'En Proceso de Aduana', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML', 'Carta'];
-                
                 if (!statusConocidos.includes(est)) {
                     if (!p.fecha_entrega_miami) {
                          estadoHtml += ` <button class="btn-req" style="background:#f59e0b" onclick="marcarLlegada('${p.id}')">📦 Llegó?</button>`;
@@ -548,9 +539,32 @@
         lucide.createIcons();
     }
 
+    // --- FUNCION CLAVE: ACTUALIZACION VISUAL DIRECTA (SIN RECARGAR TABLA) ---
+    function updateRowVisuals(id, nuevoEstado, nuevoDetalle) {
+        const badge = document.getElementById(`badge-${id}`);
+        const segText = document.getElementById(`seg-${id}`);
+
+        if (segText) segText.textContent = nuevoDetalle;
+        
+        if (badge) {
+            badge.textContent = nuevoEstado;
+            badge.className = 'status-badge'; // reset
+            
+            if (nuevoEstado === 'En Proceso de Aduana') badge.classList.add('st-proceso');
+            else if (nuevoEstado === 'Recibido') badge.classList.add('st-recibido');
+            else if (nuevoEstado === 'Miami') badge.classList.add('st-miami');
+            else if (nuevoEstado === 'Tránsito') badge.classList.add('st-transito');
+            else if (nuevoEstado === 'DG' || nuevoEstado === 'Carga Peligrosa') badge.classList.add('st-dg');
+            else if (nuevoEstado === 'Aduanas') badge.classList.add('st-aduanas');
+            else if (nuevoEstado === 'ML') badge.classList.add('st-ml');
+            else if (nuevoEstado === 'Carta') badge.classList.add('st-carta');
+            else badge.classList.add('st-pendiente');
+        }
+    }
+
     // --- ACCIONES ---
     window.marcarLlegada = async (id) => {
-        if(!confirm("¿Confirmar que el Carrier YA entregó este paquete? \nEsto activará la cuenta de 5 días.")) return;
+        if(!confirm("¿Confirmar que el Carrier YA entregó este paquete?")) return;
         await supabase.from('seguimiento_interno').update({ fecha_entrega_miami: new Date().toISOString(), seguimiento: 'Marcado entregado Manualmente' }).eq('id', id);
         loadPackages();
     };
@@ -567,48 +581,39 @@
         loadPackages();
     };
 
-    // --- CHECK STATUS (LA LOGICA PRINCIPAL) ---
-    window.checkStatus = async (id, tracking) => {
+    // --- CHECK STATUS ---
+    window.checkStatus = async (id, tracking, fromAuto = false) => {
         const segCell = document.getElementById(`seg-${id}`);
-        if(segCell) segCell.textContent = "⏳ Buscando...";
+        if(!fromAuto && segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // Calcular últimos 6 dígitos para búsquedas flexibles
             const term = tracking.trim();
             const suffix = term.length > 6 ? term.slice(-6) : term;
 
-            // 1. PRIORIDAD: TABLA PAQUETES (YA EN SUCURSAL) -> RECIBIDO
-            const { data: sucMatches } = await supabase
-                .from('paquetes')
-                .select('*')
-                .or(`tracking.ilike.%${suffix},tracking_global.ilike.%${suffix}`)
-                .limit(1);
-
+            // 1. PRIORIDAD: PAQUETES (YA RECIBIDO)
+            const { data: sucMatches } = await supabase.from('paquetes').select('*').or(`tracking.ilike.%${suffix},tracking_global.ilike.%${suffix}`).limit(1);
             if (sucMatches && sucMatches.length > 0) {
                 await applyMatch(id, sucMatches[0], 'Recibido'); 
-                if(document.getElementById(`row-${id}`)) loadPackages();
+                if(fromAuto) updateRowVisuals(id, 'Recibido', `✅ Recibido en Sucursal: ${sucMatches[0].cliente_nombre}`);
+                else loadPackages();
                 return;
             }
 
-            // 2. PRIORIDAD: TABLA PAQUETES_CARGADOS (EN CAMINO) -> EN PROCESO DE ADUANA
-            const { data: cargaMatches } = await supabase
-                .from('paquetes_cargados')
-                .select('*')
-                .ilike('tracking', `%${suffix}`)
-                .limit(5);
-
+            // 2. PRIORIDAD: CARGA (EN PROCESO)
+            const { data: cargaMatches } = await supabase.from('paquetes_cargados').select('*').ilike('tracking', `%${suffix}`).limit(5);
             if (cargaMatches && cargaMatches.length > 0) {
-                if (cargaMatches.length > 1) { 
-                    openMatchModal(id, cargaMatches); 
+                if (cargaMatches.length > 1 && !fromAuto) { 
+                    openMatchModal(id, cargaMatches, tracking); 
                     if(segCell) segCell.textContent = "⚠️ Múltiples opciones"; 
                     return; 
                 }
                 await applyMatch(id, cargaMatches[0], 'En Proceso de Aduana');
-                if(document.getElementById(`row-${id}`)) loadPackages();
+                if(fromAuto) updateRowVisuals(id, 'En Proceso de Aduana', `✈️ En Proceso Aduana: ${cargaMatches[0].cliente_nombre}`);
+                else loadPackages();
                 return;
             }
 
-            // 3. PRIORIDAD: FUZION (EXTERNO)
+            // 3. PRIORIDAD: FUZION
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -638,21 +643,19 @@
             }
 
             await supabase.from('seguimiento_interno').update({ seguimiento: detalle, estado_alerta: nuevoEstado }).eq('id', id);
-            if(document.getElementById(`row-${id}`)) loadPackages(); 
+            
+            if(fromAuto) updateRowVisuals(id, nuevoEstado, detalle);
+            else if(document.getElementById(`row-${id}`)) loadPackages(); 
 
-        } catch (err) { console.error(err); if(segCell) segCell.textContent = "Err"; }
+        } catch (err) { console.error(err); if(!fromAuto && segCell) segCell.textContent = "Err"; }
     };
 
     async function applyMatch(rowId, matchData, estadoDestino) {
         const box = matchData.cliente_box || matchData.box || "";
         const nombre = matchData.cliente_nombre || matchData.cliente || "";
         const fecha = matchData.fecha_bodega || matchData.fecha_sucursal || matchData.created_at || new Date();
-        
         const texto = estadoDestino === 'Recibido' ? `✅ Recibido en Sucursal: ${nombre}` : `✈️ En Proceso Aduana: ${nombre}`;
-
-        await supabase.from('seguimiento_interno').update({
-            estado_alerta: estadoDestino, seguimiento: texto, cliente_box: box, tracking_match: matchData.tracking
-        }).eq('id', rowId);
+        await supabase.from('seguimiento_interno').update({ estado_alerta: estadoDestino, seguimiento: texto, cliente_box: box, tracking_match: matchData.tracking }).eq('id', rowId);
     }
 
     // --- MODALES ---
@@ -665,18 +668,14 @@
     window.saveManualEdit = async () => {
         const id = dom.editId.value; const newTrack = dom.editTracking.value.trim(); const newEstado = dom.editEstado.value; 
         const nota = dom.editNota.value.trim(); const match = dom.editMatch.value.trim();
-        
         if(!newTrack) return alert("Tracking obligatorio");
-        
-        const { error } = await supabase.from('seguimiento_interno').update({ 
-            tracking: newTrack, estado_alerta: newEstado, nota: nota, tracking_match: match 
-        }).eq('id', id);
-        
+        const { error } = await supabase.from('seguimiento_interno').update({ tracking: newTrack, estado_alerta: newEstado, nota: nota, tracking_match: match }).eq('id', id);
         if(error) alert("Error: " + error.message); else { closeEditModal(); loadPackages(); }
     };
 
-    window.openMatchModal = (id, matches) => {
+    window.openMatchModal = (id, matches, tracking) => {
         dom.matchTargetId.value = id;
+        dom.dispMatchTracking.textContent = tracking; // mostrar tracking buscado
         dom.matchList.innerHTML = matches.map((m, idx) => {
             const box = m.cliente_box || m.box || "S/Box"; const nombre = m.cliente_nombre || m.cliente || "Cliente"; const fecha = m.fecha_bodega || m.created_at || new Date();
             return `<div class="match-item" onclick="selectMatch(${idx})"><div class="match-title">${m.tracking}</div><div class="match-sub"><span class="match-highlight">${nombre} (${box})</span></div><div class="match-sub">${new Date(fecha).toLocaleString()}</div></div>`;
@@ -697,27 +696,25 @@
         for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
     };
 
-    // --- NUEVO: FUNCION TOGGLE AUTO-UPDATE ---
+    // --- NUEVO: AUTO-UPDATE CONTROLADO ---
     window.toggleAutoUpdate = () => {
         isAutoUpdateActive = !isAutoUpdateActive;
-        const btn = dom.btnToggleAuto;
-        
         if (isAutoUpdateActive) {
-            btn.textContent = "⚡ Auto: ON (30s)";
-            btn.classList.remove('btn-auto-off');
-            btn.classList.add('btn-auto-on');
-            autoUpdateRoutine(); // Ejecutar uno inmediato
-            autoUpdateInterval = setInterval(autoUpdateRoutine, 30000); // 30 segundos
+            dom.btnToggleAuto.textContent = "⚡ Auto: ON (30s)";
+            dom.btnToggleAuto.classList.remove('btn-auto-off'); dom.btnToggleAuto.classList.add('btn-auto-on');
+            autoUpdateRoutine(); 
+            autoUpdateInterval = setInterval(autoUpdateRoutine, 30000); 
         } else {
-            btn.textContent = "⏸️ Auto: OFF";
-            btn.classList.remove('btn-auto-on');
-            btn.classList.add('btn-auto-off');
+            dom.btnToggleAuto.textContent = "⏸️ Auto: OFF";
+            dom.btnToggleAuto.classList.remove('btn-auto-on'); dom.btnToggleAuto.classList.add('btn-auto-off');
             clearInterval(autoUpdateInterval);
+            dom.scanLine.style.display = 'none';
         }
     };
 
     async function autoUpdateRoutine() {
         console.log("⚡ Auto-Scan (30s)...");
+        dom.scanLine.style.display = 'block'; 
         const statusMsg = document.getElementById('tableMsg');
         if(statusMsg) statusMsg.textContent = "⚡ Verificando cambios...";
 
@@ -731,11 +728,14 @@
             
         if(pends && pends.length > 0) {
             for(const p of pends) {
-                await checkStatus(p.id, p.tracking);
-                await new Promise(r => setTimeout(r, 1000)); // 1s pausa entre checks
+                // fromAuto=true para que NO recargue la tabla por cada fila
+                // PERO SÍ actualice los colores con updateRowVisuals
+                await checkStatus(p.id, p.tracking, true);
+                await new Promise(r => setTimeout(r, 800)); // Pausa suave
             }
-            if (!dom.viewList.classList.contains('hidden')) loadPackages(); 
         }
+        
+        dom.scanLine.style.display = 'none'; 
         if(statusMsg) statusMsg.textContent = "";
     }
 
