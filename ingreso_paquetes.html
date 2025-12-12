@@ -32,6 +32,7 @@
       .field { margin-bottom: 16px; position: relative; z-index: 5; }
       .label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
       
+      /* INPUTS */
       input, select { 
           width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border); 
           border-radius: 8px; font-size: 15px; outline: none; 
@@ -46,9 +47,9 @@
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
       .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
-      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
-      @media (max-width: 800px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
-      @media (max-width: 500px) { .filters-grid { grid-template-columns: 1fr; } }
+      /* COLUMNAS DE FILTRO */
+      .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
+      @media (max-width: 900px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
 
       .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 70vh; position: relative; z-index: 1; }
       table { width: 100%; border-collapse: collapse; min-width: 900px; }
@@ -63,7 +64,7 @@
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
-      /* BADGES Y ESTADOS */
+      /* COLORES DE ESTADO */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
@@ -97,6 +98,11 @@
       .ml-status-text { font-size: 10px; display: block; margin-top: 4px; font-weight: 700; }
       .ml-vencido { color: #dc2626; }
       .ml-espera { color: #059669; }
+
+      /* ESTILOS BOTON AUTO */
+      .btn-auto-off { background-color: #64748b !important; color: white; }
+      .btn-auto-on { background-color: #10b981 !important; color: white; animation: pulse-green 2s infinite; }
+      @keyframes pulse-green { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
       .autocomplete-suggestions {
         position: absolute; top: 100%; left: 0; right: 0;
@@ -135,7 +141,7 @@
       .col-nota { font-size: 11px; color: #c2410c; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
       .col-match { font-size: 10px; color: #059669; font-family: monospace; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
       
-      /* CHECKBOX ROW */
+      /* CHECKBOX */
       .check-row {
           display: flex; align-items: center; gap: 10px;
           margin-bottom: 16px; padding: 10px;
@@ -199,7 +205,9 @@
                     <option value="Aduanas">Solo Aduanas</option>
                     <option value="ML">Solo ML</option>
                 </select>
-                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar todos los visibles"><i data-lucide="zap"></i></button>
+                
+                <button id="btnToggleAuto" class="btn btn-auto-off" onclick="toggleAutoUpdate()">⏸️ Auto: OFF</button>
+                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar Manualmente"><i data-lucide="zap"></i></button>
             </div>
 
             <div class="table-wrapper">
@@ -324,7 +332,8 @@
         matchTargetId: document.getElementById('matchTargetId'),
         btnPrev: document.getElementById('btnPrev'),
         btnNext: document.getElementById('btnNext'),
-        pageInfo: document.getElementById('pageInfo')
+        pageInfo: document.getElementById('pageInfo'),
+        btnToggleAuto: document.getElementById('btnToggleAuto') // NUEVO
     };
 
     let selectedClient = null;
@@ -333,6 +342,10 @@
     const pageSize = 50;
     let totalItems = 0;
     let searchDebounce = null;
+    
+    // VARIABLES AUTO-UPDATE
+    let autoUpdateInterval = null;
+    let isAutoUpdateActive = false;
 
     function getTimestamp(val) { if (!val) return 0; const dateStr = typeof val === 'object' ? val.date : val; if (!dateStr) return 0; return new Date(dateStr).getTime(); }
     window.toggleCheck = () => { /* dom.chkEntregado.checked = !dom.chkEntregado.checked; */ };
@@ -421,12 +434,14 @@
 
     // LISTA PAGINADA
     async function loadPackages() {
-        dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando...</td></tr>';
-        
+        dom.tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Cargando página ' + currentPage + '...</td></tr>';
+        dom.tableMsg.textContent = '';
+
         const from = (currentPage - 1) * pageSize;
         const to = from + pageSize - 1;
 
-        let query = supabase.from('seguimiento_interno').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to); 
+        let query = supabase.from('seguimiento_interno').select('*', { count: 'exact' });
+
         if (dom.filterSucursal.value !== 'Todas') query = query.eq('sucursal', dom.filterSucursal.value);
         if (dom.filterClient.value) query = query.or(`cliente_nombre.ilike.%${dom.filterClient.value}%,cliente_box.ilike.%${dom.filterClient.value}%`);
         if (dom.filterTracking.value) query = query.ilike('tracking', `%${dom.filterTracking.value}%`);
@@ -435,20 +450,27 @@
         if (st === 'Activos') query = query.neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta');
         else if (st !== 'Todos') query = query.eq('estado_alerta', st);
 
-        const { data, count, error } = await query;
-        if (error) { dom.tableMsg.textContent = 'Error al cargar.'; return; }
+        query = query.order('created_at', { ascending: false });
+        query = query.range(from, to);
 
-        currentData = data || []; totalItems = count || 0; updatePaginationUI();
+        const { data, count, error } = await query;
+        if (error) { console.error(error); dom.tableMsg.textContent = 'Error al cargar.'; return; }
+
+        currentData = data || [];
+        totalItems = count || 0;
+        updatePaginationUI();
         renderTable(currentData);
     }
 
     function updatePaginationUI() {
         const totalPages = Math.ceil(totalItems / pageSize);
         dom.pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1} (Total: ${totalItems})`;
-        dom.btnPrev.disabled = currentPage === 1; dom.btnNext.disabled = currentPage >= totalPages;
+        dom.btnPrev.disabled = currentPage === 1;
+        dom.btnNext.disabled = currentPage >= totalPages || totalPages === 0;
     }
-    dom.btnPrev.onclick = () => { if(currentPage > 1) { currentPage--; loadPackages(); } };
-    dom.btnNext.onclick = () => { currentPage++; loadPackages(); };
+
+    dom.btnPrev.onclick = () => { if (currentPage > 1) { currentPage--; loadPackages(); } };
+    dom.btnNext.onclick = () => { const total = Math.ceil(totalItems / pageSize); if (currentPage < total) { currentPage++; loadPackages(); } };
 
     const liveSearch = () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(() => { currentPage = 1; loadPackages(); }, 500); };
     dom.filterTracking.oninput = liveSearch; dom.filterClient.oninput = liveSearch; dom.filterSucursal.onchange = liveSearch; dom.filterStatus.onchange = liveSearch;
@@ -488,7 +510,6 @@
             } 
             // LOGICA DEL BOTON "LLEGO"
             else {
-                // Estados donde YA LLEGÓ (No necesitamos preguntar)
                 const statusConocidos = ['Recibido', 'En Proceso de Aduana', 'Miami', 'DG', 'Carga Peligrosa', 'Aduanas', 'ML', 'Carta'];
                 
                 if (!statusConocidos.includes(est)) {
@@ -552,12 +573,11 @@
         if(segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
-            // CALCULAMOS "LAST 6" DEL TRACKING
+            // Calcular últimos 6 dígitos para búsquedas flexibles
             const term = tracking.trim();
             const suffix = term.length > 6 ? term.slice(-6) : term;
 
             // 1. PRIORIDAD: TABLA PAQUETES (YA EN SUCURSAL) -> RECIBIDO
-            // Buscamos exacto OR terminación 6 dígitos
             const { data: sucMatches } = await supabase
                 .from('paquetes')
                 .select('*')
@@ -574,7 +594,7 @@
             const { data: cargaMatches } = await supabase
                 .from('paquetes_cargados')
                 .select('*')
-                .ilike('tracking', `%${suffix}`) // Coincidencia por últimos 6 o parcial
+                .ilike('tracking', `%${suffix}`)
                 .limit(5);
 
             if (cargaMatches && cargaMatches.length > 0) {
@@ -677,16 +697,46 @@
         for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
     };
 
-    // --- AUTOMATIZACION 4 HORAS ---
-    setInterval(() => { autoUpdateRoutine(); }, 30); 
+    // --- NUEVO: FUNCION TOGGLE AUTO-UPDATE ---
+    window.toggleAutoUpdate = () => {
+        isAutoUpdateActive = !isAutoUpdateActive;
+        const btn = dom.btnToggleAuto;
+        
+        if (isAutoUpdateActive) {
+            btn.textContent = "⚡ Auto: ON (30s)";
+            btn.classList.remove('btn-auto-off');
+            btn.classList.add('btn-auto-on');
+            autoUpdateRoutine(); // Ejecutar uno inmediato
+            autoUpdateInterval = setInterval(autoUpdateRoutine, 30000); // 30 segundos
+        } else {
+            btn.textContent = "⏸️ Auto: OFF";
+            btn.classList.remove('btn-auto-on');
+            btn.classList.add('btn-auto-off');
+            clearInterval(autoUpdateInterval);
+        }
+    };
 
     async function autoUpdateRoutine() {
-        console.log("⚡ Auto-Scan Iniciado...");
-        const { data: pends } = await supabase.from('seguimiento_interno').select('*').neq('estado_alerta', 'Recibido').neq('estado_alerta', 'Carta').limit(50);
+        console.log("⚡ Auto-Scan (30s)...");
+        const statusMsg = document.getElementById('tableMsg');
+        if(statusMsg) statusMsg.textContent = "⚡ Verificando cambios...";
+
+        // Traemos los últimos 50 pendientes
+        const { data: pends } = await supabase
+            .from('seguimiento_interno')
+            .select('*')
+            .neq('estado_alerta', 'Recibido')
+            .neq('estado_alerta', 'Carta')
+            .limit(50);
+            
         if(pends && pends.length > 0) {
-            for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r => setTimeout(r, 1000)); }
+            for(const p of pends) {
+                await checkStatus(p.id, p.tracking);
+                await new Promise(r => setTimeout(r, 1000)); // 1s pausa entre checks
+            }
             if (!dom.viewList.classList.contains('hidden')) loadPackages(); 
         }
+        if(statusMsg) statusMsg.textContent = "";
     }
 
 </script>
