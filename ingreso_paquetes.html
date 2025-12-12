@@ -46,7 +46,6 @@
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
       .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
-      /* FILTROS */
       .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
       @media (max-width: 900px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
 
@@ -73,7 +72,6 @@
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
-      /* COLORES DE ESTADO */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; transition: all 0.3s; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
@@ -584,13 +582,15 @@
     // --- CHECK STATUS ---
     window.checkStatus = async (id, tracking, fromAuto = false) => {
         const segCell = document.getElementById(`seg-${id}`);
+        // Solo mostramos "Buscando..." si es clic manual
         if(!fromAuto && segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
             const term = tracking.trim();
-            const suffix = term.length > 6 ? term.slice(-6) : term;
+            // LÓGICA DE 8 DÍGITOS
+            const suffix = term.length > 8 ? term.slice(-8) : term;
 
-            // 1. PRIORIDAD: PAQUETES (YA RECIBIDO)
+            // 1. PRIORIDAD: TABLA PAQUETES (YA EN SUCURSAL) -> RECIBIDO
             const { data: sucMatches } = await supabase.from('paquetes').select('*').or(`tracking.ilike.%${suffix},tracking_global.ilike.%${suffix}`).limit(1);
             if (sucMatches && sucMatches.length > 0) {
                 await applyMatch(id, sucMatches[0], 'Recibido'); 
@@ -599,7 +599,7 @@
                 return;
             }
 
-            // 2. PRIORIDAD: CARGA (EN PROCESO)
+            // 2. PRIORIDAD: TABLA CARGA -> EN PROCESO
             const { data: cargaMatches } = await supabase.from('paquetes_cargados').select('*').ilike('tracking', `%${suffix}`).limit(5);
             if (cargaMatches && cargaMatches.length > 0) {
                 if (cargaMatches.length > 1 && !fromAuto) { 
@@ -613,7 +613,7 @@
                 return;
             }
 
-            // 3. PRIORIDAD: FUZION
+            // 3. PRIORIDAD: FUZION (EXTERNO)
             const { data, error } = await supabase.functions.invoke('trackv3', { body: { tracking: tracking } });
             if (error) throw error;
 
@@ -699,22 +699,26 @@
     // --- NUEVO: AUTO-UPDATE CONTROLADO ---
     window.toggleAutoUpdate = () => {
         isAutoUpdateActive = !isAutoUpdateActive;
+        const btn = dom.btnToggleAuto;
+        
         if (isAutoUpdateActive) {
-            dom.btnToggleAuto.textContent = "⚡ Auto: ON (30s)";
-            dom.btnToggleAuto.classList.remove('btn-auto-off'); dom.btnToggleAuto.classList.add('btn-auto-on');
-            autoUpdateRoutine(); 
-            autoUpdateInterval = setInterval(autoUpdateRoutine, 30000); 
+            btn.textContent = "⚡ Auto: ON (30s)";
+            btn.classList.remove('btn-auto-off');
+            btn.classList.add('btn-auto-on');
+            autoUpdateRoutine(); // Ejecutar uno inmediato
+            autoUpdateInterval = setInterval(autoUpdateRoutine, 30000); // 30 segundos
         } else {
-            dom.btnToggleAuto.textContent = "⏸️ Auto: OFF";
-            dom.btnToggleAuto.classList.remove('btn-auto-on'); dom.btnToggleAuto.classList.add('btn-auto-off');
+            btn.textContent = "⏸️ Auto: OFF";
+            btn.classList.remove('btn-auto-on');
+            btn.classList.add('btn-auto-off');
             clearInterval(autoUpdateInterval);
             dom.scanLine.style.display = 'none';
         }
     };
 
     async function autoUpdateRoutine() {
-        console.log("⚡ Auto-Scan (30s)...");
-        dom.scanLine.style.display = 'block'; 
+        console.log("⚡ Auto-Scan (30s) iniciado...");
+        dom.scanLine.style.display = 'block'; // Mostrar barra verde
         const statusMsg = document.getElementById('tableMsg');
         if(statusMsg) statusMsg.textContent = "⚡ Verificando cambios...";
 
@@ -735,7 +739,7 @@
             }
         }
         
-        dom.scanLine.style.display = 'none'; 
+        dom.scanLine.style.display = 'none'; // Ocultar barra
         if(statusMsg) statusMsg.textContent = "";
     }
 
