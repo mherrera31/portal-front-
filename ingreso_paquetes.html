@@ -46,18 +46,19 @@
       .btn:disabled { opacity: 0.7; cursor: not-allowed; }
       .btn-success { background: #10b981; } .btn-success:hover { background: #059669; }
 
+      /* FILTROS */
       .filters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 16px; position: relative; z-index: 20; }
       @media (max-width: 900px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
 
       .table-container-relative { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); }
       
+      /* BARRA DE PROGRESO REAL */
       .scan-line {
-          position: absolute; top: 0; left: 0; width: 100%; height: 3px;
-          background: linear-gradient(90deg, transparent, #10b981, transparent);
+          position: absolute; top: 0; left: 0; width: 0%; height: 4px;
+          background: #10b981; /* Verde solido */
           z-index: 50; display: none;
-          animation: scan-anim 1.5s infinite;
+          transition: width 0.3s ease; /* Animacion suave */
       }
-      @keyframes scan-anim { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
       .table-wrapper { overflow-x: auto; max-height: 70vh; position: relative; z-index: 1; border: none; }
       table { width: 100%; border-collapse: collapse; min-width: 900px; }
@@ -72,6 +73,7 @@
       .btn-page:hover:not(:disabled) { background: #f3f4f6; }
       .btn-page:disabled { opacity: 0.5; cursor: default; }
 
+      /* ESTADOS */
       .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; border: 1px solid transparent; transition: all 0.3s; }
       .st-pendiente, .st-no-info { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
       .st-miami { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
@@ -84,8 +86,7 @@
       .st-proceso { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
 
       .hidden { display: none !important; visibility: hidden !important; pointer-events: none !important; }
-      .status-msg { margin-top: 10px; text-align: center; font-size: 14px; }
-      .status-msg.success { color: #059669; }
+      .status-msg { margin-top: 10px; text-align: center; font-size: 14px; font-weight: 600; color: #059669; height: 20px; }
       
       .action-row { display: flex; gap: 5px; }
       .action-btn { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; color: var(--fg); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; transition: all 0.2s; }
@@ -205,7 +206,7 @@
                 </select>
                 
                 <button id="btnToggleAuto" class="btn btn-auto-off" onclick="toggleAutoUpdate()">⏸️ Auto: OFF</button>
-                <button id="btnUpdateMassive" class="btn btn-success" title="Actualizar Manualmente"><i data-lucide="zap"></i></button>
+                <button id="btnUpdateMassive" class="btn btn-success" onclick="runManualScan()" title="Actualizar Manualmente"><i data-lucide="zap"></i></button>
             </div>
 
             <div class="table-container-relative">
@@ -237,7 +238,7 @@
                 </div>
             </div>
 
-            <p id="tableMsg" class="status-msg" style="color: #6b7280; font-size:12px;"></p>
+            <p id="tableMsg" class="status-msg"></p>
         </div>
     </div>
 </div>
@@ -582,12 +583,10 @@
     // --- CHECK STATUS ---
     window.checkStatus = async (id, tracking, fromAuto = false) => {
         const segCell = document.getElementById(`seg-${id}`);
-        // Solo mostramos "Buscando..." si es clic manual
         if(!fromAuto && segCell) segCell.textContent = "⏳ Buscando...";
 
         try {
             const term = tracking.trim();
-            // LÓGICA DE 8 DÍGITOS
             const suffix = term.length > 8 ? term.slice(-8) : term;
 
             // 1. PRIORIDAD: TABLA PAQUETES (YA EN SUCURSAL) -> RECIBIDO
@@ -675,7 +674,7 @@
 
     window.openMatchModal = (id, matches, tracking) => {
         dom.matchTargetId.value = id;
-        dom.dispMatchTracking.textContent = tracking; // mostrar tracking buscado
+        dom.dispMatchTracking.textContent = tracking; 
         dom.matchList.innerHTML = matches.map((m, idx) => {
             const box = m.cliente_box || m.box || "S/Box"; const nombre = m.cliente_nombre || m.cliente || "Cliente"; const fecha = m.fecha_bodega || m.created_at || new Date();
             return `<div class="match-item" onclick="selectMatch(${idx})"><div class="match-title">${m.tracking}</div><div class="match-sub"><span class="match-highlight">${nombre} (${box})</span></div><div class="match-sub">${new Date(fecha).toLocaleString()}</div></div>`;
@@ -690,39 +689,41 @@
 
     // Listeners
     dom.filterTracking.oninput = liveSearch; dom.filterClient.oninput = liveSearch; dom.filterSucursal.onchange = liveSearch; dom.filterStatus.onchange = liveSearch;
-    dom.btnUpdateMassive.onclick = async () => {
-        const pends = currentData.filter(p => p.estado_alerta !== 'Recibido' && p.estado_alerta !== 'Carta');
-        if(!confirm(`Actualizar ${pends.length} paquetes?`)) return;
-        for(const p of pends) { await checkStatus(p.id, p.tracking); await new Promise(r=>setTimeout(r,300)); }
+    
+    // BOTON MANUAL (RAYITO)
+    window.runManualScan = async () => {
+        if(!confirm("¿Iniciar actualización manual ahora?")) return;
+        autoUpdateRoutine(true); // Forzar ejecucion
     };
 
-    // --- NUEVO: AUTO-UPDATE CONTROLADO ---
+    // --- NUEVO: AUTO-UPDATE (60s) + BARRA PROGRESO ---
     window.toggleAutoUpdate = () => {
         isAutoUpdateActive = !isAutoUpdateActive;
         const btn = dom.btnToggleAuto;
-        
         if (isAutoUpdateActive) {
-            btn.textContent = "⚡ Auto: ON (30s)";
-            btn.classList.remove('btn-auto-off');
-            btn.classList.add('btn-auto-on');
-            autoUpdateRoutine(); // Ejecutar uno inmediato
-            autoUpdateInterval = setInterval(autoUpdateRoutine, 30000); // 30 segundos
+            btn.textContent = "⚡ Auto: ON (60s)";
+            btn.classList.remove('btn-auto-off'); btn.classList.add('btn-auto-on');
+            autoUpdateRoutine(); 
+            autoUpdateInterval = setInterval(autoUpdateRoutine, 60000); 
         } else {
             btn.textContent = "⏸️ Auto: OFF";
-            btn.classList.remove('btn-auto-on');
-            btn.classList.add('btn-auto-off');
+            btn.classList.remove('btn-auto-on'); btn.classList.add('btn-auto-off');
             clearInterval(autoUpdateInterval);
             dom.scanLine.style.display = 'none';
+            dom.scanLine.style.width = '0%';
+            dom.tableMsg.textContent = "";
         }
     };
 
-    async function autoUpdateRoutine() {
-        console.log("⚡ Auto-Scan (30s) iniciado...");
-        dom.scanLine.style.display = 'block'; // Mostrar barra verde
-        const statusMsg = document.getElementById('tableMsg');
-        if(statusMsg) statusMsg.textContent = "⚡ Verificando cambios...";
+    async function autoUpdateRoutine(manual = false) {
+        const source = manual ? "Manual" : "Auto";
+        console.log(`⚡ ${source}-Scan iniciado...`);
+        
+        dom.scanLine.style.display = 'block'; 
+        dom.scanLine.style.width = '5%'; // Iniciar barra
+        dom.tableMsg.textContent = "⚡ Buscando paquetes...";
 
-        // Traemos los últimos 50 pendientes
+        // Traer pendientes (Max 50)
         const { data: pends } = await supabase
             .from('seguimiento_interno')
             .select('*')
@@ -731,16 +732,41 @@
             .limit(50);
             
         if(pends && pends.length > 0) {
-            for(const p of pends) {
-                // fromAuto=true para que NO recargue la tabla por cada fila
-                // PERO SÍ actualice los colores con updateRowVisuals
+            const total = pends.length;
+            for(let i=0; i < total; i++) {
+                const p = pends[i];
+                
+                // ACTUALIZAR PROGRESO TEXTUAL
+                dom.tableMsg.textContent = `⚡ ${source}: Revisando ${i+1} de ${total} (${p.tracking})...`;
+                
+                // ACTUALIZAR BARRA
+                const pct = Math.round(((i+1)/total)*100);
+                dom.scanLine.style.width = `${pct}%`;
+
+                // REVISAR
                 await checkStatus(p.id, p.tracking, true);
-                await new Promise(r => setTimeout(r, 800)); // Pausa suave
+                await new Promise(r => setTimeout(r, 800)); // Pausa
             }
+            
+            // Finalizado el lote
+            dom.tableMsg.textContent = `✅ ${source}-Scan completado (${total} paquetes).`;
+            
+            // Si es manual, refrescamos la lista entera al final para asegurar
+            if(manual) loadPackages(); 
+            
+        } else {
+            dom.tableMsg.textContent = "✅ No hay paquetes pendientes.";
+            dom.scanLine.style.width = '100%';
         }
         
-        dom.scanLine.style.display = 'none'; // Ocultar barra
-        if(statusMsg) statusMsg.textContent = "";
+        // Limpiar mensaje despues de 3s
+        setTimeout(() => { 
+            if(isAutoUpdateActive && !manual) dom.tableMsg.textContent = "💤 Esperando siguiente ciclo..."; 
+            else dom.tableMsg.textContent = "";
+            
+            dom.scanLine.style.display = 'none';
+            dom.scanLine.style.width = '0%';
+        }, 3000);
     }
 
 </script>
