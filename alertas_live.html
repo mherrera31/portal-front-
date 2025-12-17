@@ -232,8 +232,9 @@
             }
 
             // --- 3. ENTREGADO SEGÚN CARRIER (NARANJA - >5 Días) ---
-            // Solo si TIENE fecha_entrega_miami (Puesto manual)
-            if (p.fecha_entrega_miami) {
+            // CORRECCION: Solo si TIENE fecha_entrega_miami 
+            // Y NO ESTÁ en estados avanzados (En Proceso, Alerta, etc)
+            if (p.fecha_entrega_miami && status !== 'En Proceso de Aduana' && status !== 'Alerta') {
                 const dias = Math.floor((now - new Date(p.fecha_entrega_miami)) / 864e5);
                 if (dias > 5) {
                     p.diasCalc = dias;
@@ -245,9 +246,9 @@
             // --- 4. SIN RECIBIR (ROJO - >10 Días) ---
             // Solo entra si:
             // a) NO tiene fecha entrega manual
-            // b) NO es un status de éxito/proceso (Miami, Aduanas)
+            // b) NO es un status de éxito/proceso (Miami, Aduanas, En Proceso, Alerta)
             // c) Tiene > 10 días de creado
-            if (!p.fecha_entrega_miami && status !== 'Miami' && status !== 'Aduanas') {
+            if (!p.fecha_entrega_miami && status !== 'Miami' && status !== 'Aduanas' && status !== 'En Proceso de Aduana' && status !== 'Alerta') {
                 const dias = Math.floor((now - new Date(p.created_at)) / 864e5);
                 if (dias > 10) {
                     p.diasCalc = dias;
