@@ -6,30 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🚨</text></svg>" />
     
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
     <style>
       :root {
         --bg: #111827; --fg: #f3f4f6; --card: #1f2937; --border: #374151;
-        
-        /* 1. ROJO: Sin Recibir (>10 dias) */
         --red-bg: #450a0a; --red-border: #7f1d1d; --red-text: #fecaca;
-        
-        /* 2. NARANJA: Entregado Carrier (>5 dias) */
         --orange-bg: #431407; --orange-border: #7c2d12; --orange-text: #fdba74;
-        
-        /* 3. AMARILLO: Carga Peligrosa (Info) */
         --yellow-bg: #422006; --yellow-border: #713f12; --yellow-text: #fde68a;
-        
-        /* 4. VERDE: Mal Identificado (Gestión) */
         --green-bg: #14532d; --green-border: #166534; --green-text: #bbf7d0;
-
         --blue-btn: #2563eb; --blue-hover: #1d4ed8;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
+      body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, sans-serif; padding: 20px; }
       
       .container { max-width: 1600px; margin: 0 auto; }
       
@@ -40,10 +27,9 @@
 
       .controls { display: flex; gap: 15px; align-items: center; }
       select { background: var(--card); color: white; border: 1px solid var(--border); padding: 10px; border-radius: 8px; outline: none; min-width: 200px; }
-      .btn-refresh { background: #2563eb; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+      .btn-refresh { background: #2563eb; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 600; }
       .btn-refresh:hover { background: #1d4ed8; }
 
-      /* GRID DE 4 COLUMNAS */
       .alerts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; height: calc(100vh - 120px); }
       @media (max-width: 1200px) { .alerts-grid { grid-template-columns: 1fr 1fr; height: auto; } }
       @media (max-width: 600px) { .alerts-grid { grid-template-columns: 1fr; height: auto; } }
@@ -51,7 +37,6 @@
       .alert-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 400px; }
       .card-header { padding: 12px; font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.2); text-transform: uppercase; letter-spacing: 0.5px; }
       
-      /* ASIGNACION DE COLORES */
       .type-sinrecibir .card-header { background: var(--red-bg); color: var(--red-text); border-bottom-color: var(--red-border); }
       .type-entregado .card-header { background: var(--orange-bg); color: var(--orange-text); border-bottom-color: var(--orange-border); }
       .type-dg .card-header { background: var(--yellow-bg); color: var(--yellow-text); border-bottom-color: var(--yellow-border); }
@@ -59,13 +44,7 @@
 
       .card-body { padding: 10px; flex: 1; overflow-y: auto; }
       
-      /* ITEMS */
-      .item { 
-          background: rgba(255,255,255,0.03); 
-          border: 1px solid rgba(255,255,255,0.05);
-          margin-bottom: 10px; padding: 10px; border-radius: 8px; 
-          border-left: 4px solid transparent; 
-      }
+      .item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; padding: 10px; border-radius: 8px; border-left: 4px solid transparent; }
       .type-sinrecibir .item { border-left-color: #ef4444; }
       .type-entregado .item { border-left-color: #f97316; }
       .type-dg .item { border-left-color: #eab308; }
@@ -74,24 +53,20 @@
       .item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
       .trk { font-weight: bold; font-family: monospace; font-size: 14px; color: white; word-break: break-all; }
       .days-badge { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; color: #111827; white-space: nowrap; }
-      
       .client-info { font-size: 12px; color: #9ca3af; margin-bottom: 6px; }
       .meta-info { font-size: 11px; color: #6b7280; display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-top: 6px; align-items: center; }
 
-      .btn-action { 
-          background: var(--blue-btn); color: white; border: none; 
-          padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; 
-          cursor: pointer; display: flex; align-items: center; gap: 4px; margin-left: auto;
-      }
+      .btn-action { background: var(--blue-btn); color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; margin-left: auto; }
       .btn-action:hover { background: var(--blue-hover); }
 
       .empty-state { padding: 40px; text-align: center; color: #6b7280; font-style: italic; font-size: 13px; }
       .loading { padding: 20px; text-align: center; color: #9ca3af; }
-      
-      /* ML STATES */
       .ml-urgent { color: #f87171; font-weight: bold; }
       .ml-waiting { color: #4ade80; }
     </style>
+    
+    <script src="config.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
 
@@ -103,11 +78,9 @@
         </h1>
         
         <div class="controls">
-            <select id="filterSucursal" onchange="loadAlerts()">
-                <option value="Todas">Cargando sucursales...</option>
-            </select>
-            <button class="btn-refresh" onclick="loadAlerts()">
-                <i data-lucide="refresh-cw" style="width: 16px;"></i> Actualizar
+            <select id="filterSucursal"><option value="Todas">Cargando...</option></select>
+            <button id="btnRefresh" class="btn-refresh">
+                <i data-lucide="refresh-cw" width="16"></i> Actualizar
             </button>
         </div>
     </div>
@@ -149,55 +122,84 @@
     </div>
 </div>
 
-<script>
-    if (typeof window.PSC_CONFIG === 'undefined') alert("Error: Falta config.js");
-    const supabase = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+<script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    if (typeof window.PSC_CONFIG === 'undefined') {
+        alert("Error crítico: config.js no se cargó correctamente.");
+        throw new Error("Falta config.js");
+    }
+
+    const supabase = createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
     lucide.createIcons();
 
+    // Referencias DOM
+    const dom = {
+        filterSucursal: document.getElementById('filterSucursal'),
+        btnRefresh: document.getElementById('btnRefresh'),
+        listSinRecibir: document.getElementById('list-sinrecibir'),
+        listEntregado: document.getElementById('list-entregado'),
+        listDg: document.getElementById('list-dg'),
+        listMl: document.getElementById('list-ml'),
+        countSinRecibir: document.getElementById('count-sinrecibir'),
+        countEntregado: document.getElementById('count-entregado'),
+        countDg: document.getElementById('count-dg'),
+        countMl: document.getElementById('count-ml')
+    };
+
+    // Inicializar
     async function init() {
         await loadBranches();
-        loadAlerts();
-        setInterval(loadAlerts, 60000); // Auto-refresh 1 min
+        await loadAlerts();
+        
+        // Listeners
+        dom.filterSucursal.addEventListener('change', loadAlerts);
+        dom.btnRefresh.addEventListener('click', loadAlerts);
+        
+        // Auto-refresh cada 60s
+        setInterval(loadAlerts, 60000);
     }
+    
+    // Ejecutar inicio
     init();
 
     async function loadBranches() {
-        const { data } = await supabase.from('sucursales').select('sucursal').order('sucursal', { ascending: true });
-        const select = document.getElementById('filterSucursal');
-        if (data) {
-            select.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
-            data.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.sucursal; opt.textContent = s.sucursal;
-                select.appendChild(opt);
-            });
-        }
+        try {
+            const { data } = await supabase.from('sucursales').select('sucursal').order('sucursal', { ascending: true });
+            if (data) {
+                dom.filterSucursal.innerHTML = '<option value="Todas">Todas las Sucursales</option>';
+                data.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.sucursal;
+                    opt.textContent = s.sucursal;
+                    dom.filterSucursal.appendChild(opt);
+                });
+            }
+        } catch (e) { console.error("Error sucursales", e); }
     }
 
     async function loadAlerts() {
-        const sucursal = document.getElementById('filterSucursal').value;
-        const listSinRecibir = document.getElementById('list-sinrecibir');
-        const listEntregado = document.getElementById('list-entregado');
-        const listDg = document.getElementById('list-dg');
-        const listMl = document.getElementById('list-ml');
+        const sucursal = dom.filterSucursal.value;
         
-        // Indicador de carga
-        listSinRecibir.innerHTML = '<div class="loading">...</div>';
-        listEntregado.innerHTML = '<div class="loading">...</div>';
-        listDg.innerHTML = '<div class="loading">...</div>';
-        listMl.innerHTML = '<div class="loading">...</div>';
+        // Set Loading
+        [dom.listSinRecibir, dom.listEntregado, dom.listDg, dom.listMl].forEach(el => el.innerHTML = '<div class="loading">Cargando...</div>');
 
-        // CONSULTA PRINCIPAL: Todo lo activo EXCEPTO 'Recibido' Y EXCEPTO 'Carta'
+        // CONSULTA BASE
         let query = supabase
             .from('seguimiento_interno')
             .select('*')
             .neq('estado_alerta', 'Recibido')
-            .neq('estado_alerta', 'Carta'); 
+            .neq('estado_alerta', 'Carta');
 
         if (sucursal !== 'Todas') query = query.eq('sucursal', sucursal);
         
         const { data, error } = await query;
-        if(error || !data) return;
+        
+        if (error) {
+            console.error(error);
+            dom.listSinRecibir.innerHTML = `<div class="empty-state text-red-500">Error: ${error.message}</div>`;
+            return;
+        }
 
         const now = new Date();
         const arrSinRecibir = [];
@@ -205,50 +207,42 @@
         const arrDg = [];
         const arrMl = [];
 
-        // CLASIFICACION INTELIGENTE
+        // --- CLASIFICACIÓN ---
         data.forEach(p => {
             const status = p.estado_alerta || 'Pendiente';
             
-            // --- 1. MAL IDENTIFICADO (VERDE) ---
+            // 1. MAL IDENTIFICADO (Verde)
             if (status === 'ML') {
-                if (p.fecha_solicitud) {
-                    // Ya se solicitó info, contar días desde solicitud
-                    p.diasCalc = Math.floor((now - new Date(p.fecha_solicitud)) / 864e5);
-                    p.needsAction = false;
-                } else {
-                    // No se ha solicitado, urgente
-                    p.diasCalc = 0;
-                    p.needsAction = true;
-                }
+                p.diasCalc = p.fecha_solicitud ? Math.floor((now - new Date(p.fecha_solicitud)) / 864e5) : 0;
+                p.needsAction = !p.fecha_solicitud;
                 arrMl.push(p);
-                return; // Clasificado, pasamos al siguiente
+                return;
             }
 
-            // --- 2. CARGA PELIGROSA (AMARILLO - Informativo) ---
+            // 2. CARGA PELIGROSA (Amarillo)
             if (status === 'Carga Peligrosa' || status === 'DG') {
                 p.diasCalc = Math.floor((now - new Date(p.created_at)) / 864e5);
                 arrDg.push(p);
-                return; // Clasificado
+                return;
             }
 
-            // --- 3. ENTREGADO SEGÚN CARRIER (NARANJA - >5 Días) ---
-            // CORRECCION: Solo si TIENE fecha_entrega_miami 
-            // Y NO ESTÁ en estados avanzados (En Proceso, Alerta, etc)
-            if (p.fecha_entrega_miami && status !== 'En Proceso de Aduana' && status !== 'Alerta') {
+            // 3. ENTREGADO CARRIER (Naranja - >5 días)
+            // Lógica: Tiene fecha entrega carrier PERO no ha sido procesado internamente
+            // Excluimos: En Proceso, Alerta, Miami, Aduanas, Transito, Recibido
+            const isSafeStatus = ['En Proceso de Aduana', 'Alerta', 'Miami', 'Aduanas', 'Tránsito', 'Recibido', 'Carta'].includes(status);
+            
+            if (p.fecha_entrega_miami && !isSafeStatus) {
                 const dias = Math.floor((now - new Date(p.fecha_entrega_miami)) / 864e5);
                 if (dias > 5) {
                     p.diasCalc = dias;
                     arrEntregado.push(p);
                 }
-                return; // Clasificado
+                return;
             }
 
-            // --- 4. SIN RECIBIR (ROJO - >10 Días) ---
-            // Solo entra si:
-            // a) NO tiene fecha entrega manual
-            // b) NO es un status de éxito/proceso (Miami, Aduanas, En Proceso, Alerta)
-            // c) Tiene > 10 días de creado
-            if (!p.fecha_entrega_miami && status !== 'Miami' && status !== 'Aduanas' && status !== 'En Proceso de Aduana' && status !== 'Alerta') {
+            // 4. SIN RECIBIR (Rojo - >10 días)
+            // Lógica: No hay fecha entrega carrier, y sigue en estados iniciales
+            if (!p.fecha_entrega_miami && !isSafeStatus) {
                 const dias = Math.floor((now - new Date(p.created_at)) / 864e5);
                 if (dias > 10) {
                     p.diasCalc = dias;
@@ -257,44 +251,41 @@
             }
         });
 
-        // RENDERIZAR LAS LISTAS
-        renderList(listSinRecibir, arrSinRecibir, 'sinrecibir');
-        renderList(listEntregado, arrEntregado, 'entregado');
-        renderList(listDg, arrDg, 'dg');
-        renderList(listMl, arrMl, 'ml');
+        // RENDER
+        renderList(dom.listSinRecibir, arrSinRecibir, 'sinrecibir');
+        renderList(dom.listEntregado, arrEntregado, 'entregado');
+        renderList(dom.listDg, arrDg, 'dg');
+        renderList(dom.listMl, arrMl, 'ml');
 
-        // ACTUALIZAR CONTADORES
-        document.getElementById('count-sinrecibir').textContent = arrSinRecibir.length;
-        document.getElementById('count-entregado').textContent = arrEntregado.length;
-        document.getElementById('count-dg').textContent = arrDg.length;
-        document.getElementById('count-ml').textContent = arrMl.length;
+        // CONTADORES
+        dom.countSinRecibir.textContent = arrSinRecibir.length;
+        dom.countEntregado.textContent = arrEntregado.length;
+        dom.countDg.textContent = arrDg.length;
+        dom.countMl.textContent = arrMl.length;
         
         lucide.createIcons();
     }
 
     function renderList(container, items, type) {
-        if (items.length === 0) {
+        if (!items.length) {
             container.innerHTML = `<div class="empty-state">✅ Todo limpio</div>`;
             return;
         }
 
-        // Ordenar por antigüedad (Más urgente primero)
         items.sort((a, b) => b.diasCalc - a.diasCalc);
 
-        const html = items.map(p => {
+        container.innerHTML = items.map(p => {
             let badgeColor = '#e5e7eb';
             let labelTiempo = '';
             let extraAction = '';
 
             if (type === 'ml') {
                 badgeColor = '#bbf7d0';
-                
                 if (p.needsAction) {
-                    // BOTON DE SOLICITAR
                     labelTiempo = 'Acción Requerida';
-                    extraAction = `<button class="btn-action" onclick="marcarSolicitado('${p.id}')"><i data-lucide="send" width="12"></i> Solicitar</button>`;
+                    // Usamos window.marcarSolicitado que definiremos globalmente
+                    extraAction = `<button class="btn-action" onclick="window.marcarSolicitado('${p.id}')"><i data-lucide="send" width="12"></i> Solicitar</button>`;
                 } else {
-                    // CUENTA REGRESIVA
                     if (p.diasCalc > 3) {
                         labelTiempo = `VENCIDO (${p.diasCalc}d)`;
                         extraAction = `<span class="ml-urgent">⚠️ Urgente</span>`;
@@ -305,37 +296,29 @@
                     }
                 }
             } 
-            else if (type === 'sinrecibir') { // Rojo
-                badgeColor = '#fecaca'; 
-                labelTiempo = `Espera: ${p.diasCalc}d`;
-            } 
-            else if (type === 'entregado') { // Naranja
-                badgeColor = '#fdba74';
-                labelTiempo = `Entrega: ${p.diasCalc}d`;
-            }
-            else if (type === 'dg') { // Amarillo
-                badgeColor = '#fde68a';
-                labelTiempo = `Antigüedad: ${p.diasCalc}d`;
-            }
+            else if (type === 'sinrecibir') { badgeColor = '#fecaca'; labelTiempo = `Espera: ${p.diasCalc}d`; } 
+            else if (type === 'entregado') { badgeColor = '#fdba74'; labelTiempo = `Entrega: ${p.diasCalc}d`; }
+            else if (type === 'dg') { badgeColor = '#fde68a'; labelTiempo = `Antigüedad: ${p.diasCalc}d`; }
 
+            // Escapar comillas para JS
+            const safeTracking = (p.tracking || '').replace(/'/g, "\\'");
+            
             return `
             <div class="item">
                 <div class="item-top">
-                    <span class="trk">${p.tracking}</span>
+                    <span class="trk">${safeTracking}</span>
                     <span class="days-badge" style="background:${badgeColor}">${labelTiempo}</span>
                 </div>
-                <div class="client-info">${p.cliente_nombre} (${p.cliente_box})</div>
+                <div class="client-info">${p.cliente_nombre || 'Sin Nombre'} (${p.cliente_box || 'N/A'})</div>
                 <div class="meta-info">
                     <span>${p.sucursal || 'Centro'}</span>
                     ${extraAction}
                 </div>
             </div>`;
         }).join('');
-
-        container.innerHTML = html;
     }
 
-    // ACCIÓN ML
+    // EXPORTAR FUNCIONES AL WINDOW (Para que funcionen los onclick)
     window.marcarSolicitado = async (id) => {
         if (!confirm("¿Confirmar solicitud al cliente?")) return;
         const { error } = await supabase.from('seguimiento_interno').update({ fecha_solicitud: new Date().toISOString() }).eq('id', id);
@@ -344,6 +327,5 @@
     };
 
 </script>
-
 </body>
 </html>
