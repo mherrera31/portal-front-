@@ -53,7 +53,9 @@
 <script>
     // Configuración Supabase
     if (typeof window.PSC_CONFIG === 'undefined') alert("Falta config.js");
-    const supabase = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
+
+    // CORRECCIÓN: Usamos 'supabaseClient' en lugar de 'supabase' para evitar conflicto de nombres
+    const supabaseClient = window.supabase.createClient(window.PSC_CONFIG.supabaseUrl, window.PSC_CONFIG.supabaseAnonKey);
 
     const btn = document.getElementById('btnConsultar');
     const input = document.getElementById('tracking');
@@ -91,7 +93,8 @@
         output.innerHTML = "Conectando con Edge Function trackv3...";
 
         try {
-            const { data, error } = await supabase.functions.invoke('trackv3', {
+            // CORRECCIÓN: Usamos supabaseClient aquí
+            const { data, error } = await supabaseClient.functions.invoke('trackv3', {
                 body: { tracking: tracking }
             });
 
